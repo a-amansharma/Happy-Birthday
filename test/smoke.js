@@ -66,23 +66,23 @@ t('daily question of today returns string', typeof HB.dailyQuestionOfToday() ===
 t('quiz categories', HB.QUIZ_CATEGORIES.length === 6);
 
 // set profile then chat
-HB.state.profile.name = 'Aman';
-HB.state.profile.partner = 'Priya';
+HB.state.profile.name = 'Him';
+HB.state.profile.partner = 'Her';
 HB.state.profile.relationship = 'Long Distance';
 HB.state.profile.vibes = [{ label: 'Romantic', emoji: '🌹' }];
 HB.state.profile.chatStyle = [{ label: 'Funny', emoji: '😂' }];
 
-t('couple() with names', HB.couple() === 'Aman ♡ Priya');
-t('firstNames', HB.firstNames().partner === 'Priya');
+t('couple() with names', HB.couple() === 'Him ♡ Her');
+t('firstNames', HB.firstNames().partner === 'Her');
 
 const intro = HB.chatIntro();
-t('chatIntro uses names', intro.text.indexOf('Aman') !== -1 && intro.text.indexOf('Priya') !== -1);
+t('chatIntro uses names', intro.text.indexOf('Him') !== -1 && intro.text.indexOf('Her') !== -1);
 
-const r1 = HB.chatReply('I miss Priya.');
-t('miss intent', r1.indexOf('Priya') !== -1);
+const r1 = HB.chatReply('I miss Her.');
+t('miss intent', r1.indexOf('Her') !== -1);
 
 const r2 = HB.chatReply('Write a Love Note');
-t('lovenote quick action', r2.indexOf('Priya') !== -1);
+t('lovenote quick action', r2.indexOf('Her') !== -1);
 
 const r3 = HB.chatReply('Cheer Me Up');
 t('cheerup', typeof r3 === 'string' && r3.length > 10);
@@ -94,7 +94,7 @@ const r5 = HB.chatReply('Make Me Laugh');
 t('laugh', typeof r5 === 'string' && r5.length > 10);
 
 const r6 = HB.chatReply('Help Me Apologize');
-t('apologize', r6.indexOf('Priya') !== -1);
+t('apologize', r6.indexOf('Her') !== -1);
 
 const r7 = HB.chatReply('hi');
 t('hello intent', typeof r7 === 'string');
@@ -112,7 +112,7 @@ const tpl = HB.noteTemplates['Good Morning'].Sweet[0];
 t('note template has partner placeholder', tpl.indexOf('{partner}') !== -1);
 
 // quiz score message
-t('quiz score msg', HB.quizScoreMessage(92, { me: 'Aman', partner: 'Priya' }).indexOf('92%') !== -1);
+t('quiz score msg', HB.quizScoreMessage(92, { me: 'Him', partner: 'Her' }).indexOf('92%') !== -1);
 
 // icons
 t('icon svg', HB.icon('heart').indexOf('<svg') === 0);
