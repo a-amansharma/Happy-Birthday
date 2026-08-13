@@ -1,0 +1,431 @@
+/* ============================================================
+   CORE — state, storage, router, toasts, audio, background
+   Global namespace: window.HB
+   ============================================================ */
+(function () {
+  'use strict';
+
+  var KEY = 'ourLittleWorld_v1';
+
+  var DEFAULT_STATE = {
+    onboarded: false,
+    profile: {
+      name: '',
+      partner: '',
+      age: '',
+      partnerAge: '',
+      relationship: '',
+      vibes: [],
+      chatStyle: [],
+      story: '',
+      theme: 'milk',
+      togetherSince: ''
+    },
+    chatHistory: [],
+    loveNotes: [],
+    dailyAnswers: [],
+    memories: [],
+    specialDates: [],
+    settings: {
+      music: false,
+      notifications: true,
+      privacy: true
+    }
+  };
+
+  function loadState() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (!raw) return deepCopy(DEFAULT_STATE);
+      var parsed = JSON.parse(raw);
+      var merged = deepCopy(DEFAULT_STATE);
+      deepMerge(merged, parsed);
+      return merged;
+    } catch (e) {
+      return deepCopy(DEFAULT_STATE);
+    }
+  }
+
+  function deepCopy(o) { return JSON.parse(JSON.stringify(o)); }
+  function deepMerge(base, extra) {
+    for (var k in extra) {
+      if (extra[k] && typeof extra[k] === 'object' && !Array.isArray(extra[k]) && base[k] && typeof base[k] === 'object') {
+        deepMerge(base[k], extra[k]);
+      } else {
+        base[k] = extra[k];
+      }
+    }
+    return base;
+  }
+
+  var HB = window.HB = window.HB || {};
+
+  HB.state = loadState();
+
+  HB.save = function () {
+    try { localStorage.setItem(KEY, JSON.stringify(HB.state)); } catch (e) {}
+  };
+
+  HB.uid = function () {
+    return 'id' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  };
+
+  HB.esc = function (s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  };
+
+  HB.couple = function () {
+    var p = HB.state.profile;
+    if (p.name && p.partner) return p.name + ' ♡ ' + p.partner;
+    if (p.name) return p.name;
+    return 'You two';
+  };
+
+  HB.firstNames = function () {
+    var p = HB.state.profile;
+    return { me: p.name || 'you', partner: p.partner || 'your person' };
+  };
+
+  /* ---------------- Router ---------------- */
+  var routes = {};
+  var current = '';
+
+  HB.route = function (path, render) { routes[path] = render; };
+
+  HB.navigate = function (path, opts) {
+    if (location.hash === '#' + path) {
+      render();
+    } else {
+      location.hash = path;
+    }
+    if (opts && opts.scrollTop) window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  function render() {
+    var path = location.hash.replace(/^#/, '') || '/';
+    if (routes[path]) {
+      current = path;
+      var main = document.getElementById('main');
+      main.innerHTML = '';
+      routes[path](main);
+      HB.updateNav();
+      window.scrollTo(0, 0);
+    }
+  }
+
+  window.addEventListener('hashchange', render);
+
+  HB.updateNav = function () {
+    var navItems = [
+      { path: '/', icon: HB.icon('home'), label: 'Home' },
+      { path: '/chat', icon: HB.icon('chat'), label: 'Chat', badge: 'talk' },
+      { path: '/notes', icon: HB.icon('note'), label: 'Love Notes' },
+      { path: '/daily', icon: HB.icon('sun'), label: 'Daily Question' },
+      { path: '/memories', icon: HB.icon('camera'), label: 'Memories' },
+      { path: '/quiz', icon: HB.icon('dice'), label: 'Couple Quiz' },
+      { path: '/dates', icon: HB.icon('calendar'), label: 'Date Ideas' },
+      { path: '/special', icon: HB.icon('heart'), label: 'Special Dates' },
+      { path: '/settings', icon: HB.icon('gear'), label: 'Settings' }
+    ];
+    var labels = { home: 'Home', chat: 'Chat', notes: 'Notes', daily: 'Daily', memories: 'Memories', quiz: 'Quiz', dates: 'Dates', special: 'Dates', settings: 'Settings' };
+
+    var sb = document.getElementById('sidebar');
+    var bn = document.getElementById('bottom-nav');
+
+    var logo = '<div class="sidebar-logo">' + HB.bearMiniSVG() +
+      '<div><div class="logo-text">Our Little World</div><div class="logo-sub">' + HB.esc(HB.couple()) + '</div></div></div>';
+
+    var items = navItems.map(function (n) {
+      var active = current === n.path ? ' active' : '';
+      var badge = n.badge === 'talk' && HB.state.chatHistory.length === 0 ? '' : '';
+      return '<button class="nav-item' + active + '" data-path="' + n.path + '">' + n.icon + '<span>' + n.label + '</span>' + badge + '</button>';
+    }).join('');
+
+    var footer = '<div class="sidebar-footer"><div class="sf-name">' + HB.esc(HB.couple()) + '</div>' +
+      '<div class="sf-sub">made with ♡, just for you two</div></div>';
+
+    sb.innerHTML = logo + items + footer;
+
+    var bnItems = navItems.slice(0, 5).map(function (n) {
+      var active = current === n.path ? ' active' : '';
+      return '<button class="bn-item' + active + '" data-path="' + n.path + '"><span style="position:relative">' + n.icon + '</span><span>' + labels[n.path.replace('/', '')] + '</span></button>';
+    }).join('') +
+      '<button class="bn-item' + (current === '/more' ? ' active' : '') + '" data-path="/more"><span style="position:relative">' + HB.icon('more') + '</span><span>More</span></button>';
+    bn.innerHTML = bnItems;
+
+    sb.querySelectorAll('.nav-item').forEach(function (el) {
+      el.addEventListener('click', function () { HB.navigate(el.dataset.path); });
+    });
+    bn.querySelectorAll('[data-path]').forEach(function (el) {
+      el.addEventListener('click', function () { HB.navigate(el.dataset.path); });
+    });
+
+    document.body.className = document.body.className.replace(/theme-[a-z]+/, '').trim();
+    document.body.classList.add('theme-' + (HB.state.profile.theme || 'milk'));
+  };
+
+  /* Mobile "more" menu */
+  HB.route('/more', function (main) {
+    var pages = [
+      ['notes', 'Love Notes', '♡'], ['daily', 'Daily Question', '☀'], ['memories', 'Memories', '📸'],
+      ['quiz', 'Couple Quiz', '🎲'], ['dates', 'Date Ideas', '🌙'], ['special', 'Special Dates', '⏳'], ['settings', 'Settings', '⚙']
+    ];
+    var cards = pages.map(function (p) {
+      return '<button class="card card-hover dash-tile" data-path="/' + p[0] + '"><div class="dt-icon">' + p[2] + '</div><div class="dt-title">' + p[1] + '</div><div class="dt-go">Open →</div></button>';
+    }).join('');
+    main.innerHTML = '<div class="page"><div class="section-title"><h3>Everything</h3><span class="hand">all your little things</span></div><div class="dash-grid">' + cards + '</div></div>';
+    main.querySelectorAll('[data-path]').forEach(function (el) {
+      el.addEventListener('click', function () { HB.navigate(el.dataset.path); });
+    });
+  });
+
+  /* ---------------- Toasts ---------------- */
+  HB.toast = function (msg, emoji) {
+    var box = document.getElementById('toasts');
+    var el = document.createElement('div');
+    el.className = 'toast';
+    el.innerHTML = (emoji ? '<span class="t-emoji">' + emoji + '</span>' : '') + '<span>' + HB.esc(msg) + '</span>';
+    box.appendChild(el);
+    setTimeout(function () {
+      el.classList.add('out');
+      setTimeout(function () { el.remove(); }, 400);
+    }, 2800);
+  };
+
+  /* ---------------- Modal ---------------- */
+  HB.modal = function (opts) {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML =
+      '<div class="modal" role="dialog">' +
+      '<button class="modal-close" data-close>✕</button>' +
+      '<div class="modal-title">' + HB.esc(opts.title) + '</div>' +
+      (opts.text ? '<div class="modal-text">' + opts.text + '</div>' : '') +
+      '<div class="modal-body">' + (opts.body || '') + '</div>' +
+      '<div class="modal-actions"></div>' +
+      '</div>';
+    var actions = overlay.querySelector('.modal-actions');
+    (opts.actions || []).forEach(function (a) {
+      var b = document.createElement('button');
+      b.className = 'btn ' + (a.kind || 'btn-soft') + ' btn-sm';
+      b.textContent = a.label;
+      b.addEventListener('click', function () {
+        var res = a.onClick ? a.onClick(overlay) : true;
+        if (res !== false) close();
+      });
+      actions.appendChild(b);
+    });
+    function close() {
+      overlay.style.animation = 'fadeUp 0.25s reverse var(--ease)';
+      setTimeout(function () { overlay.remove(); }, 250);
+    }
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay || e.target.closest('[data-close]')) close();
+    });
+    document.body.appendChild(overlay);
+    return overlay;
+  };
+
+  HB.confirm = function (title, text, onYes, yesLabel) {
+    HB.modal({
+      title: title,
+      text: text,
+      actions: [
+        { label: 'Cancel', kind: 'btn-ghost' },
+        { label: yesLabel || 'Yes, do it', kind: 'btn-danger', onClick: function (ov) { onYes(ov); return false; } }
+      ]
+    });
+  };
+
+  /* ---------------- Particles (hearts confetti) ---------------- */
+  var canvas, ctx, parts = [], raf = null;
+
+  function setupCanvas() {
+    canvas = document.getElementById('particles');
+    ctx = canvas.getContext('2d');
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    resize();
+    window.addEventListener('resize', resize);
+  }
+
+  function spawnParticles(x, y, n) {
+    for (var i = 0; i < n; i++) {
+      parts.push({
+        x: x, y: y,
+        vx: (Math.random() - 0.5) * 6,
+        vy: -Math.random() * 6 - 2,
+        size: 10 + Math.random() * 14,
+        rot: Math.random() * Math.PI,
+        vr: (Math.random() - 0.5) * 0.3,
+        life: 1,
+        decay: 0.012 + Math.random() * 0.012,
+        color: Math.random() > 0.5 ? '#E8A0A8' : '#C89F7B'
+      });
+    }
+    if (!raf) loop();
+  }
+
+  function loop() {
+    raf = requestAnimationFrame(loop);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    parts = parts.filter(function (p) { return p.life > 0; });
+    parts.forEach(function (p) {
+      p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.rot += p.vr; p.life -= p.decay;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.globalAlpha = Math.max(p.life, 0);
+      ctx.font = p.size + 'px serif';
+      ctx.fillStyle = p.color;
+      ctx.fillText('♥', -p.size / 2, p.size / 2);
+      ctx.restore();
+    });
+    if (parts.length === 0) { cancelAnimationFrame(raf); raf = null; }
+  }
+
+  HB.burst = function (x, y, n) { spawnParticles(x, y, n || 18); };
+
+  /* Heart trail on click */
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('.btn, .nav-item, .bn-item, .dash-tile, .chip')) {
+      HB.burst(e.clientX, e.clientY, 8);
+    }
+  });
+
+  /* ---------------- Cute ambient music (Web Audio music box) ---------------- */
+  var audioCtx = null, musicGain = null, musicTimer = null, musicOn = false;
+
+  var SCALE = [523.25, 587.33, 659.25, 698.46, 783.99, 880.00, 987.77]; // C major pentatonic-ish
+  var MELODY = [0, 2, 4, 2, 5, 4, 2, 1, 0, 2, 4, 5, 4, 3, 2, 1]; // simple lullaby
+
+  function ensureAudio() {
+    if (!audioCtx) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AC();
+      musicGain = audioCtx.createGain();
+      musicGain.gain.value = 0;
+      musicGain.connect(audioCtx.destination);
+      musicGain.gain.linearRampToValueAtTime(0.18, audioCtx.currentTime + 2);
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  }
+
+  function playTone(freq, time, dur, type, vol) {
+    var osc = audioCtx.createOscillator();
+    var g = audioCtx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.value = freq;
+    g.gain.setValueAtTime(0, time);
+    g.gain.linearRampToValueAtTime(vol || 0.5, time + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, time + dur);
+    osc.connect(g); g.connect(musicGain);
+    osc.start(time); osc.stop(time + dur + 0.05);
+  }
+
+  var step = 0;
+  function tick() {
+    if (!musicOn || !audioCtx) return;
+    var t = audioCtx.currentTime;
+    var note = MELODY[step % MELODY.length];
+    var freq = SCALE[note];
+    playTone(freq, t, 1.1, 'sine', 0.35);
+    playTone(freq * 2, t, 0.5, 'triangle', 0.12);
+    // soft bass drone
+    playTone(freq / 2, t, 1.4, 'sine', 0.1);
+    step++;
+  }
+
+  HB.music = {
+    toggle: function () {
+      ensureAudio();
+      musicOn = !musicOn;
+      HB.state.settings.music = musicOn;
+      HB.save();
+      var btn = document.getElementById('music-btn');
+      if (musicOn) {
+        btn.classList.add('playing');
+        HB.toast('Soft music is playing ♪', '🎵');
+        step = 0;
+        tick();
+        musicTimer = setInterval(tick, 1400);
+      } else {
+        btn.classList.remove('playing');
+        clearInterval(musicTimer);
+        HB.toast('Music paused. Sweet dreams ♡', '🌙');
+      }
+    },
+    isOn: function () { return musicOn; }
+  };
+
+  /* ---------------- Ambient background ---------------- */
+  HB.buildAmbient = function () {
+    var starsBox = document.getElementById('bg-stars');
+    var floatBox = document.getElementById('bg-floating');
+    starsBox.innerHTML = '';
+    floatBox.innerHTML = '';
+    for (var i = 0; i < 26; i++) {
+      var s = document.createElement('span');
+      s.className = 'star';
+      s.style.left = Math.random() * 100 + '%';
+      s.style.top = Math.random() * 100 + '%';
+      s.style.animationDelay = (Math.random() * 4) + 's';
+      s.style.animationDuration = (3 + Math.random() * 4) + 's';
+      s.style.width = s.style.height = (3 + Math.random() * 4) + 'px';
+      starsBox.appendChild(s);
+    }
+    var icons = ['♥', '☆', '🌷', '❁', '♡', '✧', '☁', '🌸'];
+    for (var j = 0; j < 16; j++) {
+      var f = document.createElement('span');
+      f.className = 'floater';
+      f.textContent = icons[j % icons.length];
+      f.style.left = Math.random() * 96 + '%';
+      f.style.fontSize = (12 + Math.random() * 18) + 'px';
+      f.style.animationDuration = (14 + Math.random() * 20) + 's';
+      f.style.animationDelay = (Math.random() * 14) + 's';
+      f.style.setProperty('--fo', (0.25 + Math.random() * 0.4).toFixed(2));
+      floatBox.appendChild(f);
+    }
+  };
+
+  /* ---------------- Icons ---------------- */
+  HB.icon = function (name) {
+    var I = {
+      home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>',
+      chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z"/></svg>',
+      note: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+      sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>',
+      camera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+      dice: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.1" fill="currentColor"/><circle cx="15.5" cy="8.5" r="1.1" fill="currentColor"/><circle cx="8.5" cy="15.5" r="1.1" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.1" fill="currentColor"/></svg>',
+      calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+      heart: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>',
+      gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+      more: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>',
+      send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg>',
+      copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+      refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>',
+      share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>',
+      trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+      back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>',
+      sparkle: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.9 6.1L20 10l-6.1 1.9L12 18l-1.9-6.1L4 10l6.1-1.9z"/></svg>'
+    };
+    return I[name] || '';
+  };
+
+  /* ---------------- Boot ---------------- */
+  HB.boot = function () {
+    setupCanvas();
+    HB.buildAmbient();
+
+    var btn = document.getElementById('music-btn');
+    btn.addEventListener('click', function () { HB.music.toggle(); });
+    if (HB.state.settings.music) {
+      ensureAudio();
+      musicOn = true;
+      btn.classList.add('playing');
+    }
+
+    render();
+  };
+})();

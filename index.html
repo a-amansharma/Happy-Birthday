@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#FFF8F0" />
+  <meta name="description" content="A little corner made just for you two — a cozy, romantic AI companion space." />
+  <title>Our Little World ♡</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐻</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=Caveat:wght@500;600;700&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- Ambient animated background -->
+  <div class="bg-layer" aria-hidden="true">
+    <div class="bg-clouds"></div>
+    <div class="bg-stars" id="bg-stars"></div>
+    <div class="bg-floating" id="bg-floating"></div>
+    <div class="bg-blobs">
+      <span class="blob blob-1"></span>
+      <span class="blob blob-2"></span>
+      <span class="blob blob-3"></span>
+    </div>
+  </div>
+
+  <!-- Music toggle -->
+  <button class="music-btn" id="music-btn" title="Play some soft music" aria-label="Toggle music">
+    <svg class="m-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+    <svg class="m-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><line x1="3" y1="3" x2="21" y2="21"/></svg>
+    <span class="music-btn-eq"><i></i><i></i><i></i><i></i></span>
+  </button>
+
+  <!-- App shell -->
+  <div id="app" class="app">
+    <!-- Sidebar (desktop) -->
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <!-- Main content -->
+    <main class="main" id="main"></main>
+
+    <!-- Mobile bottom nav -->
+    <nav class="bottom-nav" id="bottom-nav"></nav>
+  </div>
+
+  <!-- Global toast container -->
+  <div class="toasts" id="toasts"></div>
+
+  <!-- Confetti / particle canvas -->
+  <canvas id="particles" class="particles-canvas"></canvas>
+
+  <script src="js/core.js"></script>
+  <script src="js/bears.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/notes.js"></script>
+  <script src="js/chatdata.js"></script>
+  <script src="js/landing.js"></script>
+  <script src="js/onboarding.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script src="js/chat.js"></script>
+  <script src="js/lovenotes.js"></script>
+  <script src="js/daily.js"></script>
+  <script src="js/memories.js"></script>
+  <script src="js/quiz.js"></script>
+  <script src="js/dateideas.js"></script>
+  <script src="js/dates.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

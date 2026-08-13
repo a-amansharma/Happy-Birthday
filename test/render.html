@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="../css/styles.css" />
+</head>
+<body>
+  <div class="bg-layer" aria-hidden="true">
+    <div class="bg-clouds"></div><div class="bg-stars" id="bg-stars"></div>
+    <div class="bg-floating" id="bg-floating"></div>
+    <div class="bg-blobs"><span class="blob blob-1"></span><span class="blob blob-2"></span><span class="blob blob-3"></span></div>
+  </div>
+  <button class="music-btn" id="music-btn" title="Music"><svg class="m-note" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></button>
+  <div id="app" class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main" id="main"></main>
+    <nav class="bottom-nav" id="bottom-nav"></nav>
+  </div>
+  <div class="toasts" id="toasts"></div>
+  <canvas id="particles" class="particles-canvas"></canvas>
+
+  <script>
+  try {
+    localStorage.setItem('ourLittleWorld_v1', JSON.stringify({
+      onboarded: true,
+      profile: { name: 'Aman', partner: 'Priya', age: '22', partnerAge: '21', relationship: 'Long Distance', vibes: ['Cute & Romantic','Soft & Emotional'], chatStyle: ['Sweet','Romantic'], story: 'We met at a tiny café in Delhi and talked for three hours.', theme: 'milk', togetherSince: '2025-02-14' },
+      chatHistory: [{ id: 'x1', from: 'ai', text: 'Welcome, Aman ♡', time: Date.now() }],
+      loveNotes: [], dailyAnswers: [], memories: [], specialDates: [],
+      settings: { music: false, notifications: true, privacy: true }
+    }));
+  } catch (e) { console.error('seed failed', e); }
+  </script>
+  <script src="../js/core.js"></script>
+  <script src="../js/bears.js"></script>
+  <script src="../js/data.js"></script>
+  <script src="../js/notes.js"></script>
+  <script src="../js/chatdata.js"></script>
+  <script src="../js/landing.js"></script>
+  <script src="../js/onboarding.js"></script>
+  <script src="../js/dashboard.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/lovenotes.js"></script>
+  <script src="../js/daily.js"></script>
+  <script src="../js/memories.js"></script>
+  <script src="../js/quiz.js"></script>
+  <script src="../js/dateideas.js"></script>
+  <script src="../js/dates.js"></script>
+  <script src="../js/settings.js"></script>
+  <script src="../js/app.js"></script>
+  <script>
+  // dump status for verification
+  setTimeout(function () {
+    document.body.setAttribute('data-test-status', 'loaded');
+  }, 1500);
+  </script>
+</body>
+</html>
