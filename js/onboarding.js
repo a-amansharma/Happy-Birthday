@@ -336,8 +336,7 @@
           '<button class="btn btn-ghost" data-home>Go to my little world →</button>' +
         '</div>';
 
-      card.querySelector('[data-du]').innerHTML = HB.dudu.scene({ pose: 'wait' });
-      HB.dudu.landingSequence(card.querySelector('[data-du]'));
+      HB.dudu.meeting(card.querySelector('[data-du]'), 'approach');
 
       card.querySelector('[data-copy]').addEventListener('click', function () {
         var btn = this;

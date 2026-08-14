@@ -37,8 +37,7 @@
       '</section>';
 
     var stage = main.querySelector('[data-dudu]');
-    stage.innerHTML = HB.dudu.scene({ pose: 'idle' });
-    HB.dudu.landingSequence(stage);
+    HB.dudu.meeting(stage, 'curious');
 
     main.querySelector('[data-go="onboarding"]').addEventListener('click', function () {
       HB.navigate('/onboarding');

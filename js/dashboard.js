@@ -98,10 +98,7 @@
     });
 
     var hero = main.querySelector('[data-hero]');
-    if (hero) {
-      hero.innerHTML = connected ? HB.dudu.scene({ pose: 'hug', duX: 120 }) : HB.dudu.scene({ pose: 'look' });
-      HB.dudu.landingSequence(hero);
-    }
+    if (hero) HB.dudu.meeting(hero, connected ? 'together' : 'approach');
 
     var ccScene = main.querySelector('.cc-scene');
     if (ccScene) ccScene.innerHTML = connected ? HB.dudu.scene({ pose: 'together', duX: 112 }) : HB.dudu.scene({ pose: 'wait' });

@@ -117,6 +117,14 @@
     return '<path d="M0 4 C-8 -6 -19 0 -19 9 a9 9 0 0 0 17 2.5 a9 9 0 0 0 17 -2.5 C17 0 8 -6 0 4z" fill="#F47BA0" stroke="#D95584" stroke-width="1.8"/>';
   }
 
+  /* Floating "?" bubble for the curious (not-yet-met) stage */
+  function qb(x, y, r, fs, color) {
+    return '<g class="dd-q">' +
+      '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" fill="#FFFFFF" opacity="0.95"/>' +
+      '<text x="' + x + '" y="' + (y + fs * 0.36) + '" text-anchor="middle" font-size="' + fs + '" font-weight="800" fill="' + color + '">?</text>' +
+      '</g>';
+  }
+
   function scene(opts) {
     opts = opts || {};
     var pose = opts.pose || 'idle';
@@ -140,6 +148,15 @@
       + '<text x="170" y="26" font-size="10" fill="#F7B6CD" opacity="0.7">✦</text></g>');
     p.push(du);
     p.push(bu);
+    if (opts.story) {
+      p.push('<g class="dd-qs" aria-hidden="true">'
+        + qb(24, 92, 12, 15, '#C4AEDD')
+        + qb(72, 40, 10, 12, '#EFA9C4')
+        + qb(270, 40, 10, 12, '#9CCBC4')
+        + qb(316, 92, 12, 15, '#CDB5E4')
+        + qb(172, 30, 9, 11, '#E2C6F0')
+        + '</g>');
+    }
     p.push('<g class="dd-heart-wrap" transform="translate(' + (w / 2) + ',' + (h - 62) + ')"><g class="dd-heart-inner">' + heartSVG() + '</g></g>');
     p.push('</svg>');
     return '<div class="dudu-stage dudu-' + pose + '">' + p.join('') +
@@ -232,6 +249,63 @@
     return { stop: clear };
   }
 
+  /* ---------- story stages: gradual meeting ----------
+     'curious'   → far apart + floating "?" (before personal details)
+     'approach'  → walk closer, soft hearts (details done, waiting)
+     'together'  → meet in the center, hug & kiss loop (connected) */
+  var STORY_PHASES = ['look', 'approach', 'heart', 'touch', 'smile', 'kiss', 'rest'];
+  var STORY_DELAY = { look: 2200, approach: 2400, heart: 2800, touch: 2400, smile: 2400, kiss: 3200, rest: 3600 };
+
+  function stripStory(stage) {
+    var keep = ['dudu-stage', 'dudu-small'];
+    stage.className = stage.className.split(/\s+/).filter(function (c) {
+      return keep.indexOf(c) !== -1 || !/^dudu-/.test(c);
+    }).join(' ');
+  }
+
+  function stopPhases(stage) {
+    if (stage.__ddTimer) { clearTimeout(stage.__ddTimer); stage.__ddTimer = null; }
+    STORY_PHASES.forEach(function (p) { stage.classList.remove('dudu-phase-' + p); });
+  }
+
+  function startPhases(stage) {
+    var i = 0;
+    function loop() {
+      if (!stage.isConnected) return;
+      var phase = STORY_PHASES[i];
+      stopPhases(stage);
+      stage.classList.add('dudu-phase-' + phase);
+      i = (i + 1) % STORY_PHASES.length;
+      stage.__ddTimer = setTimeout(loop, STORY_DELAY[phase]);
+    }
+    loop();
+  }
+
+  function meeting(el, state) {
+    if (!el || !el.isConnected) return;
+    state = state === 'together' ? 'together' : state === 'approach' ? 'approach' : 'curious';
+    var stage = el.querySelector('.dudu-stage');
+    if (!stage) {
+      el.innerHTML = scene({ story: true });
+      stage = el.querySelector('.dudu-stage');
+    }
+    if (!stage) return;
+
+    stopPhases(stage);
+    stripStory(stage);
+
+    if (state === 'curious') {
+      stage.classList.add('dudu-story-curious');
+      return;
+    }
+
+    stage.classList.add('dudu-story-curious');
+    void stage.offsetWidth;
+    stage.classList.remove('dudu-story-curious');
+    stage.classList.add(state === 'together' ? 'dudu-story-together' : 'dudu-story-approach');
+    if (state === 'together') startPhases(stage);
+  }
+
   HB.dudu = {
     scene: scene,
     sceneIdle: sceneIdle,
@@ -245,6 +319,7 @@
     loveHeart: loveHeart,
     avatarFace: avatarFace,
     landingSequence: landingSequence,
+    meeting: meeting,
     character: character,
     colors: { DU: DU, BU: BU }
   };

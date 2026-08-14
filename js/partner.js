@@ -100,10 +100,7 @@
       '</div>';
 
     var du = main.querySelector('[data-du]');
-    if (du) {
-      du.innerHTML = scene;
-      HB.dudu.landingSequence(du);
-    }
+    if (du) HB.dudu.meeting(du, connected ? 'together' : 'approach');
 
     var copy = main.querySelector('[data-copy]');
     if (copy && code) copy.addEventListener('click', function () {
