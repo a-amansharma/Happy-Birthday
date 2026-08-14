@@ -188,7 +188,7 @@
       input.style.height = 'auto';
       input.style.height = Math.min(input.scrollHeight, 110) + 'px';
     }
-    input.addEventListener('input', autoGrow);
+    input.addEventListener('input', function () { HB.titleCaseInput(input); autoGrow(); });
     input.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }
     });

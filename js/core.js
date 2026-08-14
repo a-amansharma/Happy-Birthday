@@ -76,16 +76,54 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   };
 
+  /* Pascal-case a string: the first letter of every word becomes a capital,
+     everything else is lowercase. A new word starts after whitespace or a
+     sentence-ending . ! ? — so "hiii. hello" → "Hiii. Hello" and "HELLO" → "Hello".
+     Pass initialCap=false to start mid-word (used to keep the caret in place). */
+  HB.titleCase = function (str, initialCap) {
+    if (str == null) return '';
+    str = String(str);
+    var out = '';
+    var cap = initialCap === false ? false : true;
+    for (var i = 0; i < str.length; i++) {
+      var ch = str.charAt(i);
+      if (ch === '.' || ch === '!' || ch === '?' || ch === '\n' || /\s/.test(ch)) {
+        out += ch;
+        cap = true;
+      } else {
+        out += cap ? ch.toUpperCase() : ch.toLowerCase();
+        cap = false;
+      }
+    }
+    return out;
+  };
+
+  /* Live auto-capitalization for text inputs: reformats on every keystroke while
+     keeping the caret where the user is typing (re-case before and after caret). */
+  HB.titleCaseInput = function (input) {
+    if (!input) return;
+    var sel = input.selectionStart || 0;
+    var end = input.selectionEnd == null ? sel : input.selectionEnd;
+    var raw = input.value;
+    var before = HB.titleCase(raw.slice(0, sel));
+    var last = before.charAt(before.length - 1);
+    var after = HB.titleCase(raw.slice(end), /[.!?\s\n]/.test(last));
+    var middle = raw.slice(sel, end);
+    input.value = before + middle + after;
+    var pos = before.length + middle.length;
+    try { input.setSelectionRange(pos, pos); } catch (e) {}
+  };
+
   HB.couple = function () {
     var p = HB.state.profile;
-    if (p.name && p.partner) return p.name + ' ♡ ' + p.partner;
-    if (p.name) return p.name;
+    if (p.name && p.partner) return HB.titleCase(p.name) + ' ♡ ' + HB.titleCase(p.partner);
+    if (p.name) return HB.titleCase(p.name);
     return 'You two';
   };
 
   HB.firstNames = function () {
     var p = HB.state.profile;
-    return { me: p.name || 'you', partner: p.partner || 'your person' };
+    return { me: p.name ? HB.titleCase(p.name) : 'you', partner: p.partner ? HB.titleCase(p.partner) : 'your person' };
   };
 
   /* ---------------- Router ---------------- */

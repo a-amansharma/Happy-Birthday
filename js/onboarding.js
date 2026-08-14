@@ -153,6 +153,9 @@
             e.preventDefault(); nextStep();
           }
         });
+        if (input.id === 'w-name' || input.id === 'w-partner') {
+          input.addEventListener('input', function () { HB.titleCaseInput(input); });
+        }
       }
 
       var themePicker = card.querySelector('.theme-picker');
@@ -190,11 +193,11 @@
 
       switch (step) {
         case 0:
-          var name = (card.querySelector('#w-name').value || '').trim();
+          var name = HB.titleCase((card.querySelector('#w-name').value || '').trim());
           if (!name) { HB.toast('We\'d love your name first!', '🐻'); return; }
           draft.name = name; break;
         case 1:
-          var partner = (card.querySelector('#w-partner').value || '').trim();
+          var partner = HB.titleCase((card.querySelector('#w-partner').value || '').trim());
           if (!partner) { HB.toast('What\'s their name?', '🐻'); return; }
           draft.partner = partner; break;
         case 2:
