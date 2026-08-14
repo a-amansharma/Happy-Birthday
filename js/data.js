@@ -43,7 +43,7 @@
 
   HB.THEMES = [
     { id: 'milk', name: 'Milk & Mocha', swatch: 'linear-gradient(135deg,#FFF6EE,#FFD9E0)', icon: '🥛' },
-    { id: 'bubu', name: 'Bubu & Dudu', swatch: 'linear-gradient(135deg,#E6EAFF,#FCE4EE)', icon: '🫐' },
+    { id: 'bubu', name: 'Lovebirds', swatch: 'linear-gradient(135deg,#E6EAFF,#FCE4EE)', icon: '🫐' },
     { id: 'pink', name: 'Pink Love', swatch: 'linear-gradient(135deg,#FFE3EC,#F7A8C4)', icon: '🌸' },
     { id: 'midnight', name: 'Midnight Love', swatch: 'linear-gradient(135deg,#2B2750,#4A3560)', icon: '🌙' },
     { id: 'cafe', name: 'Cozy Café', swatch: 'linear-gradient(135deg,#F5E3CB,#C98A4B)', icon: '☕' },

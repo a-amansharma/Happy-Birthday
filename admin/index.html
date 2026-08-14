@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Little World — Insights</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Caveat:wght@600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>Little World ♡ <span>Insights</span></h1>
+      <p class="sub">Private owner area — protected by your Supabase account, never linked from the public site.</p>
+    </div>
+    <div class="top-actions">
+      <button class="btn ghost hidden" id="btn-csv">Export CSV</button>
+      <button class="btn ghost hidden" id="btn-refresh">Refresh</button>
+      <button class="btn hidden" id="btn-signout">Sign out</button>
+    </div>
+  </header>
+
+  <div id="gate" class="gate">
+    <div class="gate-card">
+      <h2>🔐 Owner sign in</h2>
+      <p>Sign in with the owner Supabase account to view insights. No one else can access this.</p>
+      <input class="input" id="email" type="email" placeholder="Owner email" autocomplete="username" value="amanxrishi@gmail.com" />
+      <input class="input" id="password" type="password" placeholder="Password" autocomplete="current-password" />
+      <div id="gate-err" class="err"></div>
+      <button class="btn" id="btn-signin">Sign in ♡</button>
+    </div>
+  </div>
+
+  <main id="dash" class="dash hidden">
+    <div class="stats" id="stats"></div>
+    <div class="card">
+      <h3>Who registered / logged in</h3>
+      <div class="table-wrap">
+        <table id="users-table">
+          <thead>
+            <tr>
+              <th>Name</th><th>Age</th><th>Pairing code</th><th>Partner</th><th>Status</th><th>Joined</th><th>Last active</th>
+            </tr>
+          </thead>
+          <tbody id="users-body"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="footer-note">Auto-refreshes every 20 seconds. This page is intentionally not linked anywhere in the app.</div>
+  </main>
+
+  <div id="boot-msg" class="boot-msg"></div>
+
+  <script src="../js/config.js"></script>
+  <script type="module" src="insights.js"></script>
+</body>
+</html>

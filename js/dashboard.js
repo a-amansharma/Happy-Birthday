@@ -1,20 +1,20 @@
 /* ============================================================
-   DASHBOARD — personalized home
+   DASHBOARD — personalized home + connection status
    ============================================================ */
 (function () {
   'use strict';
   var HB = window.HB = window.HB || {};
 
   var TILES = [
-    { path: '/chat', icon: '💬', title: 'Talk to Us', sub: 'Your little companion is waiting', accent: '#F8BBD0' },
-    { path: '/chat', icon: '💞', title: 'Ask About Us', sub: 'Answer & plans for two', accent: '#FFD3B6' },
+    { path: '/chat', icon: '💬', title: 'Our Chat', sub: 'Your real-time messages, just for two', accent: '#F8BBD0' },
+    { path: '/companion', icon: '🐻', title: 'Your Companion', sub: 'Your cozy AI companion, just for you', accent: '#FFD3B6' },
+    { path: '/partner', icon: '💞', title: 'Your Partner', sub: 'Connection, code & bond', accent: '#D8C6F5' },
     { path: '/memories', icon: '📸', title: 'Our Memories', sub: 'Your favorite moments', accent: '#F9C9A4' },
     { path: '/notes', icon: '💌', title: 'Love Notes', sub: 'Little things worth saying', accent: '#F5B7C6' },
     { path: '/daily', icon: '☀️', title: 'Daily Question', sub: 'One sweet question a day', accent: '#FFE5A3' },
-    { path: '/quiz', icon: '🎲', title: 'Relationship Quiz', sub: 'Playful, never serious', accent: '#D8C6F5' },
+    { path: '/quiz', icon: '🎲', title: 'Daily Bond Quiz', sub: 'Playful, never serious', accent: '#D8C6F5' },
     { path: '/dates', icon: '🎈', title: 'Fun Together', sub: 'Personalized date ideas', accent: '#A7E0C3' },
-    { path: '/special', icon: '⏳', title: 'Special Dates', sub: 'Your love timer & countdowns', accent: '#F5C6D0' },
-    { path: '/settings', icon: '⚙️', title: 'Settings', sub: 'Tune your little world', accent: '#BFC9E8' }
+    { path: '/special', icon: '⏳', title: 'Special Dates', sub: 'Your love timer & countdowns', accent: '#F5C6D0' }
   ];
 
   function renderHome(main) {
@@ -39,9 +39,29 @@
       var vibeLabels = p.vibes.slice(0, 2).map(function (v) { return typeof v === 'string' ? v : v.label; });
       tags += '<span class="rh-tag">' + vibeLabels.map(function (l) { return (vibeEmoji[l] || '✨') + ' ' + HB.esc(l); }).join('</span><span class="rh-tag">') + '</span>';
     }
-    var ages = '';
-    if (p.age && p.partnerAge) ages = '<div class="rh-ages">' + HB.esc(p.age) + ' & ' + HB.esc(p.partnerAge) + ' — a sweet little duo ♡</div>';
-    else if (p.age) ages = '<div class="rh-ages">' + HB.esc(p.age) + ' years of you ♡</div>';
+
+    var connected = HB.rel && HB.rel.data && HB.rel.data.status === 'connected';
+    var bond = connected && HB.rel.bondLabel ? HB.rel.bondLabel() : '';
+
+    var connectCard = '';
+    if (window.HB && HB.db && HB.db.configured() && HB.auth && HB.auth.user()) {
+      if (connected) {
+        connectCard =
+          '<button class="card card-hover connect-card" data-path="/partner">' +
+            '<div class="cc-scene" data-du></div>' +
+            '<div><div class="cc-title">You two are connected ♡</div>' +
+            '<div class="cc-sub">' + HB.esc(HB.couple()) + (bond ? ' · ' + HB.esc(bond) : '') + '</div></div>' +
+            '<span class="cc-dot on"></span></button>';
+      } else {
+        var waiting = HB.rel.data.status === 'waiting';
+        connectCard =
+          '<button class="card card-hover connect-card" data-path="/partner">' +
+            '<div class="cc-scene" data-du></div>' +
+            '<div><div class="cc-title">' + (waiting ? 'Waiting for your person…' : 'Connect with your person') + '</div>' +
+            '<div class="cc-sub">' + (waiting ? 'Share your code or wait for their code.' : 'Open the Partner page to share or enter your code.') + '</div></div>' +
+            '<span class="cc-dot"></span></button>';
+      }
+    }
 
     var tiles = TILES.map(function (t) {
       return '<button class="dash-tile" data-path="' + t.path + '">' +
@@ -58,12 +78,13 @@
         '<p>Welcome back to your little world with <span class="hand" style="font-size:1.2em">' + HB.esc(n.partner) + '</span>.</p>' +
       '</div>' +
 
+      (connectCard ? '<div class="connect-wrap">' + connectCard + '</div>' : '') +
+
       '<div class="relation-hero">' +
-        '<div class="rh-bears">' + HB.bearCoupleSVG() + '</div>' +
+        '<div class="rh-dudu" data-hero></div>' +
         '<div class="rh-main">' +
           '<h2>' + HB.esc(HB.couple()) + '</h2>' +
           (p.relationship ? '<div class="rh-tags">' + tags + '</div>' : '') +
-          (ages || '') +
           (p.togetherSince ? '<div class="rh-ages">Together since ' + HB.esc(formatDate(p.togetherSince)) + '</div>' : '') +
         '</div>' +
       '</div>' +
@@ -76,17 +97,26 @@
       el.addEventListener('click', function () { HB.navigate(el.dataset.path); });
     });
 
-    // "Talk to us" & "Ask about us" both go to chat, second one triggers relationship intro
-    main.querySelectorAll('.dash-tile')[1] && main.querySelectorAll('.dash-tile')[1].addEventListener('click', function () {
-      setTimeout(function () {
-        HB.state.chatPendingIntent = 'relationship';
-        HB.save();
-      }, 50);
-    });
+    var hero = main.querySelector('[data-hero]');
+    if (hero) {
+      hero.innerHTML = connected ? HB.dudu.scene({ pose: 'hug', duX: 120 }) : HB.dudu.scene({ pose: 'look' });
+      HB.dudu.landingSequence(hero);
+    }
+
+    var ccScene = main.querySelector('.cc-scene');
+    if (ccScene) ccScene.innerHTML = connected ? HB.dudu.scene({ pose: 'together', duX: 112 }) : HB.dudu.scene({ pose: 'wait' });
   }
 
   HB.renderHome = renderHome;
   HB.route('/home', renderHome);
+
+  /* Keep the home screen in sync (e.g. partner connects while you're here) */
+  window.addEventListener('hb:relchange', function () {
+    if (location.hash === '#/home' || location.hash === '#/') {
+      var main = document.getElementById('main');
+      if (main) renderHome(main);
+    }
+  });
 
   function formatDate(iso) {
     try {

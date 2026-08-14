@@ -1,9 +1,42 @@
 /* ============================================================
-   APP — boot the little world
+   APP — boot the little world, connect the cloud
    ============================================================ */
 (function () {
   'use strict';
   var HB = window.HB;
+
+  var backendReady = false;
+
+  function initBackend() {
+    if (backendReady || !HB.db || !HB.db.configured()) return;
+    backendReady = true;
+
+    HB.rel.init().then(function () {
+      if (HB.rel.data.status === 'connected') {
+        if (HB.chat) {
+          HB.chat.onChange = function () {
+            HB.setUnread('/chat', HB.chat.unreadCount());
+          };
+          HB.chat.load().then(function () {
+            HB.setUnread('/chat', HB.chat.unreadCount());
+          });
+          HB.chat.subscribe();
+        }
+        if (HB.presence) HB.presence.start();
+      }
+    });
+  }
+
+  /* From the landing page: after signing in, open the world */
+  HB.enterWorld = function () {
+    if (!HB.db || !HB.db.configured()) { HB.navigate('/home'); return; }
+    if (HB.rel.data.status === 'connected') { HB.navigate('/home'); return; }
+    HB.rel.init().then(function () {
+      HB.navigate('/home');
+    });
+  };
+
+  HB.onReady = initBackend;
 
   function boot() {
     // Default route
@@ -18,17 +51,6 @@
       setTimeout(function () {
         HB.toast('Welcome to your little world ♡', '🐻');
       }, 900);
-    }
-
-    // Resume ambient music after first interaction if it was on
-    if (HB.state.onboarded && HB.state.settings.music && !HB.music.isOn()) {
-      var resume = function () {
-        document.removeEventListener('pointerdown', resume);
-        document.removeEventListener('keydown', resume);
-        HB.music.toggle();
-      };
-      document.addEventListener('pointerdown', resume);
-      document.addEventListener('keydown', resume);
     }
   }
 

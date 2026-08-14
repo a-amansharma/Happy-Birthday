@@ -1,12 +1,19 @@
 /* ============================================================
-   SETTINGS — profile editing, theme, data management
+   SETTINGS — profile (synced), theme, preferences, data,
+   relationship & connection, creator
    ============================================================ */
 (function () {
   'use strict';
   var HB = window.HB = window.HB || {};
 
+  var backend = false;
+  var connected = false;
+
   HB.route('/settings', function (main) {
     if (!HB.state.onboarded) { HB.navigate('/onboarding'); return; }
+
+    backend = !!(window.HB && HB.db && HB.db.configured());
+    connected = HB.rel.data.status === 'connected';
 
     var p = HB.state.profile;
 
@@ -44,6 +51,26 @@
         '<label class="switch"><input type="checkbox" id="' + id + '"' + (checked ? ' checked' : '') + '><span class="track"></span></label></div>';
     }
 
+    /* relationship & connection card */
+    var relCard = '';
+    if (backend) {
+      var statusText = connected ? 'You two are connected ♡'
+        : HB.rel.data.status === 'waiting' ? 'Waiting for your person to join…'
+        : 'Not connected yet';
+      var code = HB.rel.data.me && HB.rel.data.me.partner_code;
+      relCard =
+        '<div class="card settings-card">' +
+          '<h3><span class="sc-emoji">💞</span> Connection</h3>' +
+          '<div class="setting-row"><div><div class="sr-title">Status</div><div class="sr-sub">' + statusText + '</div></div>' +
+          '<span class="cc-dot' + (connected ? ' on' : '') + '" style="position:static;margin-left:8px"></span></div>' +
+          (code && !connected ? '<div class="partner-code sm" style="margin:6px 0 14px"><span>' + HB.esc(code) + '</span><button class="btn-icon btn-soft" data-copy-code title="Copy">' + HB.icon('copy') + '</button></div>' : '') +
+          '<div class="row" style="gap:10px;flex-wrap:wrap">' +
+            '<button class="btn btn-soft btn-sm" data-manage>Manage connection</button>' +
+            (connected ? '<button class="btn btn-danger btn-sm" data-leave>Delete my data & leave</button>' : '') +
+          '</div>' +
+        '</div>';
+    }
+
     main.innerHTML =
       '<div class="page">' +
       '<div class="dash-hello"><h1>Profile & <span class="hand" style="font-size:1.15em">settings</span> ⚙️</h1>' +
@@ -54,18 +81,22 @@
         '<div class="card settings-card">' +
           '<h3><span class="sc-emoji">🧸</span> About you two</h3>' +
           '<div class="row"><div class="field" style="flex:1"><label class="label">Your name</label><input class="input" id="s-name" value="' + HB.esc(p.name) + '"/></div>' +
-          '<div class="field" style="flex:1"><label class="label">Their name</label><input class="input" id="s-partner" value="' + HB.esc(p.partner) + '"/></div></div>' +
+          (connected && HB.firstNames().partner
+            ? '<div class="field" style="flex:1"><label class="label">Their name (from their phone)</label><div class="partner-static">' + HB.esc(HB.firstNames().partner) + ' ♡</div></div>'
+            : '<div class="field" style="flex:1"><label class="label">Their name</label><input class="input" id="s-partner" value="' + HB.esc(p.partner) + '"/></div>') + '</div>' +
           '<div class="row"><div class="field" style="flex:1"><label class="label">Your age</label><input class="input" id="s-age" type="number" min="13" max="99" value="' + HB.esc(p.age) + '"/></div>' +
-          '<div class="field" style="flex:1"><label class="label">Their age</label><input class="input" id="s-page" type="number" min="13" max="99" value="' + HB.esc(p.partnerAge) + '"/></div></div>' +
+          '<div class="field" style="flex:1"><label class="label">Their age (just for you)</label><input class="input" id="s-page" type="number" min="13" max="99" value="' + HB.esc(p.partnerAge) + '"/></div></div>' +
           '<div class="field"><label class="label">Relationship</label><select class="select" id="s-rel">' + relOptions() + '</select></div>' +
           '<div class="field"><label class="label">Together since (optional)</label><input class="input" id="s-together" type="date" value="' + HB.esc(p.togetherSince || '') + '"/></div>' +
           '<div class="field"><label class="label">Your vibe</label><div class="chip-grid" id="s-vibes">' + vibeChips() + '</div></div>' +
-          '<div class="field"><label class="label">Chat personality</label><div class="chip-grid" id="s-styles">' + styleChips() + '</div></div>' +
+          '<div class="field"><label class="label">How we talk</label><div class="chip-grid" id="s-styles">' + styleChips() + '</div></div>' +
           '<div class="field"><label class="label">Your special story</label><textarea class="textarea" id="s-story" maxlength="600">' + HB.esc(p.story) + '</textarea></div>' +
           '<button class="btn btn-primary" id="save-profile" style="width:100%">Save changes ♡</button>' +
         '</div>' +
 
         '<div class="settings-grid" style="align-content:start">' +
+
+          (relCard || '') +
 
           '<div class="card settings-card">' +
             '<h3><span class="sc-emoji">🎨</span> Theme</h3>' +
@@ -82,29 +113,27 @@
 
           '<div class="card settings-card">' +
             '<h3><span class="sc-emoji">💾</span> Your data</h3>' +
-            '<div class="setting-row"><div><div class="sr-title">Reset chat</div><div class="sr-sub">Clear your conversation with your companion</div></div>' +
+            '<div class="setting-row"><div><div class="sr-title">Reset companion chat</div><div class="sr-sub">Clear your talks with your little companion (your couple chat is never touched)</div></div>' +
             '<button class="btn btn-ghost btn-sm" id="reset-chat">Reset</button></div>' +
             '<div class="setting-row"><div><div class="sr-title">Clear memories</div><div class="sr-sub">Remove all saved memories & notes</div></div>' +
             '<button class="btn btn-ghost btn-sm" id="clear-data">Clear</button></div>' +
             '<div class="setting-row"><div><div class="sr-title">Export memories</div><div class="sr-sub">Download your memories as a keepsake file</div></div>' +
             '<button class="btn btn-soft btn-sm" id="export-data">Export</button></div>' +
-            '<div class="setting-row"><div><div class="sr-title">Start over</div><div class="sr-sub">Erase everything and begin the story again</div></div>' +
+            '<div class="setting-row"><div><div class="sr-title">Start over on this device</div><div class="sr-sub">Erase this device\'s little world and begin again</div></div>' +
             '<button class="btn btn-danger btn-sm" id="reset-all">Reset</button></div>' +
           '</div>' +
+
+          (HB.creator ? HB.creator.html() : '') +
 
         '</div>' +
       '</div></div>';
 
     /* vibes / styles chips */
     main.querySelectorAll('[data-vibe]').forEach(function (c) {
-      c.addEventListener('click', function () {
-        c.classList.toggle('selected');
-      });
+      c.addEventListener('click', function () { c.classList.toggle('selected'); });
     });
     main.querySelectorAll('[data-style]').forEach(function (c) {
-      c.addEventListener('click', function () {
-        c.classList.toggle('selected');
-      });
+      c.addEventListener('click', function () { c.classList.toggle('selected'); });
     });
 
     /* theme selection (saves immediately) */
@@ -121,9 +150,10 @@
 
     main.querySelector('#save-profile').addEventListener('click', function () {
       var name = main.querySelector('#s-name').value.trim();
-      var partner = main.querySelector('#s-partner').value.trim();
+      var partnerEl = main.querySelector('#s-partner');
+      var partner = partnerEl ? partnerEl.value.trim() : p.partner;
       if (!name) { HB.toast('Your name can\'t be empty ♡', '🐻'); return; }
-      if (!partner) { HB.toast('Their name can\'t be empty ♡', '🐻'); return; }
+      if (!connected && !partner) { HB.toast('Their name can\'t be empty ♡', '🐻'); return; }
 
       p.name = name;
       p.partner = partner;
@@ -142,6 +172,18 @@
 
       HB.save();
       HB.updateNav();
+
+      // push to the shared little world
+      if (backend && HB.rel) {
+        HB.rel.updateMyProfile({ name: name, age: p.age });
+        HB.rel.updateShared({
+          relationship_type: p.relationship,
+          vibes: p.vibes,
+          chat_style: p.chatStyle,
+          story: p.story,
+          together_since: p.togetherSince || null
+        });
+      }
       HB.toast('Your little world is updated everywhere ♡', '✨');
     });
 
@@ -158,7 +200,7 @@
     });
 
     main.querySelector('#reset-chat').addEventListener('click', function () {
-      HB.confirm('Reset your chat?', 'Your conversation with your companion will be cleared.', function () {
+      HB.confirm('Reset your companion chat?', 'Your talks with your little companion will be cleared. Your couple chat is never touched.', function () {
         HB.state.chatHistory = [];
         HB.save();
         HB.toast('Chat reset — a fresh start ♡', '🧸');
@@ -196,12 +238,36 @@
     });
 
     main.querySelector('#reset-all').addEventListener('click', function () {
-      HB.confirm('Start completely over?', 'This wipes everything — profile, chats, memories, everything. Your little world will begin fresh.', function () {
+      HB.confirm('Start completely over?', 'This wipes everything on this device — profile, chats, memories, everything. Your little world will begin fresh.', function () {
         localStorage.removeItem('ourLittleWorld_v1');
         HB.toast('A new story begins... ✨', '🕊️');
         history.replaceState(null, '', location.pathname + location.search);
         setTimeout(function () { location.reload(); }, 800);
       }, 'Erase everything');
     });
+
+    /* relationship card actions */
+    var manage = main.querySelector('[data-manage]');
+    if (manage) manage.addEventListener('click', function () { HB.navigate('/partner'); });
+
+    var copyCode = main.querySelector('[data-copy-code]');
+    if (copyCode) copyCode.addEventListener('click', function () {
+      navigator.clipboard.writeText(HB.rel.data.me.partner_code).then(function () { HB.toast('Code copied ♡', '💌'); });
+    });
+
+    var leave = main.querySelector('[data-leave]');
+    if (leave) leave.addEventListener('click', function () {
+      HB.confirm('Delete my data & leave?', 'This permanently deletes your profile, your chat, photos and everything from the little world. Your partner\'s side stays.', function () {
+        HB.db.client().rpc('delete_my_data').then(function () {
+          if (HB.auth) HB.auth.signOut();
+          localStorage.removeItem('ourLittleWorld_v1');
+          HB.toast('Your data is gone. Goodbye for now, love ♡', '🕊️');
+          history.replaceState(null, '', location.pathname + location.search);
+          setTimeout(function () { location.reload(); }, 900);
+        });
+      }, 'Delete everything');
+    });
+
+    if (HB.creator) HB.creator.wire(main);
   });
 })();

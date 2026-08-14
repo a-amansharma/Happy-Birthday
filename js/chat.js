@@ -42,7 +42,7 @@
     return el;
   }
 
-  HB.route('/chat', function (main) {
+  HB.route('/companion', function (main) {
     if (!HB.state.onboarded) { HB.navigate('/onboarding'); return; }
 
     var suggestions = HB.chatSuggestions.map(function (s) {

@@ -1,0 +1,159 @@
+/* ============================================================
+   DUDU & BUBU ♡ — premium character animations
+   GPU-friendly (transforms + opacity only) so it stays smooth
+   on phones. Respects prefers-reduced-motion.
+   ============================================================ */
+
+.dudu-stage {
+  position: relative;
+  width: 100%;
+  max-width: 460px;
+  margin: 0 auto;
+  user-select: none;
+}
+.dudu-svg { width: 100%; height: auto; display: block; }
+
+/* -------- base idle life -------- */
+.dd-char { animation: ddBob 3.6s ease-in-out infinite; transform-origin: 50% 100%; }
+.dd-body { transform-box: fill-box; transform-origin: 50% 100%; animation: ddBreathe 3.6s ease-in-out infinite; }
+.dd-head { transform-box: fill-box; transform-origin: 50% 85%; transition: transform 0.9s var(--ease); }
+.dd-eyeL, .dd-eyeR { transform-box: fill-box; transform-origin: center; animation: ddBlink 5s infinite; }
+.dd-mouth-open { transition: opacity 0.5s var(--ease); }
+.dd-mouth { transition: opacity 0.5s var(--ease); }
+.dd-bow { transform-box: fill-box; transform-origin: 50% 100%; animation: ddBowTilt 4.4s ease-in-out infinite; }
+.dd-armL, .dd-armR { transform-box: fill-box; transition: transform 0.7s var(--ease); }
+
+@keyframes ddBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes ddBreathe {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(1.03, 0.97); }
+}
+@keyframes ddBlink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.12); }
+  98% { transform: scaleY(1); }
+}
+@keyframes ddBowTilt {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(4deg); }
+}
+
+/* -------- looking at each other -------- */
+.dudu-look .du-move .dd-head, .dudu-phase-look .du-move .dd-head { transform: rotate(7deg); }
+.dudu-look .bu-move .dd-head, .dudu-phase-look .bu-move .dd-head { transform: rotate(-7deg); }
+
+/* -------- moving closer -------- */
+.dudu-together .du-move { transform: translateX(24px); }
+.dudu-together .bu-move { transform: translateX(24px); }
+.dudu-phase-approach .du-move, .dudu-phase-touch .du-move, .dudu-phase-smile .du-move,
+.dudu-phase-heart .du-move, .dudu-phase-kiss .du-move, .dudu-phase-rest .du-move,
+.dudu-hug .du-move, .dudu-kiss .du-move, .dudu-celebrate .du-move { transform: translateX(30px); }
+.dudu-phase-approach .bu-move, .dudu-phase-touch .bu-move, .dudu-phase-smile .bu-move,
+.dudu-phase-heart .bu-move, .dudu-phase-kiss .bu-move, .dudu-phase-rest .bu-move,
+.dudu-hug .bu-move, .dudu-kiss .bu-move, .dudu-celebrate .bu-move { transform: translateX(30px); }
+
+/* -------- happy open mouth (smile phase) -------- */
+.dudu-phase-smile .dd-mouth { opacity: 0; }
+.dudu-phase-smile .dd-mouth-open { opacity: 1; }
+.dudu-phase-kiss .dd-mouth { opacity: 0; }
+.dudu-phase-kiss .dd-mouth-open { opacity: 1; }
+
+/* -------- the heart between them -------- */
+.dd-heart-inner {
+  transform: scale(0);
+  opacity: 0;
+  transition: transform 0.5s var(--ease), opacity 0.5s var(--ease);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.dudu-phase-heart .dd-heart-inner,
+.dudu-phase-smile .dd-heart-inner,
+.dudu-phase-touch .dd-heart-inner,
+.dudu-hug .dd-heart-inner,
+.dudu-kiss .dd-heart-inner,
+.dudu-celebrate .dd-heart-inner,
+.dudu-together .dd-heart-inner {
+  transform: scale(1.5);
+  opacity: 1;
+  animation: ddHeartBeat 1.6s ease-in-out infinite;
+}
+@keyframes ddHeartBeat {
+  0%, 100% { transform: scale(1.5); }
+  50% { transform: scale(1.75); }
+}
+
+/* kiss: hearts drift up near the faces */
+.dudu-phase-kiss .dd-heart-wrap { transform: translate(170px, 122px) !important; }
+.dudu-kiss .dd-heart-wrap { transform: translate(170px, 122px) !important; }
+
+/* -------- hug arms -------- */
+.dudu-hug .du-move .dd-armR, .dudu-phase-touch .du-move .dd-armR { transform: rotate(-14deg); }
+.dudu-hug .bu-move .dd-armR, .dudu-phase-touch .bu-move .dd-armR { transform: rotate(-14deg); }
+.dudu-hug .du-move .dd-armL, .dudu-hug .bu-move .dd-armL { transform: rotate(14deg); }
+
+/* -------- celebrate: little jumps + sparkles -------- */
+.dudu-celebrate .dd-char { animation: ddJump 0.7s ease-in-out infinite; }
+.dudu-celebrate .dd-sparkles text { animation: ddTwinkle 1.2s ease-in-out infinite; }
+.dudu-celebrate .dd-sparkles text:nth-child(2) { animation-delay: 0.3s; }
+.dudu-celebrate .dd-sparkles text:nth-child(3) { animation-delay: 0.6s; }
+@keyframes ddJump {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-16px); }
+  60% { transform: translateY(-16px); }
+}
+@keyframes ddTwinkle {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.25); }
+}
+
+/* -------- waiting: soft sway ---------- */
+.dudu-wait .du-move { animation: ddSway 4s ease-in-out infinite; }
+.dudu-wait .bu-move { animation: ddSway 4s ease-in-out infinite 0.4s; }
+@keyframes ddSway {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  50% { transform: translateX(6px) rotate(2deg); }
+}
+
+/* -------- floating hearts -------- */
+.dudu-hearts { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+.dudu-hearts span {
+  position: absolute;
+  left: 50%;
+  bottom: 12%;
+  font-size: 20px;
+  color: #F47BA0;
+  opacity: 0;
+  transform: translateX(-50%);
+  animation: ddFloatUp 3s ease-in forwards;
+}
+.dudu-hearts span:nth-child(1) { animation-delay: 0.1s; }
+.dudu-hearts span:nth-child(2) { animation-delay: 0.7s; font-size: 15px; color: #A99DF2; }
+.dudu-hearts span:nth-child(3) { animation-delay: 1.3s; font-size: 24px; }
+.dudu-hearts span:nth-child(4) { animation-delay: 1.9s; font-size: 14px; color: #F4A8C0; }
+.dudu-hearts span:nth-child(5) { animation-delay: 2.4s; font-size: 17px; color: #6EC6B5; }
+@keyframes ddFloatUp {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(0.6); }
+  15% { opacity: 0.9; }
+  100% { opacity: 0; transform: translate(-50%, -170%) scale(1.15); }
+}
+
+.dudu-phase-heart .dudu-hearts span,
+.dudu-phase-smile .dudu-hearts span,
+.dudu-phase-kiss .dudu-hearts span,
+.dudu-celebrate .dudu-hearts span,
+.dudu-hug .dudu-hearts span { opacity: 0.9; animation-iteration-count: infinite; }
+
+/* compact variant for cards / empty states */
+.dudu-stage.dudu-small { max-width: 240px; }
+.dudu-stage.dudu-small .dudu-svg { max-height: 150px; width: auto; }
+
+/* reduce motion: keep it still and clean */
+@media (prefers-reduced-motion: reduce) {
+  .dd-char, .dd-body, .dd-bow, .dd-eyeL, .dd-eyeR,
+  .dudu-wait .du-move, .dudu-wait .bu-move, .dudu-celebrate .dd-char { animation: none !important; }
+  .dd-head, .du-move, .bu-move { transition: none !important; }
+  .dudu-hearts span { animation: none !important; opacity: 0 !important; }
+}

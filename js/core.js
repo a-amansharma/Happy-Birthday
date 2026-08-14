@@ -109,7 +109,13 @@
       current = path;
       var main = document.getElementById('main');
       main.innerHTML = '';
-      routes[path](main);
+      try {
+        routes[path](main);
+      } catch (e) {
+        if (window.console) console.error('route render error:', path, e);
+        main.innerHTML = '<div class="page"><div class="section-title"><h3>Oops…</h3><span class="hand">something went wrong</span></div>' +
+          '<button class="btn btn-soft btn-lg" onclick="location.hash=&#39;#/home&#39;">Go home ♡</button></div>';
+      }
       HB.updateNav();
       window.scrollTo(0, 0);
     }
@@ -120,16 +126,17 @@
   HB.updateNav = function () {
     var navItems = [
       { path: '/', icon: HB.icon('home'), label: 'Home' },
-      { path: '/chat', icon: HB.icon('chat'), label: 'Chat', badge: 'talk' },
+      { path: '/chat', icon: HB.icon('chat'), label: 'Chat', badge: '/chat' },
       { path: '/notes', icon: HB.icon('note'), label: 'Love Notes' },
       { path: '/daily', icon: HB.icon('sun'), label: 'Daily Question' },
       { path: '/memories', icon: HB.icon('camera'), label: 'Memories' },
       { path: '/quiz', icon: HB.icon('dice'), label: 'Couple Quiz' },
       { path: '/dates', icon: HB.icon('calendar'), label: 'Date Ideas' },
       { path: '/special', icon: HB.icon('heart'), label: 'Special Dates' },
+      { path: '/partner', icon: HB.icon('sparkle'), label: 'Partner' },
       { path: '/settings', icon: HB.icon('gear'), label: 'Settings' }
     ];
-    var labels = { home: 'Home', chat: 'Chat', notes: 'Notes', daily: 'Daily', memories: 'Memories', quiz: 'Quiz', dates: 'Dates', special: 'Dates', settings: 'Settings' };
+    var labels = { home: 'Home', chat: 'Chat', notes: 'Notes', daily: 'Daily', memories: 'Memories', quiz: 'Quiz', dates: 'Dates', special: 'Dates', partner: 'Partner', settings: 'Settings' };
 
     var sb = document.getElementById('sidebar');
     var bn = document.getElementById('bottom-nav');
@@ -139,7 +146,9 @@
 
     var items = navItems.map(function (n) {
       var active = current === n.path ? ' active' : '';
-      var badge = n.badge === 'talk' && HB.state.chatHistory.length === 0 ? '' : '';
+      var badge = n.badge
+        ? '<i class="nav-badge' + ((HB.unreadCounts[n.badge] || 0) > 0 ? ' show' : '') + '" data-badge="' + n.badge + '">' + HB.badgeText(n.badge) + '</i>'
+        : '';
       return '<button class="nav-item' + active + '" data-path="' + n.path + '">' + n.icon + '<span>' + n.label + '</span>' + badge + '</button>';
     }).join('');
 
@@ -150,7 +159,10 @@
 
     var bnItems = navItems.slice(0, 5).map(function (n) {
       var active = current === n.path ? ' active' : '';
-      return '<button class="bn-item' + active + '" data-path="' + n.path + '"><span style="position:relative">' + n.icon + '</span><span>' + labels[n.path.replace('/', '')] + '</span></button>';
+      var badge = n.badge
+        ? '<i class="nav-badge' + ((HB.unreadCounts[n.badge] || 0) > 0 ? ' show' : '') + '" data-badge="' + n.badge + '">' + HB.badgeText(n.badge) + '</i>'
+        : '';
+      return '<button class="bn-item' + active + '" data-path="' + n.path + '"><span style="position:relative">' + n.icon + badge + '</span><span>' + labels[n.path.replace('/', '')] + '</span></button>';
     }).join('') +
       '<button class="bn-item' + (current === '/more' ? ' active' : '') + '" data-path="/more"><span style="position:relative">' + HB.icon('more') + '</span><span>More</span></button>';
     bn.innerHTML = bnItems;
@@ -166,11 +178,28 @@
     document.body.classList.add('theme-' + (HB.state.profile.theme || 'milk'));
   };
 
+  /* Unread badges (used by realtime couple chat) */
+  HB.unreadCounts = {};
+  HB.badgeText = function (path) {
+    var n = HB.unreadCounts[path] || 0;
+    return n > 9 ? '9+' : n;
+  };
+  HB.setUnread = function (path, count) {
+    HB.unreadCounts[path] = count || 0;
+    var els = document.querySelectorAll('[data-badge="' + path + '"]');
+    if (!els.length) { HB.updateNav(); return; }
+    els.forEach(function (el) {
+      if (count > 0) { el.textContent = HB.badgeText(path); el.classList.add('show'); }
+      else { el.classList.remove('show'); }
+    });
+  };
+
   /* Mobile "more" menu */
   HB.route('/more', function (main) {
     var pages = [
       ['notes', 'Love Notes', '♡'], ['daily', 'Daily Question', '☀'], ['memories', 'Memories', '📸'],
-      ['quiz', 'Couple Quiz', '🎲'], ['dates', 'Date Ideas', '🌙'], ['special', 'Special Dates', '⏳'], ['settings', 'Settings', '⚙']
+      ['quiz', 'Couple Quiz', '🎲'], ['dates', 'Date Ideas', '🌙'], ['special', 'Special Dates', '⏳'],
+      ['partner', 'Partner', '💞'], ['settings', 'Settings', '⚙']
     ];
     var cards = pages.map(function (p) {
       return '<button class="card card-hover dash-tile" data-path="/' + p[0] + '"><div class="dt-icon">' + p[2] + '</div><div class="dt-title">' + p[1] + '</div><div class="dt-go">Open →</div></button>';
@@ -294,11 +323,24 @@
     }
   });
 
-  /* ---------------- Cute ambient music (Web Audio music box) ---------------- */
-  var audioCtx = null, musicGain = null, musicTimer = null, musicOn = false;
+  /* ---------------- Smooth romantic background music (Web Audio) ----------------
+     A soft, dreamy I–vi–IV–V loop: warm bass, pad, gentle arpeggio + melody.
+     No audio files needed — everything is synthesized, so it's tiny and offline-safe. */
+  var audioCtx = null, musicGain = null, musicFilter = null, musicTimer = null, musicOn = false;
 
-  var SCALE = [523.25, 587.33, 659.25, 698.46, 783.99, 880.00, 987.77]; // C major pentatonic-ish
-  var MELODY = [0, 2, 4, 2, 5, 4, 2, 1, 0, 2, 4, 5, 4, 3, 2, 1]; // simple lullaby
+  var ROMANTIC_BPM = 64;
+  var ROMANTIC_CHORDS = [
+    { bass: 36, pad: [60, 64, 67, 72] },  // Cmaj7
+    { bass: 33, pad: [57, 60, 64, 69] },  // Am7
+    { bass: 29, pad: [53, 57, 60, 65] },  // Fmaj7
+    { bass: 31, pad: [55, 59, 62, 67] },  // Gsus4
+    { bass: 36, pad: [60, 64, 67, 72] },  // Cmaj7
+    { bass: 33, pad: [57, 60, 64, 69] },  // Am7
+    { bass: 29, pad: [53, 57, 60, 65] },  // Fmaj7
+    { bass: 35, pad: [59, 62, 67, 71] }   // G7 → resolves back to C
+  ];
+
+  function mtof(m) { return 440 * Math.pow(2, (m - 69) / 12); }
 
   function ensureAudio() {
     if (!audioCtx) {
@@ -306,55 +348,76 @@
       audioCtx = new AC();
       musicGain = audioCtx.createGain();
       musicGain.gain.value = 0;
+      musicFilter = audioCtx.createBiquadFilter();
+      musicFilter.type = 'lowpass';
+      musicFilter.frequency.value = 1500;
       musicGain.connect(audioCtx.destination);
-      musicGain.gain.linearRampToValueAtTime(0.18, audioCtx.currentTime + 2);
+      musicFilter.connect(musicGain);
+      musicGain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 3);
     }
     if (audioCtx.state === 'suspended') audioCtx.resume();
   }
 
-  function playTone(freq, time, dur, type, vol) {
+  function tone(midi, when, dur, vol, type) {
     var osc = audioCtx.createOscillator();
     var g = audioCtx.createGain();
     osc.type = type || 'sine';
-    osc.frequency.value = freq;
-    g.gain.setValueAtTime(0, time);
-    g.gain.linearRampToValueAtTime(vol || 0.5, time + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.001, time + dur);
-    osc.connect(g); g.connect(musicGain);
-    osc.start(time); osc.stop(time + dur + 0.05);
+    osc.frequency.value = mtof(midi);
+    g.gain.setValueAtTime(0, when);
+    g.gain.linearRampToValueAtTime(vol, when + 0.08);
+    g.gain.exponentialRampToValueAtTime(0.001, when + dur);
+    osc.connect(g); g.connect(musicFilter);
+    osc.start(when); osc.stop(when + dur + 0.05);
   }
 
-  var step = 0;
+  var nextBar = 0, barIndex = 0;
+
+  function playBar(chord, t, barDur) {
+    var beat = barDur / 4;
+    // warm bass
+    tone(chord.bass, t, barDur * 0.95, 0.22, 'sine');
+    // soft pad
+    chord.pad.forEach(function (m) {
+      tone(m, t, barDur * 0.98, 0.05, 'triangle');
+    });
+    // gentle arpeggio on each beat
+    for (var b = 0; b < 4; b++) {
+      var note = chord.pad[b % chord.pad.length];
+      tone(note + 12, t + beat * b, beat * 0.9, 0.07, 'sine');
+      tone(note, t + beat * b + beat / 2, beat * 0.8, 0.032, 'sine');
+    }
+    // dreamy melody
+    tone(chord.pad[3] + 12, t + beat * 1.5, beat * 2.6, 0.075, 'triangle');
+    tone(chord.pad[2] + 12, t + beat * 3, beat * 2.2, 0.055, 'triangle');
+  }
+
   function tick() {
     if (!musicOn || !audioCtx) return;
-    var t = audioCtx.currentTime;
-    var note = MELODY[step % MELODY.length];
-    var freq = SCALE[note];
-    playTone(freq, t, 1.1, 'sine', 0.35);
-    playTone(freq * 2, t, 0.5, 'triangle', 0.12);
-    // soft bass drone
-    playTone(freq / 2, t, 1.4, 'sine', 0.1);
-    step++;
+    var barDur = (60 / ROMANTIC_BPM) * 4;
+    while (nextBar < audioCtx.currentTime + 1.6) {
+      playBar(ROMANTIC_CHORDS[barIndex % ROMANTIC_CHORDS.length], nextBar, barDur);
+      barIndex++;
+      nextBar += barDur;
+    }
   }
 
   HB.music = {
     toggle: function () {
       ensureAudio();
       musicOn = !musicOn;
+      if (musicOn) {
+        nextBar = audioCtx.currentTime + 0.1;
+        tick();
+        musicTimer = setInterval(tick, 400);
+      } else {
+        clearInterval(musicTimer);
+        musicTimer = null;
+      }
       HB.state.settings.music = musicOn;
       HB.save();
       var btn = document.getElementById('music-btn');
-      if (musicOn) {
-        btn.classList.add('playing');
-        HB.toast('Soft music is playing ♪', '🎵');
-        step = 0;
-        tick();
-        musicTimer = setInterval(tick, 1400);
-      } else {
-        btn.classList.remove('playing');
-        clearInterval(musicTimer);
-        HB.toast('Music paused. Sweet dreams ♡', '🌙');
-      }
+      if (btn) btn.classList.toggle('playing', musicOn);
+      HB.toast(musicOn ? 'Soft romantic music is playing ♡' : 'Music paused — sweet silence ♡', musicOn ? '🎵' : '🌙');
     },
     isOn: function () { return musicOn; }
   };
@@ -414,18 +477,28 @@
   };
 
   /* ---------------- Boot ---------------- */
+  HB.ready = window.__sbReady || Promise.resolve();
+  HB.onReady = function () {};
+
   HB.boot = function () {
     setupCanvas();
     HB.buildAmbient();
 
     var btn = document.getElementById('music-btn');
     btn.addEventListener('click', function () { HB.music.toggle(); });
-    if (HB.state.settings.music) {
-      ensureAudio();
-      musicOn = true;
-      btn.classList.add('playing');
-    }
+
+    // Music always starts OFF: the icon shows the muted "slant-cross" state.
+    // It only plays after the user taps the button (browsers also require a gesture).
+    musicOn = false;
+    HB.state.settings.music = false;
+    HB.save();
+    btn.classList.remove('playing');
 
     render();
+
+    // After backend is ready (if configured), hand control to the app layer
+    HB.ready.then(function () {
+      try { HB.onReady(); } catch (e) { if (window.console) console.error(e); }
+    });
   };
 })();

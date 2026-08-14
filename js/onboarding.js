@@ -1,5 +1,10 @@
 /* ============================================================
-   ONBOARDING — 9-step personalization wizard
+   ONBOARDING — personalization wizard + anonymous account + code
+   ------------------------------------------------------------
+   Steps: about you → about them → ages → relationship → vibe →
+   talking style → something special → theme.
+   No email or password anywhere — each phone quietly gets an
+   anonymous Supabase identity, and LOVE- codes pair them.
    ============================================================ */
 (function () {
   'use strict';
@@ -25,6 +30,8 @@
     }).join('');
   }
 
+  var N_STEPS = 9;
+
   HB.route('/onboarding', function (main) {
     var step = 0;
     var draft = {
@@ -32,20 +39,23 @@
       age: HB.state.profile.age, partnerAge: HB.state.profile.partnerAge,
       relationship: HB.state.profile.relationship,
       vibes: HB.state.profile.vibes.slice(), chatStyle: HB.state.profile.chatStyle.slice(),
-      story: HB.state.profile.story, theme: HB.state.profile.theme
+      story: HB.state.profile.story, theme: HB.state.profile.theme,
+      togetherSince: HB.state.profile.togetherSince
     };
 
     var TITLES = [
-      'Step 1 of 9 · About you',
-      'Step 2 of 9 · About them',
-      'Step 3 of 9 · You, a little more',
-      'Step 4 of 9 · And them',
-      'Step 5 of 9 · Your story',
-      'Step 6 of 9 · Your vibe',
-      'Step 7 of 9 · How I should talk',
-      'Step 8 of 9 · Something special',
-      'Step 9 of 9 · Pick a vibe theme'
+      'Step 1 of ' + N_STEPS + ' · About you',
+      'Step 2 of ' + N_STEPS + ' · About them',
+      'Step 3 of ' + N_STEPS + ' · You, a little more',
+      'Step 4 of ' + N_STEPS + ' · And them',
+      'Step 5 of ' + N_STEPS + ' · Your relationship',
+      'Step 6 of ' + N_STEPS + ' · Your vibe',
+      'Step 7 of ' + N_STEPS + ' · How we should talk',
+      'Step 8 of ' + N_STEPS + ' · Something special',
+      'Step 9 of ' + N_STEPS + ' · Pick a vibe theme'
     ];
+
+    var backend = !!(window.HB && HB.db && HB.db.configured());
 
     function render() {
       var html = '<div class="wizard">' +
@@ -57,35 +67,29 @@
         '</div>';
 
       main.innerHTML = html;
-      var card = main.querySelector('.wizard-card');
-      var actions = main.querySelector('.wizard-actions');
-      var progress = main.querySelector('.progress');
-
-      renderStep(card, actions, progress);
+      renderStep(main.querySelector('.wizard-card'), main.querySelector('.wizard-actions'), main.querySelector('.progress'));
     }
 
     function renderStep(card, actions, progress) {
-      // Progress dots
       var dots = '';
-      for (var i = 0; i < 9; i++) {
+      for (var i = 0; i < N_STEPS; i++) {
         var cls = i < step ? 'done' : i === step ? 'current' : '';
         dots += '<span class="pstep ' + cls + '"></span>';
       }
-      dots += '<span class="plabel">' + (step + 1) + ' / 9</span>';
+      dots += '<span class="plabel">' + (step + 1) + ' / ' + N_STEPS + '</span>';
       progress.innerHTML = dots;
 
       var body = '';
-      var multi = false;
 
       switch (step) {
         case 0:
           body = '<p class="wizard-step-q">What should we call <span class="hand" style="font-size:1.3em">you</span>?</p>' +
-            '<p class="wizard-step-hint">Your name — we\'ll use it all over your little world.</p>' +
+            '<p class="wizard-step-hint">Your name — your person will see this exact name.</p>' +
             '<div class="field"><input class="input input-lg" id="w-name" placeholder="Your name" value="' + HB.esc(draft.name) + '" maxlength="30" /></div>';
           break;
         case 1:
           body = '<p class="wizard-step-q">What\'s your <span class="hand" style="font-size:1.3em">person\'s</span> name?</p>' +
-            '<p class="wizard-step-hint">Their name — the one that makes your heart go a little soft.</p>' +
+            '<p class="wizard-step-hint">If they\'re joining later, we\'ll use their real name the moment they connect. ♡</p>' +
             '<div class="field"><input class="input input-lg" id="w-partner" placeholder="Partner\'s name" value="' + HB.esc(draft.partner) + '" maxlength="30" /></div>';
           break;
         case 2:
@@ -95,30 +99,28 @@
           break;
         case 3:
           body = '<p class="wizard-step-q">How old is <span class="hand" style="font-size:1.3em">your person</span>?</p>' +
-            '<p class="wizard-step-hint">Equally important. (We won\'t tell them you told us.)</p>' +
+            '<p class="wizard-step-hint">Equally important. (We won\'t tell them you told us — this one stays just between us.)</p>' +
             '<div class="field"><input class="input input-lg" id="w-page" type="number" min="13" max="99" placeholder="Partner\'s age" value="' + HB.esc(draft.partnerAge) + '" /></div>';
           break;
         case 4:
           body = '<p class="wizard-step-q">What\'s your <span class="hand" style="font-size:1.3em">relationship</span>?</p>' +
-            '<p class="wizard-step-hint">Pick the closest one — this shapes how I talk.</p>' +
+            '<p class="wizard-step-hint">Pick the closest one — it\'s shared with both of you.</p>' +
             '<div class="option-cards">' + optionCards(HB.RELATIONSHIPS, draft.relationship ? [draft.relationship] : [], false) + '</div>';
           break;
         case 5:
-          multi = true;
           body = '<p class="wizard-step-q">Tell us your <span class="hand" style="font-size:1.3em">vibe</span> ♡</p>' +
             '<p class="wizard-step-hint">Pick as many as feel like you two.</p>' +
             '<div class="option-cards">' + optionCards(HB.VIBES, draft.vibes, true) + '</div>';
           break;
         case 6:
-          multi = true;
-          body = '<p class="wizard-step-q">How should your AI companion <span class="hand" style="font-size:1.3em">talk</span> to you?</p>' +
+          body = '<p class="wizard-step-q">How should we <span class="hand" style="font-size:1.3em">talk</span> to each other?</p>' +
             '<p class="wizard-step-hint">Your personality mix. Multiple picks welcome.</p>' +
             '<div class="option-cards">' + optionCards(HB.CHAT_STYLES, draft.chatStyle, true) + '</div>';
           break;
         case 7:
           body = '<p class="wizard-step-q">What\'s something <span class="hand" style="font-size:1.3em">special</span> about your relationship?</p>' +
-            '<p class="wizard-step-hint">Maybe your first meeting, an inside joke, your favorite memory, or anything you want us to know...</p>' +
-            '<div class="field"><textarea class="textarea" id="w-story" placeholder="Maybe your first meeting, an inside joke, your favorite memory, or anything you want us to know..." maxlength="600">' + HB.esc(draft.story) + '</textarea></div>' +
+            '<p class="wizard-step-hint">Maybe your first meeting, an inside joke, your favorite memory — shared with you two, forever.</p>' +
+            '<div class="field"><textarea class="textarea" id="w-story" placeholder="Maybe your first meeting, an inside joke, your favorite memory..." maxlength="600">' + HB.esc(draft.story) + '</textarea></div>' +
             '<div class="field"><label class="label">Together since (optional)</label><input class="input" id="w-together" type="date" value="' + HB.esc(draft.togetherSince || '') + '" /></div>';
           break;
         case 8:
@@ -132,9 +134,8 @@
       card.innerHTML = body;
       wireCard(card);
 
-      // Actions
       var back = '<button class="btn btn-ghost" data-wback>' + (step === 0 ? 'Start over' : 'Back') + '</button>';
-      var next = '<button class="btn btn-primary" data-wnext>' + (step === 8 ? 'Create Our World ♡' : 'Continue ♡') + '</button>';
+      var next = '<button class="btn btn-primary" data-wnext>' + (step === N_STEPS - 1 ? 'Create Our World ♡' : 'Continue ♡') + '</button>';
       actions.innerHTML = '<div>' + back + '</div>' + '<div>' + next + '</div>';
 
       actions.querySelector('[data-wnext]').addEventListener('click', function () { nextStep(); });
@@ -143,8 +144,7 @@
         step--; render();
       });
 
-      // Enter key to continue
-      var input = card.querySelector('input[type="text"], input[type="number"], input:not([type]), textarea');
+      var input = card.querySelector('input[type="text"], input[type="number"], input[type="email"], input:not([type]), textarea');
       if (input) {
         input.focus();
         input.addEventListener('keydown', function (e) {
@@ -155,11 +155,12 @@
         });
       }
 
-      document.querySelector('.theme-picker') && document.querySelector('.theme-picker').addEventListener('click', function (e) {
+      var themePicker = card.querySelector('.theme-picker');
+      if (themePicker) themePicker.addEventListener('click', function (e) {
         var t = e.target.closest('[data-theme]');
         if (!t) return;
         draft.theme = t.dataset.theme;
-        document.querySelectorAll('.theme-card').forEach(function (c) { c.classList.toggle('selected', c.dataset.theme === draft.theme); });
+        themePicker.querySelectorAll('.theme-card').forEach(function (c) { c.classList.toggle('selected', c.dataset.theme === draft.theme); });
         document.body.className = document.body.className.replace(/theme-[a-z]+/, '').trim();
         document.body.classList.add('theme-' + draft.theme);
       });
@@ -168,8 +169,7 @@
     function wireCard(card) {
       card.querySelectorAll('.option-card').forEach(function (btn) {
         btn.addEventListener('click', function () {
-          var multi = btn.parentElement.classList.contains('option-cards') &&
-            (step === 5 || step === 6);
+          var multi = step === 5 || step === 6;
           if (multi) {
             btn.classList.toggle('selected');
           } else {
@@ -228,17 +228,136 @@
       HB.state.onboarded = true;
       HB.save();
 
-      // First chat message from companion
       HB.state.chatHistory = [{
         id: HB.uid(), from: 'ai', text: HB.chatIntro().text, time: Date.now()
       }];
       HB.save();
 
-      // Celebration
+      if (!backend) {
+        celebrate();
+        setTimeout(function () { HB.navigate('/home'); }, 600);
+        return;
+      }
+      setupAccount();
+    }
+
+    function celebrate() {
       HB.burst(window.innerWidth / 2, window.innerHeight / 3, 40);
       HB.toast('Your little world is ready ✨', '🎉');
+    }
 
-      setTimeout(function () { HB.navigate('/home'); }, 600);
+    function setupAccount() {
+      var card = main.querySelector('.wizard-card');
+      var actions = main.querySelector('.wizard-actions');
+      var progress = main.querySelector('.progress');
+      progress.innerHTML = '';
+      actions.innerHTML = '';
+      card.innerHTML = '<div class="connect-center"><div class="dudu-small-stage" data-du></div>' +
+        '<h3>Setting up your little world…</h3>' +
+        '<div class="typing"><i></i><i></i><i></i></div></div>';
+      card.querySelector('[data-du]').innerHTML = HB.dudu.scene({ pose: 'wait' });
+
+      var run = function () {
+        HB.rel.ensureProfile({
+          name: draft.name,
+          age: draft.age,
+          shared: {
+            relationship_type: draft.relationship,
+            vibes: draft.vibes,
+            chat_style: draft.chatStyle,
+            story: draft.story,
+            together_since: draft.togetherSince || null
+          }
+        }).then(function (res) {
+          if (res && res.error) {
+            throw new Error(res.error.message || 'PROFILE_FAILED');
+          }
+          return HB.rel.init().then(function () {
+            if (HB.pendingCode) {
+              var pending = HB.pendingCode;
+              HB.pendingCode = null;
+              return HB.rel.connectWithCode(pending).then(function (out) {
+                if (out && out.error) throw new Error(out.error.message || 'CONNECT_FAILED');
+                celebrate();
+                setTimeout(function () { HB.navigate('/home'); }, 600);
+              });
+            }
+            var code = HB.rel.data.me && HB.rel.data.me.partner_code;
+            if (HB.rel.data.status === 'connected') {
+              celebrate();
+              setTimeout(function () { HB.navigate('/home'); }, 600);
+            } else {
+              showCode(code);
+            }
+          });
+        }).catch(function (err) {
+          card.innerHTML = '<div class="connect-center"><p>Something went wrong: ' + HB.esc(String(err.message || err)) + '</p>' +
+            '<button class="btn btn-soft" data-retry>Try again</button></div>';
+          card.querySelector('[data-retry]').addEventListener('click', function () { location.reload(); });
+        });
+      };
+
+      var go = function () {
+        run();
+      };
+
+      if (HB.auth.user()) {
+        go();
+        return;
+      }
+      HB.auth.signInAnonymously().then(function (res) {
+        if (res && res.error) {
+          card.innerHTML = '<div class="connect-center"><p>We couldn\'t create your little identity: ' + HB.esc(String(res.error.message || res.error)) + '</p>' +
+            '<button class="btn btn-soft" data-back>Back to start</button></div>';
+          card.querySelector('[data-back]').addEventListener('click', function () { HB.navigate('/onboarding'); });
+          return;
+        }
+        go();
+      });
+    }
+
+    /* Reveal the LOVE- code so the other person can pair with you */
+    function showCode(code) {
+      code = code || 'LOVE-?????';
+      var card = main.querySelector('.wizard-card');
+      var actions = main.querySelector('.wizard-actions');
+      var progress = main.querySelector('.progress');
+      progress.innerHTML = '';
+      actions.innerHTML = '';
+
+      card.innerHTML =
+        '<div class="connect-center">' +
+          '<div class="dudu-small-stage" data-du></div>' +
+          '<h2 class="hand" style="font-size:30px">Your person is next ♡</h2>' +
+          '<p class="wizard-step-hint">Share this code with your person — they\'ll open your little world on <b>their</b> phone, tap "I already have our space", and enter it to connect with you.</p>' +
+          '<div class="partner-code"><span>' + HB.esc(code) + '</span>' +
+            '<button class="btn-icon btn-soft" data-copy title="Copy code">' + HB.icon('copy') + '</button></div>' +
+          '<p class="muted" style="font-size:12.5px;margin-top:16px">Your little world is ready — you can also go in now and wait. We\'ll throw a tiny celebration the moment they connect. ♡</p>' +
+          '<button class="btn btn-ghost" data-home>Go to my little world →</button>' +
+        '</div>';
+
+      card.querySelector('[data-du]').innerHTML = HB.dudu.scene({ pose: 'wait' });
+      HB.dudu.landingSequence(card.querySelector('[data-du]'));
+
+      card.querySelector('[data-copy]').addEventListener('click', function () {
+        var btn = this;
+        navigator.clipboard.writeText(code).then(function () {
+          btn.innerHTML = '✓';
+          setTimeout(function () { btn.innerHTML = HB.icon('copy'); }, 1500);
+          HB.toast('Code copied — send it to your person ♡', '💌');
+        });
+      });
+
+      card.querySelector('[data-home]').addEventListener('click', function () { HB.navigate('/home'); });
+
+      // The moment the partner connects, celebrate and head home.
+      window.addEventListener('hb:relchange', function onConnect() {
+        if (HB.rel.data.status === 'connected') {
+          window.removeEventListener('hb:relchange', onConnect);
+          celebrate();
+          setTimeout(function () { HB.navigate('/home'); }, 900);
+        }
+      });
     }
 
     render();
