@@ -18,8 +18,9 @@ Built with vanilla JavaScript (no build step, no frameworks) + [Supabase](https:
 
 ```
 js/
-  config.js          ← your Supabase URL + anon key (public) + APP_VERSION
-  supabase.js        ← loads @supabase/supabase-js from CDN, restores session
+  config.js          ← your Supabase URL + publishable key (public) + APP_VERSION
+  supabase.js        ← boots the Supabase client, restores session
+  vendor/supabase.min.js ← supabase-js v2 (local copy — no CDN needed, works offline)
   core.js            ← state, router, nav, toasts, modal, music, particles
   dudu.js / dudu.css ← the character system (internal names only, never on screen)
   services/          ← db, auth (anonymous), relationship, chat, presence, quiz
@@ -32,9 +33,11 @@ js/
   chat.js            ← /companion — the AI companion
   quiz.js            ← /quiz — Daily Bond Quiz
   ... (love notes, memories, dates, settings, creator, app)
-supabase/schema.sql  ← full database schema, RLS, RPCs, storage, admin insights
+supabase/schema.sql  ← full database schema, RLS, RPCs, storage, owner insights
 admin/               ← PRIVATE owner insights page (see below)
 ```
+
+> The `@supabase/supabase-js` library is **vendored locally** (`js/vendor/supabase.min.js`). The app never needs a CDN at runtime, so it works on GitHub Pages, VS Code Live Server, localhost, and even offline. (The plain jsDelivr `@2` URL can't be used as a fallback — it ships bare import specifiers browsers can't resolve; the `+esm` build is used only if the vendored file is ever missing.)
 
 ## Setup
 

@@ -44,7 +44,25 @@
   function makeClient() {
     var cfg = window.APP_CONFIG || {};
     if (!cfg.configured) return Promise.reject('NOT_CONFIGURED');
-    return import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2').then(function (mod) {
+
+    /* Preferred: the local vendored build (js/vendor/supabase.min.js).
+       Fallback: jsDelivr's pre-bundled "+esm" build. The plain "@2"
+       URL ships bare import specifiers browsers can't resolve. */
+    if (window.supabase && window.supabase.createClient) {
+      try {
+        client = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true,
+            storageKey: SESSION_KEY,
+            storage: window.localStorage
+          }
+        });
+        return Promise.resolve(client);
+      } catch (e) { /* fall through to CDN */ }
+    }
+    return import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm').then(function (mod) {
       client = mod.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, {
         auth: {
           persistSession: true,
