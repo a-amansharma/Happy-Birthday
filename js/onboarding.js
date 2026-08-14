@@ -258,7 +258,7 @@
       card.innerHTML = '<div class="connect-center"><div class="dudu-small-stage" data-du></div>' +
         '<h3>Setting up your little world…</h3>' +
         '<div class="typing"><i></i><i></i><i></i></div></div>';
-      card.querySelector('[data-du]').innerHTML = HB.dudu.scene({ pose: 'wait' });
+      card.querySelector('[data-du]').innerHTML = HB.chars.stageHtml({ which: 'dudu', action: 'think', size: 'sm', alt: 'Dudu is thinking' });
 
       var run = function () {
         HB.rel.ensureProfile({
@@ -339,7 +339,7 @@
           '<button class="btn btn-ghost" data-home>Go to my little world →</button>' +
         '</div>';
 
-      HB.dudu.meeting(card.querySelector('[data-du]'), 'approach');
+      HB.chars.hero(card.querySelector('[data-du]'), { which: 'both', actions: ['love', 'hug', 'happy', 'dance', 'wait'], size: 'sm', alt: 'Bubu ♡ Dudu' });
 
       card.querySelector('[data-copy]').addEventListener('click', function () {
         var btn = this;

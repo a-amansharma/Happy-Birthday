@@ -14,7 +14,7 @@
 
   function bubbleHtml(m) {
     var cls = m.from === 'user' ? 'user' : 'ai';
-    var avatar = cls === 'ai' ? '<span class="msg-avatar">' + HB.bearAvatarSVG(BOT_COLOR) + '</span>' : '<span class="msg-avatar">' + HB.bearAvatarSVG('pinky', 'blush') + '</span>';
+    var avatar = cls === 'ai' ? '<span class="msg-avatar">' + HB.chars.avatarImg('bubu', 'happy') + '</span>' : '<span class="msg-avatar">' + HB.chars.avatarImg('dudu', 'cute') + '</span>';
     return '<div class="msg ' + cls + '">' + avatar +
       '<div class="bubble">' + HB.esc(m.text).replace(/\n/g, '<br>') + '</div>' +
       '<span class="msg-time">' + timeStr(m.time) + '</span></div>';
@@ -36,7 +36,7 @@
     if (!container.isConnected) return null;
     var el = document.createElement('div');
     el.className = 'msg ai typing-msg';
-    el.innerHTML = '<span class="msg-avatar">' + HB.bearAvatarSVG(BOT_COLOR, 'blush') + '</span><div class="bubble typing"><i></i><i></i><i></i></div>';
+    el.innerHTML = '<span class="msg-avatar">' + HB.chars.avatarImg('bubu', 'happy') + '</span><div class="bubble typing"><i></i><i></i><i></i></div>';
     container.querySelector('.chat-inner').appendChild(el);
     container.scrollTop = container.scrollHeight;
     return el;
@@ -52,7 +52,7 @@
     main.innerHTML =
       '<div class="chat-page">' +
       '<div class="chat-head">' +
-        '<div class="avatar">' + HB.bearAvatarSVG(BOT_COLOR, 'love') + '<span class="online"></span></div>' +
+        '<div class="avatar">' + HB.chars.avatarImg('bubu', 'love') + '<span class="online"></span></div>' +
         '<div><h2>Your Little Companion ♡</h2><p>always here, always listening</p></div>' +
         '<div class="chat-head-actions">' +
           '<button class="btn-icon btn-soft" data-clear title="Start fresh" aria-label="New chat">' + HB.icon('refresh') + '</button>' +

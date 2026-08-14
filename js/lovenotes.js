@@ -91,7 +91,7 @@
       var box = main.querySelector('#saved-notes');
       var notes = HB.state.loveNotes;
       if (!notes.length) {
-        box.innerHTML = '<div class="empty-state"><div class="es-emoji">💌</div><h4>No saved notes yet</h4><p>Generate a note and hit "Save" to keep your little words here.</p></div>';
+        box.innerHTML = '<div class="empty-state"><div class="es-emoji">' + HB.chars.stageHtml({ which: 'bubu', action: 'love', size: 'empty', alt: 'Bubu ♡ Dudu' }) + '</div><h4>No saved notes yet</h4><p>Generate a note and hit "Save" to keep your little words here.</p></div>';
         return;
       }
       box.innerHTML = notes.map(function (nt, i) {

@@ -23,7 +23,7 @@
         '<p class="wizard-step-hint">Connect with your person first, and tomorrow\'s quiz starts from today.</p>' +
         '<button class="btn btn-primary" data-partner>Open Partner page 💞</button></div></div>';
       var du = main.querySelector('[data-du]');
-      if (du) du.innerHTML = HB.dudu.scene({ pose: 'wait' });
+      if (du && HB.chars) du.innerHTML = HB.chars.stageHtml({ which: 'both', action: 'wait', size: 'big', alt: 'Bubu ♡ Dudu' });
       main.querySelector('[data-partner]').addEventListener('click', function () { HB.navigate('/partner'); });
       return;
     }
@@ -99,7 +99,7 @@
     main.innerHTML = '<div class="page" style="max-width:680px"><div class="dash-hello"><h2 class="hand" style="font-size:26px">Locking in your answers…</h2></div>' +
       '<div class="connect-center"><div class="dudu-small-stage" data-du></div><div class="typing"><i></i><i></i><i></i></div></div></div>';
     var du = main.querySelector('[data-du]');
-    if (du) du.innerHTML = HB.dudu.scene({ pose: 'celebrate' });
+    if (du && HB.chars) du.innerHTML = HB.chars.stageHtml({ which: 'both', action: 'happy', size: 'sm', alt: 'Bubu ♡ Dudu' });
 
     HB.quiz.submit(answers).then(function (res) {
       if (res && res.error) {
@@ -126,7 +126,7 @@
       '<div class="typing"><i></i><i></i><i></i></div>' +
       '</div></div>';
     var du = main.querySelector('[data-du]');
-    if (du) du.innerHTML = HB.dudu.scene({ pose: 'wait' });
+    if (du && HB.chars) du.innerHTML = HB.chars.stageHtml({ which: 'both', action: 'wait', size: 'big', alt: 'Bubu ♡ Dudu' });
   }
 
   function renderResult(main, quiz, result) {
@@ -153,7 +153,7 @@
       '</div>';
 
     var du = main.querySelector('[data-du]');
-    if (du) du.innerHTML = HB.dudu.scene({ pose: 'celebrate' });
+    if (du && HB.chars) du.innerHTML = HB.chars.stageHtml({ which: 'both', action: 'happy', size: 'sm', alt: 'Bubu ♡ Dudu' });
 
     var num = main.querySelector('#score-num');
     var ring = main.querySelector('#ring-val');

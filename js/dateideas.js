@@ -60,7 +60,7 @@
       var grid = main.querySelector('#date-results');
       if (!grid) return;
       if (!results.length) {
-        grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="es-emoji">🌙</div><h4>No matches</h4><p>Loosen a filter and let the magic find you.</p></div>';
+        grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="es-emoji">' + HB.chars.stageHtml({ which: 'bubu', action: 'think', size: 'empty', alt: 'Bubu is thinking of ideas' }) + '</div><h4>No matches</h4><p>Loosen a filter and let the magic find you.</p></div>';
         return;
       }
       grid.innerHTML = results.map(function (idea, i) {

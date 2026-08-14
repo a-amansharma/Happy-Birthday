@@ -46,6 +46,8 @@
 
     HB.boot();
 
+    if (HB.chars && HB.chars.cornerStart) HB.chars.cornerStart();
+
     // Welcome micro-interaction
     if (!HB.state.onboarded) {
       setTimeout(function () {

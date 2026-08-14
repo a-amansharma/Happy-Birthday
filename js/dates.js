@@ -84,7 +84,7 @@
       var grid = main.querySelector('#events-grid');
       var events = HB.state.specialDates.slice().sort(function (a, b) { return a.date.localeCompare(b.date); });
       if (!events.length) {
-        grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="es-emoji">⏳</div><h4>No special dates yet</h4><p>Add your first meeting, your anniversary, their birthday — and we\'ll count down to every one.</p></div>';
+        grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="es-emoji">' + HB.chars.stageHtml({ which: 'dudu', action: 'wait', size: 'empty', alt: 'Dudu is waiting for your dates' }) + '</div><h4>No special dates yet</h4><p>Add your first meeting, your anniversary, their birthday — and we\'ll count down to every one.</p></div>';
         return;
       }
       grid.innerHTML = events.map(function (ev, i) {

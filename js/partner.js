@@ -45,10 +45,6 @@
     var waiting = relData.status === 'waiting';
     var code = relData.me && relData.me.partner_code;
 
-    var scene = connected
-      ? HB.dudu.scene({ pose: 'together', duX: 112 })
-      : HB.dudu.scene({ pose: 'wait' });
-
     var body = '';
 
     if (connected) {
@@ -57,7 +53,7 @@
       var relType = s.relationship_type || '';
       body =
         '<div class="connect-center">' +
-          '<div class="dudu-big" data-du>' + scene + '</div>' +
+          '<div class="dudu-big" data-du></div>' +
           '<h2 class="hand" style="font-size:30px">You two are connected ♡</h2>' +
           '<p class="wizard-step-hint">' + HB.esc(HB.couple()) + ' — one little world, two hearts.</p>' +
           (relType ? '<div class="rh-tag" style="margin-top:6px">' + HB.esc(relType) + '</div>' : '') +
@@ -73,7 +69,7 @@
     } else if (waiting && code) {
       body =
         '<div class="connect-center">' +
-          '<div class="dudu-big" data-du>' + scene + '</div>' +
+          '<div class="dudu-big" data-du></div>' +
           '<h2 class="hand" style="font-size:30px">Waiting for your person ♡</h2>' +
           '<p class="wizard-step-hint">Share this code — they enter it on their phone to join you.</p>' +
           '<div class="partner-code"><span>' + HB.esc(code) + '</span>' +
@@ -83,7 +79,7 @@
     } else {
       body =
         '<div class="connect-center">' +
-          '<div class="dudu-big" data-du>' + scene + '</div>' +
+          '<div class="dudu-big" data-du></div>' +
           '<h2 class="hand" style="font-size:30px">Join your person ♡</h2>' +
           '<p class="wizard-step-hint">Enter the code they shared with you to link your little worlds.</p>' +
           '<div class="field" style="max-width:320px;margin:10px auto 0"><input class="input input-lg code-input" id="code-input" placeholder="LOVE-XXXXX" maxlength="12" autocomplete="off"/></div>' +
@@ -100,7 +96,7 @@
       '</div>';
 
     var du = main.querySelector('[data-du]');
-    if (du) HB.dudu.meeting(du, connected ? 'together' : 'approach');
+    if (du && HB.chars) HB.chars.hero(du, { which: 'both', actions: connected ? ['hug', 'kiss', 'love', 'romantic', 'dance', 'cuddle'] : ['happy', 'love', 'wait'], alt: 'Bubu ♡ Dudu' });
 
     var copy = main.querySelector('[data-copy]');
     if (copy && code) copy.addEventListener('click', function () {

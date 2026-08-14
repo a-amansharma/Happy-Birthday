@@ -12,7 +12,7 @@
       var grid = main.querySelector('#polaroid-grid');
       var mems = HB.state.memories;
       if (!mems.length) {
-        grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="es-emoji">📸</div><h4>No memories yet</h4><p>Add your first little moment — a photo, a title, a tiny story. It\'s your gallery of us.</p></div>';
+        grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="es-emoji">' + HB.chars.stageHtml({ which: 'dudu', action: 'sad', size: 'empty', alt: 'Dudu misses your memories' }) + '</div><h4>No memories yet</h4><p>Add your first little moment — a photo, a title, a tiny story. It\'s your gallery of us.</p></div>';
         return;
       }
       grid.innerHTML = mems.map(function (m, i) {

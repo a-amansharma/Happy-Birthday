@@ -141,21 +141,40 @@
     if (opts && opts.scrollTop) window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  var renderTimer = null;
+
+  function paint(main, path) {
+    main.innerHTML = '';
+    try {
+      routes[path](main);
+    } catch (e) {
+      if (window.console) console.error('route render error:', path, e);
+      main.innerHTML = '<div class="page"><div class="section-title"><h3>Oops…</h3><span class="hand">something went wrong</span></div>' +
+        '<button class="btn btn-soft btn-lg" onclick="location.hash=&#39;#/home&#39;">Go home ♡</button></div>';
+    }
+    HB.updateNav();
+    window.scrollTo(0, 0);
+    main.classList.remove('bb-leave');
+    main.classList.add('bb-enter');
+  }
+
   function render() {
     var path = location.hash.replace(/^#/, '') || '/';
-    if (routes[path]) {
-      current = path;
-      var main = document.getElementById('main');
-      main.innerHTML = '';
-      try {
-        routes[path](main);
-      } catch (e) {
-        if (window.console) console.error('route render error:', path, e);
-        main.innerHTML = '<div class="page"><div class="section-title"><h3>Oops…</h3><span class="hand">something went wrong</span></div>' +
-          '<button class="btn btn-soft btn-lg" onclick="location.hash=&#39;#/home&#39;">Go home ♡</button></div>';
-      }
-      HB.updateNav();
-      window.scrollTo(0, 0);
+    if (!routes[path]) return;
+    current = path;
+    var main = document.getElementById('main');
+    if (!main) return;
+    var reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    if (renderTimer) { clearTimeout(renderTimer); renderTimer = null; }
+    if (reduced || main.childElementCount === 0) {
+      paint(main, path);
+    } else {
+      main.classList.remove('bb-enter');
+      main.classList.add('bb-leave');
+      renderTimer = setTimeout(function () {
+        renderTimer = null;
+        paint(main, path);
+      }, 170);
     }
   }
 
@@ -177,7 +196,7 @@
     var sb = document.getElementById('sidebar');
     var bn = document.getElementById('bottom-nav');
 
-    var logo = '<div class="sidebar-logo">' + HB.bearMiniSVG() +
+    var logo = '<div class="sidebar-logo">' + (HB.chars && HB.chars.avatarImg ? HB.chars.avatarImg('bubu', 'cute', 'side-logo') : HB.bearMiniSVG()) +
       '<div><div class="logo-text">Our Little World</div><div class="logo-sub">' + HB.esc(HB.couple()) + '</div></div></div>';
 
     var items = navItems.map(function (n) {
@@ -198,9 +217,9 @@
       var badge = n.badge
         ? '<i class="nav-badge' + ((HB.unreadCounts[n.badge] || 0) > 0 ? ' show' : '') + '" data-badge="' + n.badge + '">' + HB.badgeText(n.badge) + '</i>'
         : '';
-      return '<button class="bn-item' + active + '" data-path="' + n.path + '"><span style="position:relative">' + n.icon + badge + '</span><span>' + n.label + '</span></button>';
+      return '<button class="bn-item' + active + '" data-path="' + n.path + '"><span class="bn-icon">' + n.icon + badge + '</span><span>' + n.label + '</span></button>';
     }).join('') +
-      '<button class="bn-item' + (current === '/more' ? ' active' : '') + '" data-path="/more"><span style="position:relative">' + HB.icon('more') + '</span><span>More</span></button>';
+      '<button class="bn-item' + (current === '/more' ? ' active' : '') + '" data-path="/more"><span class="bn-icon">' + HB.icon('more') + '</span><span>More</span></button>';
     bn.innerHTML = bnItems;
 
     sb.querySelectorAll('.nav-item').forEach(function (el) {

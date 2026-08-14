@@ -1,0 +1,105 @@
+/* ============================================================
+   BUBU & DUDU — real GIF character system (Tenor / Tkthao219)
+   ============================================================ */
+
+/* Stage: fixed square container so GIFs swap without layout jumps */
+.bb-stage {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  aspect-ratio: 1 / 1;
+}
+.bb-stage img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0;
+  transition: opacity 0.7s var(--ease);
+}
+.bb-stage img.bb-on { opacity: 1; }
+
+.bb-land { max-width: 440px; }
+.bb-hero { max-width: 230px; }
+.bb-sm { max-width: 240px; }
+.bb-tiny { max-width: 120px; }
+.bb-mini { max-width: 72px; }
+.bb-empty { max-width: 200px; }
+
+/* Round GIF avatars (chat bubbles, chat header, sidebar, landing) */
+.bb-avatar { border-radius: 50%; object-fit: cover; display: block; }
+.msg-avatar img.bb-avatar, .avatar img.bb-avatar { width: 100%; height: 100%; }
+.sidebar-logo img.bb-avatar { width: 44px; height: 44px; }
+.landing-avatar img.bb-avatar { width: 34px; height: 34px; }
+
+/* Empty-state GIFs sit where the old emoji was */
+.empty-state .es-emoji { line-height: 0; }
+.empty-state .es-emoji .bb-stage { max-width: 200px; margin: 0 auto; }
+
+/* ---------- Random corner peekers ---------- */
+.bb-corners { position: fixed; inset: 0; pointer-events: none; z-index: 55; }
+.bb-corner {
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  opacity: 0;
+  animation: bbCorner 4s var(--ease) both;
+}
+.bb-corner img { width: 100%; height: 100%; object-fit: contain; }
+.bb-corner-tl { top: 14px; left: 14px; }
+.bb-corner-tr { top: 78px; right: 24px; }
+.bb-corner-bl { bottom: 24px; left: 280px; }
+.bb-corner-br { bottom: 24px; right: 24px; }
+@keyframes bbCorner {
+  0%   { opacity: 0; transform: translateY(10px) scale(0.85) rotate(-4deg); }
+  18%  { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+  80%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-6px) scale(0.92); }
+}
+@media (max-width: 860px) {
+  .bb-corner-bl, .bb-corner-br { display: none; }
+  .bb-corner-tr { top: 72px; right: 14px; }
+  .bb-corner-tl { top: 14px; left: 14px; }
+}
+
+/* ---------- Mobile bottom nav: active pill, no jumping ---------- */
+.bn-item { transition: transform 0.25s var(--ease), color 0.25s var(--ease); }
+.bn-item .bn-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 28px;
+  border-radius: 999px;
+  transition: background-color 0.3s var(--ease), color 0.3s var(--ease);
+}
+.bn-item.active { color: var(--primary-deep); transform: translateY(-1px); }
+.bn-item.active .bn-icon { background: var(--primary-soft); }
+.bn-item svg { transition: transform 0.3s var(--ease); }
+.bn-item.active svg { transform: scale(1.15); filter: drop-shadow(0 4px 8px var(--glow)); }
+
+/* ---------- Section transitions (route changes) ---------- */
+#main.bb-leave .page, #main.bb-leave .chat-page, #main.bb-leave .landing, #main.bb-leave .wizard { animation: bbOut 0.16s var(--ease) both; }
+#main.bb-enter .page { animation: bbIn 0.36s var(--ease) both; }
+#main.bb-enter .page > * { animation: bbRise 0.4s var(--ease) both; }
+#main.bb-enter .page > *:nth-child(2) { animation-delay: 0.05s; }
+#main.bb-enter .page > *:nth-child(3) { animation-delay: 0.1s; }
+#main.bb-enter .page > *:nth-child(4) { animation-delay: 0.15s; }
+#main.bb-enter .page > *:nth-child(5) { animation-delay: 0.2s; }
+#main.bb-enter .page > *:nth-child(6) { animation-delay: 0.25s; }
+#main.bb-enter .page > *:nth-child(n+7) { animation-delay: 0.3s; }
+#main.bb-enter .chat-page { animation: bbIn 0.3s var(--ease) both; }
+#main.bb-enter .chat-page > * { animation: bbRise 0.35s var(--ease) both; }
+@keyframes bbOut { to { opacity: 0; transform: translateY(-8px) scale(0.99); } }
+@keyframes bbIn { from { opacity: 0; transform: translateY(12px) scale(0.985); } to { opacity: 1; transform: none; } }
+@keyframes bbRise { from { opacity: 0; transform: translateY(16px) scale(0.98); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  #main.bb-leave .page, #main.bb-leave .chat-page, #main.bb-leave .landing, #main.bb-leave .wizard,
+  #main.bb-enter .page, #main.bb-enter .chat-page, #main.bb-enter .page > *, #main.bb-enter .chat-page > * {
+    animation: none !important;
+  }
+  .bb-stage img { transition: none; }
+}

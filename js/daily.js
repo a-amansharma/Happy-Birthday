@@ -25,7 +25,7 @@
         '<div class="big-q">🫶</div>' +
         '<h2>' + HB.esc(q) + '</h2>' +
         (answeredToday
-          ? '<div class="empty-state" style="padding:20px"><div class="es-emoji" style="font-size:40px">✅</div><h4>You answered today\'s question</h4><p>Come back tomorrow for a new one — or scroll below to revisit your little answers.</p></div>'
+          ? '<div class="empty-state" style="padding:20px"><div class="es-emoji">' + HB.chars.stageHtml({ which: 'dudu', action: 'happy', size: 'mini', alt: 'Dudu is happy you answered' }) + '</div><h4>You answered today\'s question</h4><p>Come back tomorrow for a new one — or scroll below to revisit your little answers.</p></div>'
           : '<div class="field mb-16"><textarea class="textarea" id="daily-answer" placeholder="Your answer, from your heart..."></textarea></div>' +
             '<button class="btn btn-primary btn-lg" id="daily-save">Save my answer ♡</button>') +
       '</div>' +
@@ -48,7 +48,7 @@
     var box = main.querySelector('#daily-answers');
     var answers = HB.state.dailyAnswers;
     if (!answers.length) {
-      box.innerHTML = '<div class="empty-state"><div class="es-emoji">🌷</div><h4>No answers yet</h4><p>Answer today\'s question above and start your little collection.</p></div>';
+      box.innerHTML = '<div class="empty-state"><div class="es-emoji">' + HB.chars.stageHtml({ which: 'bubu', action: 'cute', size: 'empty', alt: 'Bubu wants to see your answers' }) + '</div><h4>No answers yet</h4><p>Answer today\'s question above and start your little collection.</p></div>';
     } else {
       box.innerHTML = answers.slice(0, 20).map(function (a, i) {
         return '<div class="answer-card" style="animation-delay:' + (i * 0.05) + 's">' +

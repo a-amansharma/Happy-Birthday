@@ -16,7 +16,7 @@
     var authed = window.HB && HB.auth && HB.auth.user();
 
     var status = authed
-      ? '<div class="landing-account"><span class="landing-avatar">' + HB.bearAvatarSVG('pinky', 'blush') + '</span>' +
+      ? '<div class="landing-account"><span class="landing-avatar">' + HB.chars.avatarImg('dudu', 'cute', 'landing-avatar') + '</span>' +
         '<span>Signed in as <b>' + HB.esc(HB.firstNames().me) + '</b></span>' +
         '<button class="btn btn-primary btn-sm" data-open>Open your world ♡</button></div>'
       : '<div class="landing-account"><span class="pulse-dot"></span>' +
@@ -33,11 +33,20 @@
         '<button class="btn btn-primary btn-lg" data-go="onboarding">Create Our Space ♡</button>' +
       '</div>' +
       '<div class="landing-status">' + status + '</div>' +
-      '<div class="landing-scroll"><span class="mouse"></span><span>scroll into your story</span></div>' +
       '</section>';
 
     var stage = main.querySelector('[data-dudu]');
-    HB.dudu.meeting(stage, 'curious');
+    if (stage && HB.chars) {
+      HB.chars.hero(stage, {
+        which: Math.random() < 0.5 ? 'dudu' : 'bubu',
+        alternate: true,
+        actions: ['happy', 'cute', 'think', 'wait', 'dance', 'funny'],
+        size: 'land',
+        alt: 'Bubu ♡ Dudu'
+      });
+      stage.style.cursor = 'pointer';
+      stage.addEventListener('click', function () { HB.navigate('/onboarding'); });
+    }
 
     main.querySelector('[data-go="onboarding"]').addEventListener('click', function () {
       HB.navigate('/onboarding');

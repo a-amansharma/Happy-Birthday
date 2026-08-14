@@ -98,10 +98,10 @@
     });
 
     var hero = main.querySelector('[data-hero]');
-    if (hero) HB.dudu.meeting(hero, connected ? 'together' : 'approach');
+    if (hero && HB.chars) HB.chars.hero(hero, { which: 'both', size: 'hero', alt: 'Bubu ♡ Dudu' });
 
     var ccScene = main.querySelector('.cc-scene');
-    if (ccScene) ccScene.innerHTML = connected ? HB.dudu.scene({ pose: 'together', duX: 112 }) : HB.dudu.scene({ pose: 'wait' });
+    if (ccScene && HB.chars) ccScene.innerHTML = HB.chars.stageHtml({ which: 'both', action: connected ? 'hug' : 'wait', size: 'tiny', alt: 'Bubu ♡ Dudu' });
   }
 
   HB.renderHome = renderHome;

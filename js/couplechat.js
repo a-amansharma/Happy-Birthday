@@ -30,7 +30,7 @@
   function bubbleHtml(m) {
     var mine = m.sender_id === myId;
     var cls = mine ? 'user' : 'ai';
-    var avatar = '<span class="msg-avatar">' + (mine ? HB.bearAvatarSVG('pinky', 'blush') : HB.dudu.avatarFace('du')) + '</span>';
+    var avatar = '<span class="msg-avatar">' + (mine ? HB.chars.avatarImg('dudu', 'cute') : HB.chars.avatarImg('bubu', 'cute')) + '</span>';
     if (m.type === 'image') {
       return '<div class="msg ' + cls + '">' + avatar +
         '<div class="bubble bubble-img"><img class="msg-img" data-mid="' + HB.esc(m.id) + '" alt="photo" loading="lazy"/></div>' +
@@ -125,7 +125,7 @@
           '<button class="btn btn-primary" data-partner>Open Partner page 💞</button>' +
         '</div></div></div>';
       var du = main.querySelector('[data-du]');
-      if (du) du.innerHTML = HB.dudu.scene({ pose: 'wait' });
+      if (du && HB.chars) du.innerHTML = HB.chars.stageHtml({ which: 'both', action: 'wait', size: 'big', alt: 'Bubu ♡ Dudu' });
       main.querySelector('[data-partner]').addEventListener('click', function () { HB.navigate('/partner'); });
       return;
     }
@@ -135,7 +135,7 @@
     main.innerHTML =
       '<div class="chat-page">' +
         '<div class="chat-head">' +
-          '<div class="avatar">' + HB.dudu.avatarFace('bu') + '<span class="online" id="presence-dot"></span></div>' +
+          '<div class="avatar">' + HB.chars.avatarImg('bubu', 'cute') + '<span class="online" id="presence-dot"></span></div>' +
           '<div><h2>Our Chat ♡</h2><p id="presence-label">just for you two</p></div>' +
           '<div class="chat-head-actions">' +
             '<button class="btn-icon btn-soft" data-info title="Photos & links" aria-label="Photos and links">' + HB.icon('sparkle') + '</button>' +
