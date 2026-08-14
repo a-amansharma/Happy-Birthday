@@ -136,8 +136,6 @@
       { path: '/partner', icon: HB.icon('sparkle'), label: 'Partner' },
       { path: '/settings', icon: HB.icon('gear'), label: 'Settings' }
     ];
-    var labels = { home: 'Home', chat: 'Chat', notes: 'Notes', daily: 'Daily', memories: 'Memories', quiz: 'Quiz', dates: 'Dates', special: 'Dates', partner: 'Partner', settings: 'Settings' };
-
     var sb = document.getElementById('sidebar');
     var bn = document.getElementById('bottom-nav');
 
@@ -162,7 +160,7 @@
       var badge = n.badge
         ? '<i class="nav-badge' + ((HB.unreadCounts[n.badge] || 0) > 0 ? ' show' : '') + '" data-badge="' + n.badge + '">' + HB.badgeText(n.badge) + '</i>'
         : '';
-      return '<button class="bn-item' + active + '" data-path="' + n.path + '"><span style="position:relative">' + n.icon + badge + '</span><span>' + labels[n.path.replace('/', '')] + '</span></button>';
+      return '<button class="bn-item' + active + '" data-path="' + n.path + '"><span style="position:relative">' + n.icon + badge + '</span><span>' + n.label + '</span></button>';
     }).join('') +
       '<button class="bn-item' + (current === '/more' ? ' active' : '') + '" data-path="/more"><span style="position:relative">' + HB.icon('more') + '</span><span>More</span></button>';
     bn.innerHTML = bnItems;
