@@ -6,7 +6,7 @@
 .bb-stage {
   position: relative;
   width: 100%;
-  max-width: 420px;
+  max-width: 300px;
   margin: 0 auto;
   aspect-ratio: 1 / 1;
 }
@@ -21,12 +21,12 @@
 }
 .bb-stage img.bb-on { opacity: 1; }
 
-.bb-land { max-width: 440px; }
-.bb-hero { max-width: 230px; }
-.bb-sm { max-width: 240px; }
-.bb-tiny { max-width: 120px; }
-.bb-mini { max-width: 72px; }
-.bb-empty { max-width: 200px; }
+.bb-land { max-width: 320px; }
+.bb-hero { max-width: 180px; }
+.bb-sm { max-width: 180px; }
+.bb-tiny { max-width: 96px; }
+.bb-mini { max-width: 56px; }
+.bb-empty { max-width: 150px; }
 
 /* Round GIF avatars (chat bubbles, chat header, sidebar, landing) */
 .bb-avatar { border-radius: 50%; object-fit: cover; display: block; }
@@ -42,8 +42,8 @@
 .bb-corners { position: fixed; inset: 0; pointer-events: none; z-index: 55; }
 .bb-corner {
   position: absolute;
-  width: 64px;
-  height: 64px;
+  width: 48px;
+  height: 48px;
   opacity: 0;
   animation: bbCorner 4s var(--ease) both;
 }

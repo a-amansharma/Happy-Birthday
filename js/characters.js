@@ -62,7 +62,7 @@
     return list && list.length ? pick(list) : null;
   }
 
-  var SIZES = { land: 440, big: 420, hero: 230, sm: 240, tiny: 120, mini: 72, empty: 200 };
+  var SIZES = { land: 320, big: 300, hero: 180, sm: 180, tiny: 96, mini: 56, empty: 150 };
 
   function stageHtml(opts) {
     opts = opts || {};
