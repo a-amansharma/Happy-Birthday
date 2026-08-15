@@ -103,6 +103,7 @@
       if (out && out.error) {
         var msg = String(out.error.message || '');
         var hint = msg.indexOf('INVALID') !== -1 ? 'That code didn\'t match — double-check it? ♡'
+          : msg.indexOf('CODE_USED') !== -1 ? 'That code has already been used — ask them for a fresh one ♡'
           : msg.indexOf('SELF') !== -1 ? 'That\'s your own code, silly! 💞'
           : msg.indexOf('ALREADY') !== -1 ? 'You two are already connected! ♡'
           : msg.indexOf('NOT_') !== -1 ? 'Hmm, that didn\'t work. Try again?'

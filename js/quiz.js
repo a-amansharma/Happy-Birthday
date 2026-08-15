@@ -176,4 +176,14 @@
     }
     requestAnimationFrame(step);
   }
+
+  /* Partner connected while we sat on the "waiting" screen → load the quiz. */
+  window.addEventListener('hb:relchange', function () {
+    if (location.hash !== '#/quiz') return;
+    var main = document.getElementById('main');
+    if (!main || !main.isConnected) return;
+    if (HB.rel.data.status === 'connected' && main.querySelector('[data-partner]')) {
+      HB.navigate('/quiz');
+    }
+  });
 })();

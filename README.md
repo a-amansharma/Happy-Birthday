@@ -57,7 +57,7 @@ admin/               ← PRIVATE owner insights page (see below)
    window.APP_CONFIG = {
      SUPABASE_URL: 'https://zbnbuhpmctxocupunbdo.supabase.co',
      SUPABASE_ANON_KEY: 'sb_publishable_4oofZDsULDJNbb8ChWXJvA_ptd98GFM',
-     APP_VERSION: '2.1.0',
+     APP_VERSION: '2.4.0',
      DEBUG: false,
      configured: true
    };

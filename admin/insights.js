@@ -163,6 +163,20 @@
     $('users-body').innerHTML = rows || '<tr><td colspan="7" class="muted" style="text-align:center">No one has joined yet — share your pairing code ♡</td></tr>';
   }
 
+  function renderRelationships(rels) {
+    window.__ADMIN_RELS = rels || [];
+    var rows = (rels || []).map(function (r) {
+      var ok = r.status === 'connected';
+      return '<tr>' +
+        '<td><b>' + esc(r.person1 || '—') + '</b></td>' +
+        '<td><b>' + esc(r.person2 || '—') + '</b></td>' +
+        '<td><span class="pill' + (ok ? ' on' : ' off') + '">' + esc(r.status) + '</span></td>' +
+        '<td class="muted">' + fmtDate(r.created_at) + '</td>' +
+        '</tr>';
+    }).join('');
+    $('rels-body').innerHTML = rows || '<tr><td colspan="4" class="muted" style="text-align:center">No pairs connected yet ♡</td></tr>';
+  }
+
   function handleDataError(msg) {
     showLogin('You\'re not signed in as the owner, or the database isn\'t ready.');
     if (window.APP_CONFIG && window.APP_CONFIG.DEBUG) console.error('[HB-admin] ' + msg);
@@ -200,6 +214,7 @@
         showDash();
         renderStats(data);
         renderUsers(data.users);
+        renderRelationships(data.relationships);
       }).catch(function (e) {
         bootMsg.textContent = 'Couldn\'t reach the database: ' + esc(String(e.message || e));
       });

@@ -48,6 +48,18 @@
     window.HB = window.HB || {};
     window.HB.dbClient = client;
 
+    /* Keep the app's session in sync with the auth client (sign-in,
+       token refresh, sign-out) and nudge the relationship layer so
+       pairing state re-checks whenever the identity changes. */
+    client.auth.onAuthStateChange(function (event, session) {
+      window.HB.authSession = session;
+      window.HB.authUser = (session && session.user) || null;
+      if (window.HB && window.HB.auth && window.HB.auth.notify &&
+          (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION')) {
+        try { window.HB.auth.notify(); } catch (e) {}
+      }
+    });
+
     /* Restore any existing session before the app boots */
     client.auth.getSession().then(function (res) {
       window.HB.authSession = res && res.data && res.data.session ? res.data.session : null;

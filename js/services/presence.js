@@ -9,7 +9,7 @@
   var channel = null;
   var partnerOnline = false;
   var partnerKey = null;
-  var listeners = [];
+  var onChange = null;
 
   var presence = {
     online: false,
@@ -74,14 +74,15 @@
       presence.online = false;
     },
 
+    /* Replaceable single handler — each render swaps the previous one,
+       so stale closures can't pile up across re-renders. */
     onChange: function (fn) {
-      listeners.push(fn);
+      onChange = fn;
     },
 
     notify: function () {
-      listeners.forEach(function (fn) {
-        try { fn(presence.online); } catch (e) {}
-      });
+      if (!onChange) return;
+      try { onChange(presence.online); } catch (e) {}
     }
   };
 

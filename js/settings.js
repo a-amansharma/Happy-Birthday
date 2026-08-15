@@ -268,6 +268,20 @@
       }, 'Delete everything');
     });
 
+    /* When the partner connects, flip the "waiting" connection card to
+       the "connected" one — but never clobber a half-typed form. */
+    if (!settings._relWired) {
+      settings._relWired = true;
+      window.addEventListener('hb:relchange', function () {
+        if (location.hash !== '#/settings') return;
+        var m = document.getElementById('main');
+        if (!m || !m.isConnected) return;
+        if (HB.rel.data.status === 'connected' && m.querySelector('[data-copy-code]')) {
+          HB.navigate('/settings');
+        }
+      });
+    }
+
     if (HB.creator) HB.creator.wire(main);
   });
 })();

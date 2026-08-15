@@ -64,21 +64,12 @@
   .bb-corner-tl { top: 14px; left: 14px; }
 }
 
-/* ---------- Mobile bottom nav: active pill, no jumping ---------- */
+/* ---------- Mobile bottom nav: active pill, no jumping ----------
+   (The pill styles live in styles.css; these only add the smooth
+   hover/focus feel without any translateY on the whole item.) */
 .bn-item { transition: transform 0.25s var(--ease), color 0.25s var(--ease); }
-.bn-item .bn-icon {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 46px;
-  height: 28px;
-  border-radius: 999px;
-  transition: background-color 0.3s var(--ease), color 0.3s var(--ease);
-}
-.bn-item.active { color: var(--primary-deep); transform: translateY(-1px); }
-.bn-item.active .bn-icon { background: var(--primary-soft); }
-.bn-item svg { transition: transform 0.3s var(--ease); }
-.bn-item.active svg { transform: scale(1.15); filter: drop-shadow(0 4px 8px var(--glow)); }
+.bn-item:active { transform: scale(0.96); }
+.bn-item .bn-icon svg { transition: transform 0.3s var(--ease); }
 
 /* ---------- Section transitions (route changes) ---------- */
 #main.bb-leave .page, #main.bb-leave .chat-page, #main.bb-leave .landing, #main.bb-leave .wizard { animation: bbOut 0.16s var(--ease) both; }

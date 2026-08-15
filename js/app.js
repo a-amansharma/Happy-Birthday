@@ -6,25 +6,40 @@
   var HB = window.HB;
 
   var backendReady = false;
+  var wiredChat = false;
+
+  /* Couple chat + presence only need to be wired ONCE per app load —
+     but only once we're actually connected (covers late waiting→
+     connected transitions too). */
+  function wireChat() {
+    if (wiredChat) return;
+    if (HB.rel.data.status !== 'connected') return;
+    wiredChat = true;
+    if (HB.chat) {
+      HB.chat.onChange = function () {
+        HB.setUnread('/chat', HB.chat.unreadCount());
+      };
+      HB.chat.load().then(function () {
+        HB.setUnread('/chat', HB.chat.unreadCount());
+      });
+      HB.chat.subscribe();
+    }
+    if (HB.presence) HB.presence.start();
+  }
 
   function initBackend() {
     if (backendReady || !HB.db || !HB.db.configured()) return;
     backendReady = true;
 
-    HB.rel.init().then(function () {
-      if (HB.rel.data.status === 'connected') {
-        if (HB.chat) {
-          HB.chat.onChange = function () {
-            HB.setUnread('/chat', HB.chat.unreadCount());
-          };
-          HB.chat.load().then(function () {
-            HB.setUnread('/chat', HB.chat.unreadCount());
-          });
-          HB.chat.subscribe();
-        }
-        if (HB.presence) HB.presence.start();
-      }
+    window.addEventListener('hb:relchange', function () { wireChat(); });
+    window.addEventListener('online', function () {
+      if (HB.auth && HB.auth.user()) HB.toast('You\'re back online — everything is synced ♡', '📡');
     });
+    window.addEventListener('offline', function () {
+      if (HB.auth && HB.auth.user()) HB.toast('You\'re offline — messages will send when you\'re back ♡', '🌙');
+    });
+
+    HB.rel.init().then(function () { wireChat(); });
   }
 
   /* From the landing page: after signing in, open the world */

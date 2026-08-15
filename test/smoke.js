@@ -47,6 +47,14 @@ const dir = path.join(__dirname, '..', 'js');
   eval(fs.readFileSync(path.join(dir, f), 'utf8'));
 });
 
+// ---- services (backend wiring) ----
+['services/db.js','services/auth.js','services/relationship.js','services/presence.js','services/quiz.js'].forEach((f) => {
+  eval(fs.readFileSync(path.join(dir, f), 'utf8'));
+});
+
+// CustomEvent used by rel.dispatch
+global.CustomEvent = class { constructor(type){ this.type = type; } };
+
 const HB = global.window.HB;
 let pass = 0, fail = 0;
 function t(name, cond) { if (cond) { pass++; console.log('  ✓ ' + name); } else { fail++; console.log('  ✗ ' + name); } }
@@ -126,5 +134,43 @@ t('bear couple svg', HB.bearCoupleSVG().indexOf('<svg') === 0);
 // esc
 t('esc', HB.esc('<script>&"\'') === '&lt;script&gt;&amp;&quot;&#39;');
 
-console.log('\n' + pass + ' passed, ' + fail + ' failed');
-process.exit(fail ? 1 : 0);
+// ---- services: error mapping ----
+t('db.rpcError maps CODE_USED', HB.db.rpcError({ message: 'RPC:CODE_USED' }) === 'CODE_USED');
+t('db.rpcError maps ALREADY_CONNECTED', HB.db.rpcError({ message: 'ALREADY_CONNECTED' }) === 'ALREADY_CONNECTED');
+t('db.rpcError fallback UNKNOWN', HB.db.rpcError({ message: 'PGRST999' }) === 'UNKNOWN');
+
+// ---- services: relationship ----
+t('rel service loads', !!HB.rel && typeof HB.rel.init === 'function');
+t('__HB_DISPATCH_REL hook defined', typeof global.__HB_DISPATCH_REL === 'function');
+t('rel.dynamic helper', typeof HB.rel.dynamic === 'function');
+t('rel has waiting subscription helper wired', typeof HB.rel.init === 'function');
+
+// ---- services: presence replaceable handler (no stale pile-up) ----
+let calls = 0; const order = [];
+HB.presence.onChange(function () { calls++; order.push('a'); });
+HB.presence.onChange(function () { calls++; order.push('b'); });
+HB.presence.notify();
+
+// async assertions
+let pending = 0;
+function when(promise, name, cond) {
+  pending++;
+  promise.then(function (r) { t(name, cond(r)); done(); }).catch(function () { t(name, false); done(); });
+}
+function done() { if (--pending <= 0) finish(); }
+function finish() {
+  console.log('\n' + pass + ' passed, ' + fail + ' failed');
+  process.exit(fail ? 1 : 0);
+}
+
+when(HB.rel.init(), 'init unconfigured → unconfigured', function () { return HB.rel.data.status === 'unconfigured'; });
+when(HB.rel.ensureProfile({ name: 'X' }), 'ensureProfile unconfigured → NOT_CONFIGURED', function (r) { return r.error && r.error.message === 'NOT_CONFIGURED'; });
+when(HB.rel.connectWithCode('LOVE-ABC12'), 'connectWithCode unconfigured → NOT_CONFIGURED', function (r) { return r.error && r.error.message === 'NOT_CONFIGURED' && HB.rel.data.busy === false; });
+
+pending++;
+setTimeout(function () {
+  t('presence replaces handler', calls === 1 && order[0] === 'b');
+  done();
+}, 10);
+
+if (pending === 0) finish();

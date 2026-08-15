@@ -275,7 +275,7 @@
           if (res && res.error) {
             throw new Error(res.error.message || 'PROFILE_FAILED');
           }
-          return HB.rel.init().then(function () {
+          return HB.rel.init(true).then(function () {
             if (HB.pendingCode) {
               var pending = HB.pendingCode;
               HB.pendingCode = null;

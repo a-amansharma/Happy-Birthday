@@ -17,7 +17,7 @@ window.APP_CONFIG = {
   SUPABASE_ANON_KEY:
     'sb_publishable_4oofZDsULDJNbb8ChWXJvA_ptd98GFM',
 
-  APP_VERSION: '2.3.0',
+  APP_VERSION: '2.4.0',
 
   DEBUG: false
 };

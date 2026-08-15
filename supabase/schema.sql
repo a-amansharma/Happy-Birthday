@@ -1,6 +1,10 @@
 -- ============================================================
---  OUR LITTLE WORLD ♡ — Supabase schema (v2.1.0)
+--  OUR LITTLE WORLD ♡ — Supabase schema (v2.4.0)
 --  Run this whole file in: Supabase Dashboard → SQL Editor
+--  Safe to re-run: every statement is idempotent (IF NOT EXISTS /
+--  OR REPLACE / DROP POLICY IF EXISTS), and it MIGRATES an older
+--  profiles table (adds partner_code/shared/last_* and drops the
+--  obsolete partner_id column) instead of failing on it.
 --
 --  Sets up:
 --    * profiles / relationships / messages / daily_quizzes / quiz_answers
@@ -8,6 +12,7 @@
 --    * Security-definer RPCs for partner connection & quiz logic
 --    * Owner-only insights (protected by Supabase Auth + RLS)
 --    * Private storage bucket for chat images
+--    * Realtime (profiles too — so partner details stream live)
 -- ============================================================
 
 create extension if not exists pgcrypto;
@@ -27,7 +32,17 @@ create table if not exists public.profiles (
   updated_at    timestamptz not null default now()
 );
 
+-- ----- migration from the older schema (safe no-ops on a fresh DB) -----
+alter table public.profiles add column if not exists partner_code text;
+alter table public.profiles add column if not exists shared jsonb default '{}'::jsonb;
+alter table public.profiles add column if not exists last_read_at timestamptz;
 alter table public.profiles add column if not exists last_seen_at timestamptz;
+alter table public.profiles add column if not exists updated_at timestamptz not null default now();
+alter table public.profiles drop column if exists partner_id;
+
+-- codes must be unique + case-insensitive so LOVE-abc12 can't collide
+create unique index if not exists profiles_partner_code_upper_idx
+  on public.profiles (upper(partner_code)) where partner_code is not null;
 
 -- ------------------------------------------------------------
 -- RELATIONSHIPS — the one shared space between two users
@@ -178,19 +193,24 @@ create policy "daily_quizzes select member" on public.daily_quizzes
     relationship_id in (select public.my_relationship_ids())
   );
 
--- QUIZ ANSWERS: members only (answers are only revealed via the quiz result)
+-- QUIZ ANSWERS: each person can read ONLY their own answers.
+-- The partner's raw answers are never exposed to the client — the
+-- match is computed in the DB and revealed via daily_quizzes.result.
 drop policy if exists "quiz_answers select member" on public.quiz_answers;
-create policy "quiz_answers select member" on public.quiz_answers
-  for select using (
-    quiz_id in (
-      select q.id from public.daily_quizzes q
-      where q.relationship_id in (select public.my_relationship_ids())
-    )
-  );
+drop policy if exists "quiz_answers select own" on public.quiz_answers;
+create policy "quiz_answers select own" on public.quiz_answers
+  for select using (auth.uid() = user_id);
 
 -- ------------------------------------------------------------
 -- RPC: connect with a partner code (run by the second user)
 -- ------------------------------------------------------------
+-- Atomic + single-use:
+--   * an advisory xact lock serializes simultaneous claims,
+--     so a code can never be grabbed by two phones at once
+--   * the code owner is rejected if already in a relationship
+--     (CODE_USED), and the connector is rejected if they already
+--     have one (ALREADY_CONNECTED)
+--   * the code is cleared from BOTH profiles once paired
 create or replace function public.connect_with_partner(code text)
 returns jsonb
 language plpgsql security definer set search_path = public
@@ -200,15 +220,19 @@ declare
   them    uuid;
   rel_id  uuid;
   shared_data jsonb;
+  my_shared   jsonb;
   rel     record;
 begin
   if me is null then
     raise exception 'NOT_AUTHENTICATED';
   end if;
 
+  -- serialize concurrent pairing claims
+  perform pg_advisory_xact_lock(hashtext('hb_pairing_claim'));
+
   select id, shared into them, shared_data
     from public.profiles
-   where partner_code = upper(trim(code))
+   where upper(partner_code) = upper(trim(code))
    limit 1;
 
   if them is null then
@@ -218,20 +242,43 @@ begin
     raise exception 'SELF_CODE';
   end if;
 
-  -- already connected?
+  -- already paired with each other? treat as success (idempotent-ish)
   select * into rel from public.relationships r
    where (r.user_a = me and r.user_b = them)
       or (r.user_a = them and r.user_b = me)
    limit 1;
   if rel.id is not null then
+    update public.profiles set partner_code = null where id in (them, me);
     return jsonb_build_object('relationship_id', rel.id, 'status', rel.status);
   end if;
 
+  -- a code is single-use: the owner cannot be claimed twice
+  if exists (
+    select 1 from public.relationships
+    where user_a = them or user_b = them
+  ) then
+    raise exception 'CODE_USED';
+  end if;
+
+  -- I can only ever be in ONE relationship
+  if exists (
+    select 1 from public.relationships
+    where user_a = me or user_b = me
+  ) then
+    raise exception 'ALREADY_CONNECTED';
+  end if;
+
   -- user_a is whoever owns the code; user_b is the person connecting.
-  -- shared relationship fields are taken from the code owner.
+  -- shared relationship fields merge BOTH people's onboarding answers
+  -- (owner's as the base, connector's answers win on any overlap).
+  select shared into my_shared from public.profiles where id = me;
   insert into public.relationships (user_a, user_b, status, shared)
-  values (them, me, 'connected', coalesce(shared_data, '{}'::jsonb))
+  values (them, me, 'connected',
+          coalesce(shared_data, '{}'::jsonb) || coalesce(my_shared, '{}'::jsonb))
   returning id into rel_id;
+
+  -- pairing codes are single-use from this moment on
+  update public.profiles set partner_code = null where id in (them, me);
 
   return jsonb_build_object('relationship_id', rel_id, 'status', 'connected');
 end $$;
@@ -458,6 +505,7 @@ begin
       'users', coalesce((
         select jsonb_agg(
           jsonb_build_object(
+            'id',          pr.id,
             'name',        pr.name,
             'age',         pr.age,
             'code',        pr.partner_code,
@@ -476,7 +524,20 @@ begin
               limit 1
             )
           ) order by pr.created_at desc
-        ) from public.profiles pr), '[]'::jsonb)
+        ) from public.profiles pr), '[]'::jsonb),
+      'relationships', coalesce((
+        select jsonb_agg(
+          jsonb_build_object(
+            'id',         r.id,
+            'person1',    pa.name,
+            'person2',    pb.name,
+            'status',     r.status,
+            'created_at', r.created_at
+          ) order by r.created_at desc
+        )
+        from public.relationships r
+        join public.profiles pa on pa.id = r.user_a
+        join public.profiles pb on pb.id = r.user_b), '[]'::jsonb)
     )
   );
 end $$;
@@ -526,7 +587,10 @@ create policy "relationship-media delete" on storage.objects
     and public.storage_is_relationship_member((storage.foldername(name))[1]::uuid)
   );
 
--- Realtime: stream new messages + relationship + quiz changes to clients
+-- Realtime: stream new messages + relationship + quiz + partner
+-- profile changes to clients. profiles is included so the partner's
+-- name/details update live on the other phone.
+alter publication supabase_realtime add table public.profiles;
 alter publication supabase_realtime add table public.relationships;
 alter publication supabase_realtime add table public.messages;
 alter publication supabase_realtime add table public.daily_quizzes;

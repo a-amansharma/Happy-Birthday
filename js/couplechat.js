@@ -11,7 +11,6 @@
   var container = null;
   var myId = null;
   var pendingImages = 0;
-  var presenceWired = false;
 
   function timeStr(t) {
     return new Date(t).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
@@ -169,7 +168,7 @@
     HB.chat.load().then(renderAll);
     HB.chat.subscribe();
 
-    /* presence dot */
+    /* presence dot (single replaceable handler — never stale) */
     var dot = main.querySelector('#presence-dot');
     var label = main.querySelector('#presence-label');
     function setPresence(on) {
@@ -178,10 +177,7 @@
       if (label) label.textContent = on ? (HB.firstNames().partner + ' is here ♡') : 'waiting for ' + HB.firstNames().partner + '…';
     }
     setPresence(HB.presence.online);
-    if (!presenceWired) {
-      presenceWired = true;
-      HB.presence.onChange(setPresence);
-    }
+    HB.presence.onChange(setPresence);
     HB.presence.start();
 
     function autoGrow() {
@@ -234,4 +230,16 @@
   }
 
   HB.route('/chat', render);
+
+  /* The moment the partner connects, the "waiting" screen should open
+     the real chat — but only if the chat view isn't already showing
+     (so a half-typed message is never clobbered). */
+  window.addEventListener('hb:relchange', function () {
+    if (location.hash !== '#/chat') return;
+    var main = document.getElementById('main');
+    if (!main || !main.isConnected) return;
+    if (HB.rel.data.status === 'connected' && !main.querySelector('.chat-inner')) {
+      render(main);
+    }
+  });
 })();

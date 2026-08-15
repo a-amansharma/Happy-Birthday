@@ -25,7 +25,7 @@
     rpcError: function (err) {
       if (!err) return null;
       var msg = String(err.message || err.error_description || err.msg || err);
-      var known = ['INVALID_CODE', 'SELF_CODE', 'ALREADY_CONNECTED', 'NOT_AUTHENTICATED', 'NOT_MEMBER', 'QUIZ_NOT_FOUND', 'EMAIL_EXISTS', 'PASSWORD_MISMATCH'];
+      var known = ['INVALID_CODE', 'SELF_CODE', 'CODE_USED', 'ALREADY_CONNECTED', 'NOT_AUTHENTICATED', 'NOT_MEMBER', 'QUIZ_NOT_FOUND', 'EMAIL_EXISTS', 'PASSWORD_MISMATCH'];
       for (var i = 0; i < known.length; i++) {
         if (msg.indexOf(known[i]) !== -1) return known[i];
       }

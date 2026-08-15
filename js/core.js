@@ -212,15 +212,19 @@
 
     sb.innerHTML = logo + items + footer;
 
-    var bnItems = navItems.slice(0, 5).map(function (n) {
-      var active = current === n.path ? ' active' : '';
+    function bnItemHtml(n, path) {
+      var active = current === path ? ' active' : '';
       var badge = n.badge
         ? '<i class="nav-badge' + ((HB.unreadCounts[n.badge] || 0) > 0 ? ' show' : '') + '" data-badge="' + n.badge + '">' + HB.badgeText(n.badge) + '</i>'
         : '';
-      return '<button class="bn-item' + active + '" data-path="' + n.path + '"><span class="bn-icon">' + n.icon + badge + '</span><span>' + n.label + '</span></button>';
-    }).join('') +
-      '<button class="bn-item' + (current === '/more' ? ' active' : '') + '" data-path="/more"><span class="bn-icon">' + HB.icon('more') + '</span><span>More</span></button>';
-    bn.innerHTML = bnItems;
+      return '<button class="bn-item' + active + '" data-path="' + path + '">' +
+        '<span class="bn-icon-wrap"><span class="bn-icon">' + n.icon + badge + '</span></span>' +
+        '<span class="bn-label">' + n.label + '</span></button>';
+    }
+
+    var bnItems = navItems.slice(0, 5).map(function (n) { return bnItemHtml(n, n.path); }).join('') +
+      bnItemHtml({ icon: HB.icon('more'), label: 'More' }, '/more');
+    bn.innerHTML = '<nav class="bn-inner">' + bnItems + '</nav>';
 
     sb.querySelectorAll('.nav-item').forEach(function (el) {
       el.addEventListener('click', function () { HB.navigate(el.dataset.path); });
