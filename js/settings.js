@@ -257,16 +257,7 @@
 
     main.querySelector('#reset-all').addEventListener('click', function () {
       HB.confirm('Erase everything & start fresh?', 'This erases your profile and unlinks you two, clears every memory, chat and note on this device, and starts a completely fresh little world. When you come back you\'ll be asked to pair again — with a brand-new pairing code. This can\'t be undone.', function () {
-        localStorage.removeItem('ourLittleWorld_v1');
-        HB.toast('A new story begins... ✨', '🕊️');
-        var wipe = (HB.rel && HB.rel.leave) ? HB.rel.leave() : Promise.resolve();
-        wipe.then(function () {
-          history.replaceState(null, '', location.pathname + location.search);
-          setTimeout(function () { location.reload(); }, 900);
-        }).catch(function () {
-          history.replaceState(null, '', location.pathname + location.search);
-          setTimeout(function () { location.reload(); }, 900);
-        });
+        runEraseAll();
       }, 'Erase everything');
     });
 
@@ -314,4 +305,70 @@
 
     if (HB.creator) HB.creator.wire(main);
   });
+
+  /* Erase everything: wipe the device, delete the profile + unlink the
+     pair on the cloud, then show a 0→100% "deleting…" popup and land on
+     the fresh-start page (where it asks for details or a partner code). */
+  function runEraseAll() {
+    var STEPS = [
+      [0, 'Deleting memories…'],
+      [14, 'Deleting love notes…'],
+      [28, 'Deleting photos…'],
+      [42, 'Deleting daily answers…'],
+      [56, 'Deleting special dates…'],
+      [70, 'Deleting your profile…'],
+      [86, 'Unlinking you two…'],
+      [100, 'A fresh start… ✨']
+    ];
+    var DURATION = 2800;
+
+    var overlay = document.createElement('div');
+    overlay.className = 'erase-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(38,28,20,0.82);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)';
+    overlay.innerHTML =
+      '<div style="background:var(--card,#fff);border-radius:24px;padding:34px 30px;max-width:320px;width:88%;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,0.4);font-family:var(--font-body)">' +
+        '<div style="font-size:44px;line-height:1">🧹</div>' +
+        '<div style="margin:14px 0 6px;font-size:19px;font-weight:800;color:var(--ink,#4B3B32);font-family:var(--font-display)">Erasing your little world…</div>' +
+        '<div class="erase-sub" style="font-size:13px;color:var(--ink-soft,#8a7468);font-weight:700;min-height:18px;margin-bottom:16px">' + STEPS[0][1] + '</div>' +
+        '<div class="erase-track" style="height:11px;border-radius:999px;background:rgba(75,59,50,0.14);overflow:hidden;margin-bottom:8px">' +
+          '<div class="erase-fill" style="height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg,#ff9db4,#ff6f91);transition:width 0.12s linear"></div>' +
+        '</div>' +
+        '<div class="erase-pct" style="font-size:15px;font-weight:800;color:var(--primary,#ff6f91)">0%</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', function (e) { e.stopPropagation(); });
+
+    var subEl = overlay.querySelector('.erase-sub');
+    var pctEl = overlay.querySelector('.erase-pct');
+    var fillEl = overlay.querySelector('.erase-fill');
+
+    /* Wipe the device + cloud in parallel while the popup plays. */
+    localStorage.removeItem('ourLittleWorld_v1');
+    var wipe = (HB.rel && HB.rel.leave) ? HB.rel.leave() : Promise.resolve();
+
+    var animDone = false, wipeDone = false;
+    var start = Date.now();
+
+    function tick() {
+      var p = Math.min(100, (Date.now() - start) / DURATION * 100);
+      pctEl.textContent = Math.round(p) + '%';
+      fillEl.style.width = p + '%';
+      for (var i = STEPS.length - 1; i >= 0; i--) {
+        if (p >= STEPS[i][0]) { subEl.textContent = STEPS[i][1]; break; }
+      }
+      if (p < 100) { requestAnimationFrame(tick); }
+      else { animDone = true; maybeFinish(); }
+    }
+
+    function maybeFinish() {
+      if (!animDone || !wipeDone) return;
+      history.replaceState(null, '', HB.base + '/');
+      setTimeout(function () { location.reload(); }, 250);
+    }
+
+    wipe.then(function () { wipeDone = true; maybeFinish(); })
+         .catch(function () { wipeDone = true; maybeFinish(); });
+
+    requestAnimationFrame(tick);
+  }
 })();
