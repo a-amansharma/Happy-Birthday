@@ -11,8 +11,7 @@
   var relWired = false;
 
   HB.route('/settings', function (main) {
-    if (!HB.state.onboarded) { HB.navigate('/onboarding'); return; }
-
+    // Settings is always reachable — even before pairing or onboarding.
     backend = !!(window.HB && HB.db && HB.db.configured());
     connected = HB.rel.data.status === 'connected';
 
@@ -138,8 +137,8 @@
             '<button class="btn btn-ghost btn-sm" id="clear-data">Clear</button></div>' +
             '<div class="setting-row"><div><div class="sr-title">Export memories</div><div class="sr-sub">Download your memories as a keepsake file</div></div>' +
             '<button class="btn btn-soft btn-sm" id="export-data">Export</button></div>' +
-            '<div class="setting-row"><div><div class="sr-title">Start over on this device</div><div class="sr-sub">Erase this device\'s little world and begin again</div></div>' +
-            '<button class="btn btn-danger btn-sm" id="reset-all">Reset</button></div>' +
+            '<div class="setting-row"><div><div class="sr-title">Erase all data & start fresh</div><div class="sr-sub">Wipes your profile, your pairing, and every memory on this device — a completely fresh start</div></div>' +
+            '<button class="btn btn-danger btn-sm" id="reset-all">Erase all</button></div>' +
           '</div>' +
 
           (HB.creator ? HB.creator.html() : '') +
@@ -257,11 +256,17 @@
     });
 
     main.querySelector('#reset-all').addEventListener('click', function () {
-      HB.confirm('Start completely over?', 'This wipes everything on this device — profile, chats, memories, everything. Your little world will begin fresh.', function () {
+      HB.confirm('Erase everything & start fresh?', 'This erases your profile and unlinks you two, clears every memory, chat and note on this device, and starts a completely fresh little world. When you come back you\'ll be asked to pair again — with a brand-new pairing code. This can\'t be undone.', function () {
         localStorage.removeItem('ourLittleWorld_v1');
         HB.toast('A new story begins... ✨', '🕊️');
-        history.replaceState(null, '', location.pathname + location.search);
-        setTimeout(function () { location.reload(); }, 800);
+        var wipe = (HB.rel && HB.rel.leave) ? HB.rel.leave() : Promise.resolve();
+        wipe.then(function () {
+          history.replaceState(null, '', location.pathname + location.search);
+          setTimeout(function () { location.reload(); }, 900);
+        }).catch(function () {
+          history.replaceState(null, '', location.pathname + location.search);
+          setTimeout(function () { location.reload(); }, 900);
+        });
       }, 'Erase everything');
     });
 
@@ -281,7 +286,7 @@
 
     var leave = main.querySelector('[data-leave]');
     if (leave) leave.addEventListener('click', function () {
-      HB.confirm('Delete my data & leave?', 'This clears your profile and your connection on this side. Your partner\'s side stays.', function () {
+      HB.confirm('Delete my data & leave?', 'This deletes your profile, unlinks you two, and clears this device. Your partner is set free too — you can both start fresh and pair again anytime.', function () {
         HB.rel.leave().then(function () {
           localStorage.removeItem('ourLittleWorld_v1');
           HB.toast('Your data is gone. Goodbye for now, love ♡', '🕊️');
