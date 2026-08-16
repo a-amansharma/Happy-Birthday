@@ -41,6 +41,22 @@
       return rel;
     },
 
+    /* True when the couple-chat tables exist in this database. The live
+       project has a profiles-only schema (no messages table), so the
+       chat UI should degrade gracefully instead of erroring. */
+    available: function () {
+      if (chat._availChecked) return Promise.resolve(chat._available);
+      chat._availChecked = true;
+      if (!HB.db.configured()) { chat._available = false; return Promise.resolve(false); }
+      return HB.db.client().from('messages').select('id').limit(1)
+        .then(function (res) {
+          var bad = res.error && /PGRST205|42P01|Could not find the table|does not exist/.test(String(res.error.message || res.error));
+          chat._available = !bad;
+          return chat._available;
+        })
+        .catch(function () { chat._available = false; return false; });
+    },
+
     /* -------------------- loading -------------------- */
     load: function () {
       var rel = chat.requireRel();
@@ -171,15 +187,10 @@
     },
 
     markRead: function () {
-      var me = HB.rel.data.me;
-      if (!me || !meId()) return Promise.resolve();
-      var now = new Date().toISOString();
-      return HB.db.client().from('profiles').update({ last_read_at: now }).eq('id', meId())
-        .then(function (res) {
-          if (!res.error && HB.rel.data.me) HB.rel.data.me.last_read_at = now;
-          if (chat.onChange) chat.onChange();
-          return res;
-        });
+      /* The live profiles schema has no last_read_at column and messages
+         depend on tables that may not exist — reads are tracked locally
+         only, so this stays a harmless no-op for now. */
+      return Promise.resolve();
     },
 
     /* -------------------- shared content helpers -------------------- */

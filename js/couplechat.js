@@ -11,6 +11,7 @@
   var container = null;
   var myId = null;
   var pendingImages = 0;
+  var chatReady = null;
 
   function timeStr(t) {
     return new Date(t).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
@@ -130,6 +131,28 @@
     }
 
     myId = HB.auth.user().id;
+
+    /* The live project has a profiles-only schema: the chat tables
+       (messages, photos) don't exist yet. Probe once, then show a
+       friendly notice instead of a broken, empty chat. */
+    if (chatReady === null) {
+      HB.chat.available().then(function (ok) {
+        chatReady = ok;
+        if (location.hash === '#/chat') render(main);
+      });
+      return;
+    }
+    if (chatReady === false) {
+      main.innerHTML =
+        '<div class="chat-page"><div class="chat-body"><div class="chat-empty">' +
+          '<div class="dudu-empty" data-du></div>' +
+          '<h3>Our chat isn\'t set up yet ♡</h3>' +
+          '<p>The chat needs a <b>messages</b> table in your database. For now you\'re connected — your notes and partner page still work, and chat opens the moment it\'s added.</p>' +
+        '</div></div></div>';
+      var du2 = main.querySelector('[data-du]');
+      if (du2 && HB.chars) du2.innerHTML = HB.chars.stageHtml({ which: 'both', action: 'wait', size: 'big', alt: 'Bubu ♡ Dudu' });
+      return;
+    }
 
     main.innerHTML =
       '<div class="chat-page">' +

@@ -57,7 +57,7 @@
       var statusText = connected ? 'You two are connected ♡'
         : HB.rel.data.status === 'waiting' ? 'Waiting for your person to join…'
         : 'Not connected yet';
-      var code = HB.rel.data.me && HB.rel.data.me.partner_code;
+      var code = HB.rel.data.me && HB.rel.data.me.pairing_code;
       relCard =
         '<div class="card settings-card">' +
           '<h3><span class="sc-emoji">💞</span> Connection</h3>' +
@@ -252,18 +252,19 @@
 
     var copyCode = main.querySelector('[data-copy-code]');
     if (copyCode) copyCode.addEventListener('click', function () {
-      navigator.clipboard.writeText(HB.rel.data.me.partner_code).then(function () { HB.toast('Code copied ♡', '💌'); });
+      navigator.clipboard.writeText(HB.rel.data.me.pairing_code).then(function () { HB.toast('Code copied ♡', '💌'); });
     });
 
     var leave = main.querySelector('[data-leave]');
     if (leave) leave.addEventListener('click', function () {
-      HB.confirm('Delete my data & leave?', 'This permanently deletes your profile, your chat, photos and everything from the little world. Your partner\'s side stays.', function () {
-        HB.db.client().rpc('delete_my_data').then(function () {
-          if (HB.auth) HB.auth.signOut();
+      HB.confirm('Delete my data & leave?', 'This clears your profile and your connection on this side. Your partner\'s side stays.', function () {
+        HB.rel.leave().then(function () {
           localStorage.removeItem('ourLittleWorld_v1');
           HB.toast('Your data is gone. Goodbye for now, love ♡', '🕊️');
           history.replaceState(null, '', location.pathname + location.search);
           setTimeout(function () { location.reload(); }, 900);
+        }).catch(function () {
+          HB.toast('Hmm, that didn\'t work. Try again?', '💔');
         });
       }, 'Delete everything');
     });

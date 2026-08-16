@@ -263,14 +263,7 @@
       var run = function () {
         HB.rel.ensureProfile({
           name: draft.name,
-          age: draft.age,
-          shared: {
-            relationship_type: draft.relationship,
-            vibes: draft.vibes,
-            chat_style: draft.chatStyle,
-            story: draft.story,
-            together_since: draft.togetherSince || null
-          }
+          age: draft.age
         }).then(function (res) {
           if (res && res.error) {
             throw new Error(res.error.message || 'PROFILE_FAILED');
@@ -285,7 +278,7 @@
                 setTimeout(function () { HB.navigate('/home'); }, 600);
               });
             }
-            var code = HB.rel.data.me && HB.rel.data.me.partner_code;
+            var code = HB.rel.data.me && HB.rel.data.me.pairing_code;
             if (HB.rel.data.status === 'connected') {
               celebrate();
               setTimeout(function () { HB.navigate('/home'); }, 600);

@@ -15,15 +15,17 @@
     online: false,
 
     start: function () {
-      var rel = HB.rel.data.relationship;
-      if (!rel || !HB.db.configured() || channel) return;
+      if (!HB.db.configured() || channel) return;
       var me = HB.auth.user();
       if (!me) return;
 
-      var partnerId = rel.user_a === me.id ? rel.user_b : rel.user_a;
+      var partnerId = HB.rel.data.me && HB.rel.data.me.partner_id;
+      if (!partnerId) return;
       var myName = (HB.rel.data.me && HB.rel.data.me.name) || 'you';
 
-      channel = HB.db.client().channel('presence:' + rel.id);
+      /* deterministic per-couple channel from the two user ids */
+      var pairId = [me.id, partnerId].sort().join(':');
+      channel = HB.db.client().channel('presence:' + pairId);
 
       channel.on('presence', { event: 'sync' }, function () {
         var state = channel.presenceState();

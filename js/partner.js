@@ -43,29 +43,22 @@
 
     var connected = relData.status === 'connected';
     var waiting = relData.status === 'waiting';
-    var code = relData.me && relData.me.partner_code;
+    var code = relData.me && relData.me.pairing_code;
 
     var body = '';
 
     if (connected) {
-      var s = (relData.relationship && relData.relationship.shared) || {};
-      var bond = s.last_bond || null;
-      var relType = s.relationship_type || '';
+      var partnerName = HB.state.profile.partner || 'your person';
       body =
         '<div class="connect-center">' +
           '<div class="dudu-big" data-du></div>' +
           '<h2 class="hand" style="font-size:30px">You two are connected ♡</h2>' +
           '<p class="wizard-step-hint">' + HB.esc(HB.couple()) + ' — one little world, two hearts.</p>' +
-          (relType ? '<div class="rh-tag" style="margin-top:6px">' + HB.esc(relType) + '</div>' : '') +
         '</div>' +
         '<div class="row" style="gap:16px;max-width:560px;margin:22px auto 0;flex-wrap:wrap;justify-content:center">' +
           '<div class="card mini-stat"><div class="ms-label">You</div><div class="ms-val">' + HB.esc(relData.me.name || '—') + '</div></div>' +
-          '<div class="card mini-stat"><div class="ms-label">Your person</div><div class="ms-val">' + HB.esc(relData.partner.name || '—') + '</div></div>' +
-        '</div>' +
-        (bond ? '<div class="bond-card card" style="max-width:560px;margin:18px auto 0">' +
-          '<div class="bond-emoji">' + HB.esc(bond.category) + '</div>' +
-          '<div class="bond-title">Latest bond: ' + HB.esc(bond.pct) + '% match</div>' +
-          '<div class="bond-desc">' + HB.esc(bond.desc || '') + '</div></div>' : '');
+          '<div class="card mini-stat"><div class="ms-label">Your person</div><div class="ms-val">' + HB.esc(partnerName) + '</div></div>' +
+        '</div>';
     } else if (waiting && code) {
       body =
         '<div class="connect-center">' +

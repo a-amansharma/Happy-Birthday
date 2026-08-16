@@ -34,8 +34,14 @@
 
     qIndex = 0;
     answers = {};
-    HB.quiz.today().then(function () {
-      if (main.isConnected) renderQuiz(main);
+    HB.quiz.today().then(function (q) {
+      if (!main.isConnected) return;
+      if (!q) {
+        main.innerHTML = '<div class="page"><div class="dash-hello"><h1>Daily Bond <span class="hand" style="font-size:1.15em">Quiz</span> 🎲</h1>' +
+          '<p>This project\'s database doesn\'t have the quiz tables yet — so for now the Daily Bond lives in your little love-note routine. The quiz unlocks the moment the schema is upgraded.</p></div></div>';
+        return;
+      }
+      renderQuiz(main);
     }).catch(function (err) {
       if (main.isConnected) main.innerHTML = '<div class="page"><div class="dash-hello"><h1>Daily Bond Quiz 🎲</h1><p>Hmm, the quiz couldn\'t load: ' + HB.esc(String(err.message || err)) + '</p></div></div>';
     });

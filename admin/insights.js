@@ -141,10 +141,14 @@
   }
 
   function renderStats(data) {
+    var d = data || {};
+    var totalUsers = d.total_users != null ? d.total_users : (d.users || []).length;
+    var totalCouples = d.total_couples != null ? d.total_couples : 0;
+    var connectedUsers = (d.users || []).filter(function (u) { return u.connected; }).length;
     $('stats').innerHTML =
-      '<div class="stat"><div class="num">' + esc(data.total_users) + '</div><div class="lbl">People registered</div></div>' +
-      '<div class="stat"><div class="num">' + esc(data.total_couples) + '</div><div class="lbl">Connected pairs</div></div>' +
-      '<div class="stat"><div class="num">' + esc((data.users || []).filter(function (u) { return u.connected; }).length) + '</div><div class="lbl">Connected users</div></div>';
+      '<div class="stat"><div class="num">' + esc(totalUsers) + '</div><div class="lbl">People registered</div></div>' +
+      '<div class="stat"><div class="num">' + esc(totalCouples) + '</div><div class="lbl">Connected pairs</div></div>' +
+      '<div class="stat"><div class="num">' + esc(connectedUsers) + '</div><div class="lbl">Connected users</div></div>';
   }
 
   function renderUsers(users) {
