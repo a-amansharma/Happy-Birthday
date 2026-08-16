@@ -63,6 +63,22 @@
       }
     }
 
+    /* Person 2 joined via a pairing code and never filled the wizard —
+       a small "who are you?" card so they can introduce themselves. */
+    var identityPrompt = '';
+    if (connected && HB.rel.data.me && !(HB.rel.data.me.name || '').trim()) {
+      identityPrompt =
+        '<div class="card settings-card" style="margin-top:14px">' +
+          '<h3><span class="sc-emoji">🧸</span> Quick hello!</h3>' +
+          '<p class="muted" style="font-size:13px;font-weight:600;margin:2px 0 12px">You joined by code without filling the intro — tell them who you are?</p>' +
+          '<div class="row" style="gap:10px;flex-wrap:wrap">' +
+            '<div class="field" style="flex:2;min-width:150px"><label class="label">Your name</label><input class="input" id="qi-name" placeholder="e.g. Dudu" maxlength="40" autocomplete="off"/></div>' +
+            '<div class="field" style="flex:1;min-width:90px"><label class="label">Age</label><input class="input" id="qi-age" type="number" min="13" max="99" placeholder="e.g. 24"/></div>' +
+          '</div>' +
+          '<button class="btn btn-primary" id="qi-save" style="width:100%;margin-top:6px">Say hello ♡</button>' +
+        '</div>';
+    }
+
     var tiles = TILES.map(function (t) {
       return '<button class="dash-tile" data-path="' + t.path + '">' +
         '<div class="dt-icon" style="background:linear-gradient(135deg,' + t.accent + ',transparent);color:var(--ink)">' + t.icon + '</div>' +
@@ -79,6 +95,7 @@
       '</div>' +
 
       (connectCard ? '<div class="connect-wrap">' + connectCard + '</div>' : '') +
+      identityPrompt +
 
       '<div class="relation-hero">' +
         '<div class="rh-dudu" data-hero></div>' +
@@ -102,6 +119,28 @@
 
     var ccScene = main.querySelector('.cc-scene');
     if (ccScene && HB.chars) ccScene.innerHTML = HB.chars.stageHtml({ which: 'both', action: connected ? 'hug' : 'wait', size: 'tiny', alt: 'Bubu ♡ Dudu' });
+
+    var qiSave = main.querySelector('#qi-save');
+    if (qiSave) qiSave.addEventListener('click', function () {
+      var nameEl = main.querySelector('#qi-name');
+      var ageEl = main.querySelector('#qi-age');
+      var name = (nameEl.value || '').trim();
+      if (!name) { nameEl.focus(); HB.toast('Your name can\'t be empty ♡', '🐻'); return; }
+      var age = (ageEl.value || '').trim();
+      p.name = name;
+      p.age = age;
+      HB.save();
+      HB.updateNav();
+      if (HB.rel && HB.rel.updateMyProfile) {
+        HB.rel.updateMyProfile({ name: name, age: age || '' }).then(function () {
+          HB.toast('Your person will see this now ♡', '✨');
+          if (main.isConnected) renderHome(main);
+        });
+      } else {
+        HB.toast('Saved ♡', '✨');
+        if (main.isConnected) renderHome(main);
+      }
+    });
   }
 
   HB.renderHome = renderHome;

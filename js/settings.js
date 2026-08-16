@@ -15,7 +15,23 @@
     backend = !!(window.HB && HB.db && HB.db.configured());
     connected = HB.rel.data.status === 'connected';
 
-    var p = HB.state.profile;
+    /* Normalize the on-device profile so a missing/null field can never
+       crash the page (the old saved state was the "Oops…" culprit). */
+    var p = HB.state.profile = HB.state.profile || {};
+    p.name = p.name || '';
+    p.partner = p.partner || '';
+    p.age = p.age == null ? '' : p.age;
+    p.partnerAge = p.partnerAge == null ? '' : p.partnerAge;
+    p.relationship = p.relationship || '';
+    p.vibes = Array.isArray(p.vibes) ? p.vibes : [];
+    p.chatStyle = Array.isArray(p.chatStyle) ? p.chatStyle : [];
+    p.story = p.story || '';
+    p.togetherSince = p.togetherSince || '';
+    p.theme = p.theme || 'milk';
+    if (!HB.state.settings || typeof HB.state.settings !== 'object') HB.state.settings = {};
+    HB.state.settings.notifications = HB.state.settings.notifications !== false;
+    HB.state.settings.music = !!HB.state.settings.music;
+    HB.state.settings.privacy = HB.state.settings.privacy !== false;
 
     function relOptions() {
       return HB.RELATIONSHIPS.map(function (r) {
@@ -58,12 +74,14 @@
         : HB.rel.data.status === 'waiting' ? 'Waiting for your person to join…'
         : 'Not connected yet';
       var code = HB.rel.data.me && HB.rel.data.me.pairing_code;
+      var partnerName = HB.rel.data.partner && HB.rel.data.partner.name ? HB.titleCase(HB.rel.data.partner.name) : '';
       relCard =
         '<div class="card settings-card">' +
           '<h3><span class="sc-emoji">💞</span> Connection</h3>' +
           '<div class="setting-row"><div><div class="sr-title">Status</div><div class="sr-sub">' + statusText + '</div></div>' +
           '<span class="cc-dot' + (connected ? ' on' : '') + '" style="position:static;margin-left:8px"></span></div>' +
-          (code && !connected ? '<div class="partner-code sm" style="margin:6px 0 14px"><span>' + HB.esc(code) + '</span><button class="btn-icon btn-soft" data-copy-code title="Copy">' + HB.icon('copy') + '</button></div>' : '') +
+          (partnerName ? '<div class="setting-row"><div><div class="sr-title">Your partner</div><div class="sr-sub">' + HB.esc(partnerName) + ' — connected securely to you</div></div><span class="sr-badge">💞</span></div>' : '') +
+          (code && !connected ? '<div class="code-card code-card--sm" style="margin:6px 0 14px"><div class="code-card-label">Your pairing code 💕</div><div class="code-card-value">' + HB.esc(code) + '</div><button class="code-card-copy" data-copy-code>' + HB.icon('copy') + ' Copy</button></div>' : '') +
           '<div class="row" style="gap:10px;flex-wrap:wrap">' +
             '<button class="btn btn-soft btn-sm" data-manage>Manage connection</button>' +
             (connected ? '<button class="btn btn-danger btn-sm" data-leave>Delete my data & leave</button>' : '') +
@@ -252,7 +270,12 @@
 
     var copyCode = main.querySelector('[data-copy-code]');
     if (copyCode) copyCode.addEventListener('click', function () {
-      navigator.clipboard.writeText(HB.rel.data.me.pairing_code).then(function () { HB.toast('Code copied ♡', '💌'); });
+      var btn = this;
+      navigator.clipboard.writeText(HB.rel.data.me.pairing_code).then(function () {
+        btn.innerHTML = '✓ Copied 💕';
+        setTimeout(function () { btn.innerHTML = HB.icon('copy') + ' Copy'; }, 1600);
+        HB.toast('Code copied ♡', '💌');
+      });
     });
 
     var leave = main.querySelector('[data-leave]');

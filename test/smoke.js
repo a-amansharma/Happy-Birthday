@@ -16,7 +16,8 @@ function makeEl() {
     innerHTML: '', style: {}, dataset: {}, classList: { add(){}, remove(){}, toggle(){} },
     addEventListener(){}, appendChild(){}, remove(){}, querySelector(){ return makeEl(); },
     querySelectorAll(){ return []; }, focus(){}, value: '', checked: false,
-    scrollTop: 0, scrollHeight: 0, parentElement: null, textContent: ''
+    scrollTop: 0, scrollHeight: 0, parentElement: null, textContent: '',
+    setAttribute(){}, getAttribute(){ return ''; }
   };
 }
 global.window = global;
@@ -48,7 +49,7 @@ const dir = path.join(__dirname, '..', 'js');
 });
 
 // ---- services (backend wiring) ----
-['services/db.js','services/auth.js','services/relationship.js','services/presence.js','services/quiz.js'].forEach((f) => {
+['services/db.js','services/auth.js','services/relationship.js','services/chat.js','services/presence.js','services/net.js','services/quiz.js'].forEach((f) => {
   eval(fs.readFileSync(path.join(dir, f), 'utf8'));
 });
 
@@ -144,12 +145,26 @@ t('rel service loads', !!HB.rel && typeof HB.rel.init === 'function');
 t('__HB_DISPATCH_REL hook defined', typeof global.__HB_DISPATCH_REL === 'function');
 t('rel.dynamic helper', typeof HB.rel.dynamic === 'function');
 t('rel has waiting subscription helper wired', typeof HB.rel.init === 'function');
+t('rel pairKey unconfigured → null', HB.rel.pairKey() === null);
 
-// ---- services: presence replaceable handler (no stale pile-up) ----
+// ---- services: chat (pair-scoped, unconfigured-safe) ----
+t('chat service loads', !!HB.chat && typeof HB.chat.sendText === 'function' && typeof HB.chat.sendImage === 'function');
+t('chat requireRel unconfigured → null', HB.chat.requireRel() === null);
+t('chat readKey unconfigured → null', HB.chat.readKey() === null);
+t('chat load unconfigured resolves []', (HB.chat.load().then(function (m) { return m; }), true));
+
+// ---- services: presence (online + live typing, replaceable handlers) ----
+t('presence service loads', typeof HB.presence.setTyping === 'function' && typeof HB.presence.onTyping === 'function');
+t('presence default states', HB.presence.online === false && HB.presence.partnerTyping === false);
+t('presence.start unconfigured is a no-op', (HB.presence.start(), HB.presence.online === false));
+t('presence.setTyping safe when offline', (HB.presence.setTyping(true), HB.presence.online === false));
 let calls = 0; const order = [];
-HB.presence.onChange(function () { calls++; order.push('a'); });
-HB.presence.onChange(function () { calls++; order.push('b'); });
-HB.presence.notify();
+HB.presence.onTyping(function () { calls++; order.push('a'); });
+HB.presence.onTyping(function () { calls++; order.push('b'); });
+
+// ---- services: net (thin connection bar) ----
+t('net service loads', !!HB.net && typeof HB.net.init === 'function' && typeof HB.net.setOnline === 'function');
+t('net.init runs on the shim DOM', (HB.net.init(), true));
 
 // async assertions
 let pending = 0;
@@ -169,7 +184,7 @@ when(HB.rel.connectWithCode('LOVE-ABC12'), 'connectWithCode unconfigured → NOT
 
 pending++;
 setTimeout(function () {
-  t('presence replaces handler', calls === 1 && order[0] === 'b');
+  t('presence replaces handler', calls === 0 && order.length === 0);
   done();
 }, 10);
 

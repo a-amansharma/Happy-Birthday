@@ -1,69 +1,87 @@
 /* ============================================================
-   SERVICE: PRESENCE — partner online/offline via Realtime
-   Presence (no fake presence, no polling)
+   SERVICE: PRESENCE — partner online + LIVE typing via Realtime
+   ------------------------------------------------------------
+   One per-couple channel (couple:<pairKey>). Presence state carries
+   { user_id, name, typing, online_at }. The partner sees:
+     * online dot      — any other presence record
+     * "X is typing…"  — the other person's typing flag
+
+   No keystrokes are ever stored — only the typing flag flips, with
+   a short debounce on the sending side to prevent flickering.
    ============================================================ */
 (function () {
   'use strict';
   var HB = window.HB = window.HB || {};
 
   var channel = null;
-  var partnerOnline = false;
-  var partnerKey = null;
-  var onChange = null;
+  var me = null;
+  var myName = 'you';
+  var onlineCb = null;
+  var typingCb = null;
+  var _typingSelf = false;
+
+  function track() {
+    if (!channel) return;
+    try {
+      channel.track({ user_id: me.id, name: myName, typing: _typingSelf, online_at: new Date().toISOString() });
+    } catch (e) {}
+  }
 
   var presence = {
-    online: false,
+    online: false,          /* is my partner online right now */
+    partnerTyping: false,   /* is my partner typing right now */
 
     start: function () {
       if (!HB.db.configured() || channel) return;
-      var me = HB.auth.user();
+      me = HB.auth.user();
       if (!me) return;
 
       var partnerId = HB.rel.data.me && HB.rel.data.me.partner_id;
       if (!partnerId) return;
-      var myName = (HB.rel.data.me && HB.rel.data.me.name) || 'you';
+      myName = (HB.rel.data.me && HB.rel.data.me.name) || 'you';
 
-      /* deterministic per-couple channel from the two user ids */
-      var pairId = [me.id, partnerId].sort().join(':');
-      channel = HB.db.client().channel('presence:' + pairId);
+      var pairKey = [me.id, partnerId].sort().join('_');
+      channel = HB.db.client().channel('couple:' + pairKey);
 
       channel.on('presence', { event: 'sync' }, function () {
         var state = channel.presenceState();
-        var others = {};
+        var otherOnline = false;
+        var otherTyping = false;
         Object.keys(state).forEach(function (key) {
-          var p = state[key];
-          var arr = Array.isArray(p) ? p : [p];
-          arr.forEach(function (rec) {
-            if (rec && rec.user_id !== me.id) others[key] = rec;
+          var recs = Array.isArray(state[key]) ? state[key] : [state[key]];
+          recs.forEach(function (rec) {
+            if (rec && rec.user_id !== me.id) {
+              otherOnline = true;
+              if (rec.typing) otherTyping = true;
+            }
           });
         });
-        var keys = Object.keys(others);
-        partnerOnline = keys.length > 0;
-        partnerKey = keys[0] || null;
-        presence.online = partnerOnline;
-        presence.notify();
+        presence.online = otherOnline;
+        presence.partnerTyping = otherTyping;
+        if (onlineCb) { try { onlineCb(presence.online); } catch (e) {} }
+        if (typingCb) { try { typingCb(presence.partnerTyping); } catch (e) {} }
       });
 
       channel.subscribe(function (status) {
-        if (status === 'SUBSCRIBED') {
-          channel.track({ user_id: me.id, name: myName, online_at: new Date().toISOString() });
-        }
+        if (status === 'SUBSCRIBED') track();
       });
 
-      // untrack when backgrounded so we never fake presence
+      /* untrack when hidden so we never fake presence */
       var onVis = function () {
         if (!channel) return;
         if (document.visibilityState === 'hidden') {
           try { channel.untrack(); } catch (e) {}
         } else if (channel._joined) {
-          channel.track({ user_id: me.id, name: myName, online_at: new Date().toISOString() });
+          track();
         }
       };
       document.addEventListener('visibilitychange', onVis);
       window.addEventListener('online', onVis);
       window.addEventListener('offline', function () {
         presence.online = false;
-        presence.notify();
+        presence.partnerTyping = false;
+        if (onlineCb) { try { onlineCb(false); } catch (e) {} }
+        if (typingCb) { try { typingCb(false); } catch (e) {} }
       });
     },
 
@@ -72,20 +90,19 @@
         try { HB.db.client().removeChannel(channel); } catch (e) {}
         channel = null;
       }
-      partnerOnline = false;
       presence.online = false;
+      presence.partnerTyping = false;
     },
 
-    /* Replaceable single handler — each render swaps the previous one,
-       so stale closures can't pile up across re-renders. */
-    onChange: function (fn) {
-      onChange = fn;
+    /* Broadcast my typing state (true = typing, false = stopped) */
+    setTyping: function (v) {
+      _typingSelf = !!v;
+      if (channel) track();
     },
 
-    notify: function () {
-      if (!onChange) return;
-      try { onChange(presence.online); } catch (e) {}
-    }
+    /* Replaceable single handlers — each render swaps the previous one. */
+    onChange: function (fn) { onlineCb = fn; },
+    onTyping: function (fn) { typingCb = fn; }
   };
 
   HB.presence = presence;

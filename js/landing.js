@@ -103,10 +103,11 @@
       if (out && out.error) {
         var msg = String(out.error.message || '');
         var hint = msg.indexOf('INVALID') !== -1 ? 'That code didn\'t match — double-check it? ♡'
-          : msg.indexOf('CODE_USED') !== -1 ? 'That code has already been used — ask them for a fresh one ♡'
+          : msg.indexOf('CODE_USED') !== -1 ? 'This couple is already paired 💕 — ask them for a fresh code.'
           : msg.indexOf('SELF') !== -1 ? 'That\'s your own code, silly! 💞'
-          : msg.indexOf('ALREADY') !== -1 ? 'You two are already connected! ♡'
+          : msg.indexOf('ALREADY') !== -1 ? 'You\'re already part of a couple — you can only be in one ♡'
           : msg.indexOf('NOT_') !== -1 ? 'Hmm, that didn\'t work. Try again?'
+          : msg.indexOf('NETWORK') !== -1 ? 'You seem to be offline — check your connection and try again.'
           : 'Hmm, that didn\'t work. Try again?';
         err && (err.textContent = hint);
         return false;
@@ -127,17 +128,28 @@
         return;
       }
       return HB.rel.init().then(function () {
-        // No profile yet → quick personalization, then connect automatically.
-        if (!HB.rel.data.me) {
-          HB.pendingCode = code;
-          if (ov) {
-            var closeBtn = ov.querySelector('[data-close]');
-            if (closeBtn) closeBtn.click();
-          }
-          HB.navigate('/onboarding');
+        var me = HB.rel.data.me;
+
+        /* Already paired? Nothing to do — open the world. */
+        if (me && me.partner_id) {
+          if (HB.enterWorld) { HB.enterWorld(); return true; }
+          HB.navigate('/home');
           return true;
         }
-        return HB.rel.connectWithCode(code).then(finish);
+
+        /* A valid code means IMMEDIATE pairing. If Person 2 has no
+           profile row yet, create a minimal one (their own identity)
+           and connect — never send them through the setup form. */
+        var ensure = me
+          ? Promise.resolve()
+          : HB.rel.ensureProfile({ name: HB.state.profile.name || '', age: HB.state.profile.age || '' });
+        return ensure.then(function (r) {
+          if (r && r.error) {
+            err && (err.textContent = 'Couldn\'t set up your little identity — try again? ♡');
+            return false;
+          }
+          return HB.rel.connectWithCode(code).then(finish);
+        });
       });
     });
     return false;

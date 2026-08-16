@@ -866,6 +866,62 @@ a { color: inherit; text-decoration: none; }
 .partner-code.sm { font-size: 17px; padding: 10px 14px; margin: 4px 0 14px; justify-content: space-between; }
 .partner-code.sm .btn-icon { background: rgba(255,255,255,0.25); color: #fff; }
 .partner-code .btn-icon { background: rgba(255,255,255,0.22); color: #fff; flex-shrink: 0; }
+
+/* High-contrast pairing-code card: deep rich card, bright bold code */
+.code-card {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  margin: 6px auto; max-width: 340px; padding: 22px 26px;
+  background: linear-gradient(145deg, #3a2c24 0%, #251b15 55%, #1c1410 100%);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 22px;
+  box-shadow: 0 16px 40px rgba(30, 20, 15, 0.35), inset 0 1px 0 rgba(255,255,255,0.12);
+}
+.code-card-label { font-size: 11.5px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.6); }
+.code-card-value {
+  font-family: var(--font-display); font-size: clamp(30px, 8vw, 40px); font-weight: 900;
+  letter-spacing: 0.22em; color: #FFE9C8; text-shadow: 0 0 22px rgba(255, 214, 150, 0.45);
+  padding: 6px 10px; border-radius: 12px; background: rgba(0,0,0,0.28);
+}
+.code-card-copy {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 0; cursor: pointer; font-family: var(--font-body); font-weight: 800; font-size: 13px;
+  color: #3a2c24; background: #FFE9C8; border-radius: 999px; padding: 9px 18px;
+  transition: transform 0.2s var(--ease), background 0.2s var(--ease);
+}
+.code-card-copy:hover { transform: translateY(-1px); background: #fff3d9; }
+.code-card-copy:active { transform: scale(0.97); }
+.code-card--sm { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 8px 14px; padding: 14px 18px; max-width: 100%; }
+.code-card--sm .code-card-label { flex-basis: 100%; text-align: center; }
+.code-card--sm .code-card-value { font-size: 24px; letter-spacing: 0.16em; padding: 4px 8px; }
+.code-card--sm .code-card-copy { padding: 7px 14px; font-size: 12px; }
+
+/* Thin top-of-page connection bar */
+.conn-bar {
+  position: relative; z-index: 40;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 26px; padding: 4px 12px;
+  font-size: 12px; font-weight: 800; letter-spacing: 0.02em;
+  background: rgba(108, 203, 122, 0.14); color: #3c7a48;
+  border-bottom: 1px solid rgba(108, 203, 122, 0.25);
+  transition: background 0.35s var(--ease), color 0.35s var(--ease);
+}
+.conn-bar .conn-dot { width: 8px; height: 8px; border-radius: 50%; background: #6ccb7a; box-shadow: 0 0 0 3px rgba(108,203,122,0.25); }
+.conn-bar.off { background: rgba(212, 87, 79, 0.12); color: #a9443d; border-bottom-color: rgba(212, 87, 79, 0.28); }
+.conn-bar.off .conn-dot { background: #d4574f; box-shadow: 0 0 0 3px rgba(212, 87, 79, 0.22); }
+
+/* Live typing indicator in couple chat */
+.chat-typing {
+  height: 0; overflow: hidden; opacity: 0;
+  text-align: left; font-size: 12.5px; font-weight: 700; color: var(--ink-soft);
+  padding: 0 18px; transition: height 0.25s var(--ease), opacity 0.25s var(--ease);
+}
+.chat-typing.show { height: 26px; opacity: 1; line-height: 26px; }
+.chat-typing.show::before {
+  content: '● ● ●'; letter-spacing: 2px; color: var(--primary); margin-right: 8px;
+  animation: typingPulse 1.2s infinite ease-in-out;
+}
+@keyframes typingPulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+
 .code-input { text-transform: uppercase; letter-spacing: 0.12em; text-align: center; font-weight: 800; }
 .code-error { color: var(--danger, #d4574f); font-size: 13px; font-weight: 700; margin: 8px 0; min-height: 18px; }
 

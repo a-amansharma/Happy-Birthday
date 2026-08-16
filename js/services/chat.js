@@ -1,16 +1,21 @@
 /* ============================================================
-   SERVICE: CHAT — realtime couple messages (text + image)
+   SERVICE: CHAT — private two-person messages (text + image)
    ------------------------------------------------------------
-   Message shape:
-     { id, relationship_id, sender_id, type: 'text'|'image',
+   Message shape (live schema):
+     { id, user_a, user_b, sender_id, type: 'text'|'image',
        message, media_path, created_at }
+   user_a < user_b always (sorted pair) — enforced by the DB check
+   constraint, so the couple's rows share one deterministic pair.
+
+   RLS keeps the channel strictly between the two paired users.
+   Delivery is realtime (postgres_changes) — no page refresh.
    ============================================================ */
 (function () {
   'use strict';
   var HB = window.HB = window.HB || {};
 
   var messages = [];
-  var loadedRelId = null;
+  var loadedKey = null;
 
   function meId() {
     var u = HB.auth.user();
@@ -26,24 +31,29 @@
     });
   }
 
+  /* The current couple's message pair (only when connected). */
+  function pair() {
+    if (HB.rel.data.status !== 'connected') return null;
+    var me = HB.rel.data.me;
+    if (!me || !me.partner_id) return null;
+    var a = me.id, b = me.partner_id;
+    if (a > b) { var t = a; a = b; b = t; }
+    return { a: a, b: b, key: a + '_' + b };
+  }
+
   var chat = {
 
     messages: messages,
     lastLoadedAt: 0,
 
-    /* true while we are marking-as-read / etc. */
     onNew: null,          /* callback(message) */
-    onChange: null,       /* callback() — for unread badge */
+    onChange: null,       /* callback() — unread badge */
 
     requireRel: function () {
-      var rel = HB.rel.data.relationship;
-      if (!rel) return null;
-      return rel;
+      return pair();
     },
 
-    /* True when the couple-chat tables exist in this database. The live
-       project has a profiles-only schema (no messages table), so the
-       chat UI should degrade gracefully instead of erroring. */
+    /* True when the messages table exists in this database. */
     available: function () {
       if (chat._availChecked) return Promise.resolve(chat._available);
       chat._availChecked = true;
@@ -59,16 +69,17 @@
 
     /* -------------------- loading -------------------- */
     load: function () {
-      var rel = chat.requireRel();
-      if (!rel) return Promise.resolve([]);
-      if (loadedRelId === rel.id && messages.length) return Promise.resolve(messages);
-      loadedRelId = rel.id;
+      var p = pair();
+      if (!p) return Promise.resolve([]);
+      if (loadedKey === p.key && messages.length) return Promise.resolve(messages);
+      loadedKey = p.key;
       return HB.db.client()
         .from('messages')
         .select('*')
-        .eq('relationship_id', rel.id)
+        .eq('user_a', p.a)
+        .eq('user_b', p.b)
         .order('created_at', { ascending: true })
-        .limit(300)
+        .limit(500)
         .then(function (res) {
           if (!res.error) {
             messages = res.data || [];
@@ -84,10 +95,11 @@
 
     /* -------------------- sending -------------------- */
     sendText: function (text) {
-      var rel = chat.requireRel();
-      if (!rel || !text || !text.trim()) return Promise.resolve({ error: { message: 'NO_RELATIONSHIP' } });
+      var p = pair();
+      if (!p || !text || !text.trim()) return Promise.resolve({ error: { message: 'NOT_CONNECTED' } });
       var row = {
-        relationship_id: rel.id,
+        user_a: p.a,
+        user_b: p.b,
         sender_id: meId(),
         type: 'text',
         message: text.trim(),
@@ -101,8 +113,8 @@
 
     /* Upload a photo then insert an image message */
     sendImage: function (file) {
-      var rel = chat.requireRel();
-      if (!rel) return Promise.resolve({ error: { message: 'NO_RELATIONSHIP' } });
+      var p = pair();
+      if (!p) return Promise.resolve({ error: { message: 'NOT_CONNECTED' } });
       if (!file) return Promise.resolve({ error: { message: 'NO_FILE' } });
 
       if (file.size > 8 * 1024 * 1024) {
@@ -117,7 +129,7 @@
       var ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
       if (!ext) ext = 'jpg';
       var safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      var path = rel.id + '/' + id + '/' + safeName;
+      var path = p.key + '/' + id + '/' + safeName;
 
       return HB.db.client().storage.from('relationship-media').upload(path, file, {
         contentType: file.type,
@@ -126,7 +138,8 @@
         if (up.error) throw up.error;
         var row = {
           id: id,
-          relationship_id: rel.id,
+          user_a: p.a,
+          user_b: p.b,
           sender_id: meId(),
           type: 'image',
           message: file.name || '',
@@ -152,26 +165,34 @@
     },
 
     subscribe: function () {
-      var rel = chat.requireRel();
-      if (!rel) return;
-      var key = 'msgs:' + rel.id;
-      HB.db.subscribe(key, { table: 'messages', filter: 'relationship_id=eq.' + rel.id },
-        function (payload) {
-          if (payload.eventType === 'INSERT' && payload.new) chat.pushLocal(payload.new);
-          if (payload.eventType === 'DELETE') {
-            messages = messages.filter(function (m) { return m.id !== payload.old.id; });
-            chat.messages = messages;
-            if (chat.onChange) chat.onChange();
-          }
-        });
+      var p = pair();
+      if (!p) return;
+      var key = 'msgs:' + p.key;
+      HB.db.subscribe(key, {
+        table: 'messages',
+        filter: 'user_a=eq.' + p.a + ' and user_b=eq.' + p.b
+      }, function (payload) {
+        if (payload.eventType === 'INSERT' && payload.new) chat.pushLocal(payload.new);
+        if (payload.eventType === 'DELETE') {
+          messages = messages.filter(function (m) { return m.id !== payload.old.id; });
+          chat.messages = messages;
+          if (chat.onChange) chat.onChange();
+        }
+      });
     },
 
     /* -------------------- unread -------------------- */
+    /* Read position is tracked on-device (no last_read_at column) —
+       the message HISTORY itself lives in Supabase. */
+    readKey: function () {
+      var p = pair();
+      return p ? 'hb_read_' + p.key : null;
+    },
+
     lastReadAt: function () {
-      var me = HB.rel.data.me;
-      if (!me) return 0;
-      var t = me.last_read_at ? new Date(me.last_read_at).getTime() : 0;
-      return t;
+      var k = chat.readKey();
+      if (!k) return 0;
+      try { return parseInt(localStorage.getItem(k) || '0', 10) || 0; } catch (e) { return 0; }
     },
 
     unreadCount: function () {
@@ -187,9 +208,10 @@
     },
 
     markRead: function () {
-      /* The live profiles schema has no last_read_at column and messages
-         depend on tables that may not exist — reads are tracked locally
-         only, so this stays a harmless no-op for now. */
+      var k = chat.readKey();
+      if (!k) return Promise.resolve();
+      try { localStorage.setItem(k, String(Date.now())); } catch (e) {}
+      if (chat.onChange) chat.onChange();
       return Promise.resolve();
     },
 

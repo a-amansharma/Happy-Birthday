@@ -32,7 +32,49 @@
 
   var N_STEPS = 9;
 
+  /* Map a technical error to a short, friendly message. */
+  function friendly(err) {
+    var msg = String((err && err.message) || err || '');
+    var code = String((err && err.code) || '');
+    var all = msg + ' ' + code;
+    if (/NOT_CONFIGURED/.test(all)) return 'Cloud connection isn\'t set up yet — open js/config.js first.';
+    if (/NOT_AUTHENTICATED|sign in/i.test(all)) return 'Please sign in first, then try again ♡';
+    if (/23505|unique/.test(all)) return 'That code is already in use — we made you a fresh one, try again ♡';
+    if (/PGRST205|42P01|42703|Could not find|does not exist|schema/.test(all)) return 'The database isn\'t ready yet — run supabase/schema.sql, then try again ♡';
+    if (/permission denied|42501|row-level security|RLS/.test(all)) return 'We couldn\'t save that — permission issue on this account.';
+    if (/network|fetch|failed|offline/i.test(all)) return 'You seem to be offline — check your connection and try again ♡';
+    if (/CODE_USED/.test(msg)) return 'That code was already used — ask them for a fresh one ♡';
+    if (/INVALID_CODE/.test(msg)) return 'That code didn\'t match — double-check it? ♡';
+    if (/SELF_CODE/.test(msg)) return 'That\'s your own code, silly! 💞';
+    if (/ALREADY_CONNECTED/.test(msg)) return 'You\'re already part of a couple ♡';
+    return 'Hmm, something went wrong. Please try again ♡';
+  }
+
   HB.route('/onboarding', function (main) {
+    var backend = !!(window.HB && HB.db && HB.db.configured());
+
+    /* Safety net: if we arrived here holding a pairing code (and already
+       have an anonymous identity), pair IMMEDIATELY — the person joining
+       must never be pushed through the details wizard first. */
+    if (backend && HB.pendingCode && HB.auth.user()) {
+      var pending = HB.pendingCode;
+      HB.pendingCode = null;
+      main.innerHTML = '<div class="page"><div class="connect-center"><h3>Pairing you two…</h3>' +
+        '<div class="typing"><i></i><i></i><i></i></div></div></div>';
+      HB.rel.connectWithCode(pending).then(function (out) {
+        if (out && out.error) {
+          main.innerHTML = '<div class="page"><div class="connect-center"><p>' + friendly(out.error) + '</p>' +
+            '<button class="btn btn-soft" data-home>Back to start</button></div></div>';
+          main.querySelector('[data-home]').addEventListener('click', function () { HB.navigate('/'); });
+          return;
+        }
+        HB.burst(window.innerWidth / 2, window.innerHeight / 3, 40);
+        HB.toast('You\'re connected! Welcome to your little world ♡', '🎉');
+        if (HB.enterWorld) HB.enterWorld(); else HB.navigate('/home');
+      });
+      return;
+    }
+
     var step = 0;
     var draft = {
       name: HB.state.profile.name, partner: HB.state.profile.partner,
@@ -54,8 +96,6 @@
       'Step 8 of ' + N_STEPS + ' · Something special',
       'Step 9 of ' + N_STEPS + ' · Pick a vibe theme'
     ];
-
-    var backend = !!(window.HB && HB.db && HB.db.configured());
 
     function render() {
       var html = '<div class="wizard">' +
@@ -287,9 +327,10 @@
             }
           });
         }).catch(function (err) {
-          card.innerHTML = '<div class="connect-center"><p>Something went wrong: ' + HB.esc(String(err.message || err)) + '</p>' +
+          var msg = friendly(err);
+          card.innerHTML = '<div class="connect-center"><p>' + msg + '</p>' +
             '<button class="btn btn-soft" data-retry>Try again</button></div>';
-          card.querySelector('[data-retry]').addEventListener('click', function () { location.reload(); });
+          card.querySelector('[data-retry]').addEventListener('click', run);
         });
       };
 
@@ -326,8 +367,11 @@
           '<div class="dudu-small-stage" data-du></div>' +
           '<h2 class="hand" style="font-size:30px">Your person is next ♡</h2>' +
           '<p class="wizard-step-hint">Share this code with your person — they\'ll open your little world on <b>their</b> phone, tap "I already have our space", and enter it to connect with you.</p>' +
-          '<div class="partner-code"><span>' + HB.esc(code) + '</span>' +
-            '<button class="btn-icon btn-soft" data-copy title="Copy code">' + HB.icon('copy') + '</button></div>' +
+          '<div class="code-card">' +
+            '<div class="code-card-label">Your pairing code 💕</div>' +
+            '<div class="code-card-value">' + HB.esc(code) + '</div>' +
+            '<button class="code-card-copy" data-copy>' + HB.icon('copy') + ' Copy code</button>' +
+          '</div>' +
           '<p class="muted" style="font-size:12.5px;margin-top:16px">Your little world is ready — you can also go in now and wait. We\'ll throw a tiny celebration the moment they connect. ♡</p>' +
           '<button class="btn btn-ghost" data-home>Go to my little world →</button>' +
         '</div>';
@@ -337,9 +381,11 @@
       card.querySelector('[data-copy]').addEventListener('click', function () {
         var btn = this;
         navigator.clipboard.writeText(code).then(function () {
-          btn.innerHTML = '✓';
-          setTimeout(function () { btn.innerHTML = HB.icon('copy'); }, 1500);
+          btn.innerHTML = '✓ Copied 💕';
+          setTimeout(function () { btn.innerHTML = HB.icon('copy') + ' Copy code'; }, 1600);
           HB.toast('Code copied — send it to your person ♡', '💌');
+        }).catch(function () {
+          HB.toast('Couldn\'t copy — long-press the code instead ♡', '🐻');
         });
       });
 

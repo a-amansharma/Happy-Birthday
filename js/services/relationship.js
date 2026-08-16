@@ -5,17 +5,19 @@
    (id, name, age, pairing_code, partner_id, created_at,
     last_active, partner_code).
 
-   Pairing model (profiles-only, RLS is self-only):
-     * pairing_code  — MY unique code (LOVE-XXXXX) I share. Single use.
+   Pairing model (profiles-only):
+     * pairing_code  — MY unique single-use code (LOVE-XXXXX).
      * partner_id    — set on BOTH profiles once connected.
-     * partner_code  — the code I used to join (connector) / the
-                        other person's code if they had one.
+     * partner_code  — the code I used to join (connector).
 
-   Because profiles RLS lets you read/update ONLY your own row,
-   the actual pairing happens inside the security-definer RPC
-   connect_with_partner(code) — the client can't look up or edit
-   another user's row. While "waiting" we poll our own profile
-   (and watch it via realtime when enabled) until partner_id
+   RLS lets a person read/update ONLY their own row PLUS the
+   paired partner's row (see schema.sql). The code lookup + the
+   linking write both happen inside the security-definer RPC
+   connect_with_partner(code) — a client can never read another
+   user's pairing_code or write their partner_id directly.
+
+   While "waiting" we poll our own profile every 5s (and watch it
+   via realtime when the table is published) until partner_id
    appears → status flips to connected on BOTH phones.
    ============================================================ */
 (function () {
@@ -23,7 +25,7 @@
   var HB = window.HB = window.HB || {};
 
   var CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  var WAIT_POLL_MS = 4000;
+  var WAIT_POLL_MS = 5000;
 
   function generateCode() {
     var out = 'LOVE-';
@@ -45,18 +47,19 @@
   var _lastTouch = 0;
   var _initPromise = null;
   var _pollTimer = null;
-  var _selfKey = null;
+  var _ownKey = null;
+  var _partnerKey = null;
 
   /* While "waiting", watch MY OWN profile row: the connect RPC sets
      partner_id on it. Realtime is used when the table is published;
-     a light poll guarantees the flip even when it isn't. */
+     a light poll (5s) guarantees the flip even when it isn't. */
   function startWaitingWatch() {
     stopWaitingWatch();
     var user = HB.auth.user();
     if (!user || !HB.db.configured()) return;
     var uid = user.id;
-    _selfKey = 'waiting:' + uid;
-    HB.db.subscribe(_selfKey, { table: 'profiles', filter: 'id=eq.' + uid }, function () {
+    _ownKey = 'waiting:' + uid;
+    HB.db.subscribe(_ownKey, { table: 'profiles', filter: 'id=eq.' + uid }, function () {
       rel.init(true).then(function () { rel.dispatch(); }).catch(function () {});
     });
     _pollTimer = setInterval(function () {
@@ -66,7 +69,7 @@
   }
 
   function stopWaitingWatch() {
-    if (_selfKey) { HB.db.unsubscribe(_selfKey); _selfKey = null; }
+    if (_ownKey) { HB.db.unsubscribe(_ownKey); _ownKey = null; }
     if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
   }
 
@@ -93,15 +96,22 @@
         data.me = res.data;
         rel.touch();
         if (data.me.partner_id) {
-          stopWaitingWatch();
-          data.status = 'connected';
-          rel.hydrate();
-          rel.subscribeRealtime();
-        } else {
-          data.status = 'waiting';
-          rel.hydrate();
-          startWaitingWatch();
+          /* fetch my partner (RLS lets each person read their partner's row) */
+          return HB.db.client()
+            .from('profiles').select('*').eq('id', data.me.partner_id).maybeSingle()
+            .then(function (pRes) {
+              data.partner = (pRes && !pRes.error && pRes.data) ? pRes.data : null;
+              stopWaitingWatch();
+              data.status = 'connected';
+              rel.hydrate();
+              rel.subscribeRealtime();
+            });
         }
+
+        data.partner = null;
+        data.status = 'waiting';
+        rel.hydrate();
+        startWaitingWatch();
       })
       .catch(function (err) {
         data.error = String(err.message || err);
@@ -118,7 +128,7 @@
   }
 
   /* Hook fired by the auth service after any session change: re-check
-     the backend state and let pages re-render (landing → dashboard). */
+     the backend state and let pages re-render. */
   window.__HB_DISPATCH_REL = function () {
     if (!HB.db || !HB.db.configured()) return;
     rel.init().then(function () { rel.dispatch(); }).catch(function () {});
@@ -149,11 +159,7 @@
       if (HB.updateNav) HB.updateNav();
     },
 
-    /* -------------------- bootstrap --------------------
-       init(force):
-       * concurrent non-forced calls share one in-flight fetch,
-       * force=true starts a fresh fetch even if one is running
-       (needed after the connect RPC changes the database).     */
+    /* -------------------- bootstrap -------------------- */
     init: function (force) {
       if (!force && _initPromise) return _initPromise;
       var p = doInit();
@@ -164,9 +170,6 @@
     },
 
     /* -------------------- creation -------------------- */
-    /* Called from onboarding after signup: persist my profile.
-       Only existing columns are used. pairing_code is minted once and
-       kept on later saves, so the shared code never churns. */
     ensureProfile: function (fields) {
       if (!HB.db.configured()) return Promise.resolve({ error: { message: 'NOT_CONFIGURED' } });
       var user = HB.auth.user();
@@ -228,18 +231,15 @@
         });
     },
 
-    /* The shared preference fields (relationship type, vibes, talking
-       style, story, together-since) have no column in the live profiles
-       schema, and profiles RLS is self-only — so they live on each
-       device in HB.state.profile. Settings already persisted them
-       locally; this keeps the old call site working without a DB write. */
+    /* Shared couple preferences have no column in the live profiles
+       schema, so they live locally per device (HB.state.profile) —
+       this keeps old call sites working without a DB write. */
     updateShared: function () {
       return Promise.resolve({ error: null });
     },
 
     /* Leave / delete my data. Tries the delete_my_data RPC; when that
-       function doesn't exist it clears MY profile row instead (RLS only
-       lets me touch my own row — the partner's side is left intact). */
+       function doesn't exist it clears MY profile row instead. */
     leave: function () {
       var user = HB.auth.user();
       if (!HB.db.configured() || !user) return Promise.resolve();
@@ -256,23 +256,38 @@
     },
 
     /* -------------------- live sync -------------------- */
-    /* Watch my own profile row: partner details, name/age edits and
-       (most importantly) the moment partner_id gets set. */
+    /* Watch my own row (partner_id flip, name edits) + the partner's
+       row (their name/age updates show up live). */
     subscribeRealtime: function () {
       var user = HB.auth.user();
       if (!user || !HB.db.configured()) return;
-      var key = 'me:' + user.id;
-      HB.db.subscribe(key, { table: 'profiles', filter: 'id=eq.' + user.id }, function () {
+      if (_ownKey) { HB.db.unsubscribe(_ownKey); _ownKey = null; }
+      _ownKey = 'me:' + user.id;
+      HB.db.subscribe(_ownKey, { table: 'profiles', filter: 'id=eq.' + user.id }, function () {
         rel.init(true).then(function () { rel.dispatch(); }).catch(function () {});
       });
+      if (data.me && data.me.partner_id && data.me.partner_id !== _partnerKey) {
+        if (_partnerKey) { HB.db.unsubscribe(_partnerKey); _partnerKey = null; }
+        _partnerKey = 'partner:' + data.me.partner_id;
+        HB.db.subscribe(_partnerKey, { table: 'profiles', filter: 'id=eq.' + data.me.partner_id }, function () {
+          rel.init(true).then(function () { rel.dispatch(); }).catch(function () {});
+        });
+      }
+    },
+
+    /* -------------------- helpers -------------------- */
+    /* The sorted pair key used by chat + presence channels. */
+    pairKey: function () {
+      var me = data.me;
+      if (!me || !me.partner_id) return null;
+      return [me.id, me.partner_id].sort().join('_');
     },
 
     /* -------------------- local hydration --------------------
-       Mirrors backend data into HB.state so all the existing local
-       features (love notes, dates, companion, …) keep working.
-       Partner details are the ones entered on THIS device during
-       onboarding — the schema's RLS deliberately keeps "about them"
-       local, so we never try to read the partner's row. */
+       Mirrors backend data into HB.state.profile so all the existing
+       local features keep working. The partner's name/age come from
+       their actual profile row (RLS allows each partner to read the
+       other's row) — never from a local-only guess. */
     hydrate: function () {
       if (!HB.state || !HB.state.profile) return;
       var p = HB.state.profile;
@@ -281,26 +296,29 @@
         p.name = data.me.name || p.name;
         if (data.me.age != null) p.age = String(data.me.age);
         p.partnerCode = data.me.pairing_code || p.partnerCode;
-      } else {
-        p.partnerCode = p.partnerCode || '';
+      }
+
+      if (data.partner) {
+        p.partner = data.partner.name || p.partner;
+        if (data.partner.age != null) p.partnerAge = String(data.partner.age);
       }
 
       if (HB.save) HB.save();
     },
 
-    /* -------------------- helpers -------------------- */
     dynamic: function () {
       var me = (data.status === 'connected' || data.status === 'waiting') && data.me
         ? { name: data.me.name || 'you', age: data.me.age != null ? String(data.me.age) : '' } : null;
-      var partner = (HB.state && HB.state.profile)
-        ? { name: HB.state.profile.partner || 'your person', age: HB.state.profile.partnerAge || '' } : null;
+      var partner = data.partner
+        ? { name: data.partner.name || 'your person', age: data.partner.age != null ? String(data.partner.age) : '' }
+        : (HB.state && HB.state.profile
+            ? { name: HB.state.profile.partner || 'your person', age: HB.state.profile.partnerAge || '' } : null);
       return { me: me, partner: partner };
     },
 
     bondLabel: function () { return ''; },
     bondDetail: function () { return null; },
 
-    /* today's calendar date (shared relationship date logic) */
     todayKey: function () {
       var d = new Date();
       var mm = String(d.getMonth() + 1).padStart(2, '0');

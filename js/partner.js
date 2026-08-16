@@ -48,7 +48,8 @@
     var body = '';
 
     if (connected) {
-      var partnerName = HB.state.profile.partner || 'your person';
+      var partnerName = (relData.partner && relData.partner.name) || HB.state.profile.partner || 'your person';
+      var partnerAge = relData.partner && relData.partner.age != null ? String(relData.partner.age) : (HB.state.profile.partnerAge || '—');
       body =
         '<div class="connect-center">' +
           '<div class="dudu-big" data-du></div>' +
@@ -58,15 +59,19 @@
         '<div class="row" style="gap:16px;max-width:560px;margin:22px auto 0;flex-wrap:wrap;justify-content:center">' +
           '<div class="card mini-stat"><div class="ms-label">You</div><div class="ms-val">' + HB.esc(relData.me.name || '—') + '</div></div>' +
           '<div class="card mini-stat"><div class="ms-label">Your person</div><div class="ms-val">' + HB.esc(partnerName) + '</div></div>' +
-        '</div>';
+        '</div>' +
+        '<p class="muted" style="text-align:center;margin-top:14px;font-size:13px">They\'re ' + HB.esc(partnerAge) + ' and they\'re all yours ♡</p>';
     } else if (waiting && code) {
       body =
         '<div class="connect-center">' +
           '<div class="dudu-big" data-du></div>' +
           '<h2 class="hand" style="font-size:30px">Waiting for your person ♡</h2>' +
           '<p class="wizard-step-hint">Share this code — they enter it on their phone to join you.</p>' +
-          '<div class="partner-code"><span>' + HB.esc(code) + '</span>' +
-            '<button class="btn-icon btn-soft" data-copy title="Copy code">' + HB.icon('copy') + '</button></div>' +
+          '<div class="code-card">' +
+            '<div class="code-card-label">Your pairing code 💕</div>' +
+            '<div class="code-card-value">' + HB.esc(code) + '</div>' +
+            '<button class="code-card-copy" data-copy>' + HB.icon('copy') + ' Copy code</button>' +
+          '</div>' +
           '<p class="muted" style="font-size:12.5px;margin-top:14px">You\'ll see a little celebration here the moment they connect. ♡</p>' +
         '</div>';
     } else {
@@ -93,10 +98,13 @@
 
     var copy = main.querySelector('[data-copy]');
     if (copy && code) copy.addEventListener('click', function () {
+      var btn = copy;
       navigator.clipboard.writeText(code).then(function () {
-        copy.innerHTML = '✓';
-        setTimeout(function () { copy.innerHTML = HB.icon('copy'); }, 1500);
+        btn.innerHTML = '✓ Copied 💕';
+        setTimeout(function () { btn.innerHTML = HB.icon('copy') + ' Copy code'; }, 1600);
         HB.toast('Code copied — send it to your person ♡', '💌');
+      }).catch(function () {
+        HB.toast('Couldn\'t copy — long-press the code instead ♡', '🐻');
       });
     });
 

@@ -42,18 +42,25 @@
     HB.rel.init().then(function () { wireChat(); });
   }
 
-  /* From the landing page: after signing in, open the world */
+  /* From the landing page: after signing in / pairing, open the world.
+     A person who joined via a pairing code never went through the setup
+     wizard, so mark them onboarded here instead of bouncing them back. */
   HB.enterWorld = function () {
-    if (!HB.db || !HB.db.configured()) { HB.navigate('/home'); return; }
-    if (HB.rel.data.status === 'connected') { HB.navigate('/home'); return; }
-    HB.rel.init().then(function () {
+    var openHome = function () {
+      if (!HB.state.onboarded) { HB.state.onboarded = true; HB.save(); }
       HB.navigate('/home');
-    });
+    };
+    if (!HB.db || !HB.db.configured()) { openHome(); return; }
+    if (HB.rel.data.status === 'connected') { openHome(); return; }
+    HB.rel.init().then(openHome);
   };
 
   HB.onReady = initBackend;
 
   function boot() {
+    // Connection bar (needs the DOM, so boot-time)
+    if (HB.net && HB.net.init) HB.net.init();
+
     // Default route
     if (!location.hash) {
       history.replaceState(null, '', '#/' + (HB.state.onboarded ? 'home' : ''));

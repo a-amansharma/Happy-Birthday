@@ -164,6 +164,7 @@
           '</div>' +
         '</div>' +
         '<div class="chat-body"><div class="chat-inner"></div></div>' +
+        '<div class="chat-typing" id="chat-typing"></div>' +
         '<div class="chat-input-wrap">' +
           '<div class="chat-input-box">' +
             '<input type="file" id="chat-attach" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden />' +
@@ -201,13 +202,29 @@
     }
     setPresence(HB.presence.online);
     HB.presence.onChange(setPresence);
+
+    /* live "is typing…" indicator (presence, debounced, never stored) */
+    var typingEl = main.querySelector('#chat-typing');
+    var typingTimer = null;
+    function setTypingUi(on) {
+      if (!typingEl || !typingEl.isConnected) return;
+      typingEl.classList.toggle('show', on);
+      typingEl.textContent = on ? (HB.firstNames().partner + ' is typing…') : '';
+    }
+    setTypingUi(HB.presence.partnerTyping);
+    HB.presence.onTyping(setTypingUi);
     HB.presence.start();
 
     function autoGrow() {
       input.style.height = 'auto';
       input.style.height = Math.min(input.scrollHeight, 110) + 'px';
     }
-    input.addEventListener('input', function () { HB.titleCaseInput(input); autoGrow(); });
+    input.addEventListener('input', function () {
+      HB.titleCaseInput(input); autoGrow();
+      HB.presence.setTyping(true);
+      if (typingTimer) clearTimeout(typingTimer);
+      typingTimer = setTimeout(function () { HB.presence.setTyping(false); }, 1500);
+    });
     input.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }
     });
@@ -216,6 +233,8 @@
     function doSend() {
       var text = input.value.trim();
       if (!text) return;
+      HB.presence.setTyping(false);
+      if (typingTimer) clearTimeout(typingTimer);
       input.value = '';
       autoGrow();
       HB.chat.sendText(text).then(function (res) {
@@ -263,6 +282,14 @@
     if (!main || !main.isConnected) return;
     if (HB.rel.data.status === 'connected' && !main.querySelector('.chat-inner')) {
       render(main);
+    }
+  });
+
+  /* Leaving the chat stops my typing indicator so the partner doesn't
+     see "typing…" forever. Registered once at module load. */
+  window.addEventListener('hashchange', function () {
+    if (location.hash !== '#/chat') {
+      if (HB.presence) HB.presence.setTyping(false);
     }
   });
 })();

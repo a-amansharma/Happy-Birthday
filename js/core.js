@@ -49,10 +49,12 @@
   function deepCopy(o) { return JSON.parse(JSON.stringify(o)); }
   function deepMerge(base, extra) {
     for (var k in extra) {
-      if (extra[k] && typeof extra[k] === 'object' && !Array.isArray(extra[k]) && base[k] && typeof base[k] === 'object') {
-        deepMerge(base[k], extra[k]);
+      var v = extra[k];
+      if (v == null) continue; /* keep the default for missing/null values */
+      if (v && typeof v === 'object' && !Array.isArray(v) && base[k] && typeof base[k] === 'object' && !Array.isArray(base[k])) {
+        deepMerge(base[k], v);
       } else {
-        base[k] = extra[k];
+        base[k] = v;
       }
     }
     return base;
@@ -149,7 +151,13 @@
       routes[path](main);
     } catch (e) {
       if (window.console) console.error('route render error:', path, e);
+      var detail = 'Something unexpected happened on this screen.';
+      if (e && e.message) {
+        detail = String(e.message).replace(/^Error: /, '');
+        if (detail.length > 90) detail = detail.slice(0, 90) + '…';
+      }
       main.innerHTML = '<div class="page"><div class="section-title"><h3>Oops…</h3><span class="hand">something went wrong</span></div>' +
+        '<p class="muted" style="font-size:12.5px;max-width:420px;margin:10px auto">' + HB.esc(detail) + '</p>' +
         '<button class="btn btn-soft btn-lg" onclick="location.hash=&#39;#/home&#39;">Go home ♡</button></div>';
     }
     HB.updateNav();
