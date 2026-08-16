@@ -146,7 +146,7 @@
     if (!ready) {
       ready = true;
       window.addEventListener('hb:relchange', function () {
-        if (location.hash === '#/partner') render(document.getElementById('main'));
+        if (HB.currentPath() === '/partner') render(document.getElementById('main'));
       });
     }
   });

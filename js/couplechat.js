@@ -138,7 +138,7 @@
     if (chatReady === null) {
       HB.chat.available().then(function (ok) {
         chatReady = ok;
-        if (location.hash === '#/chat') render(main);
+        if (HB.currentPath() === '/chat') render(main);
       });
       return;
     }
@@ -277,7 +277,7 @@
      the real chat — but only if the chat view isn't already showing
      (so a half-typed message is never clobbered). */
   window.addEventListener('hb:relchange', function () {
-    if (location.hash !== '#/chat') return;
+    if (HB.currentPath() !== '/chat') return;
     var main = document.getElementById('main');
     if (!main || !main.isConnected) return;
     if (HB.rel.data.status === 'connected' && !main.querySelector('.chat-inner')) {
@@ -285,10 +285,10 @@
     }
   });
 
-  /* Leaving the chat stops my typing indicator so the partner doesn't
-     see "typing…" forever. Registered once at module load. */
-  window.addEventListener('hashchange', function () {
-    if (location.hash !== '#/chat') {
+  /* Leaving the chat (back/forward navigation) stops my typing indicator
+     so the partner doesn't see "typing…" forever. Registered once. */
+  window.addEventListener('popstate', function () {
+    if (HB.currentPath() !== '/chat') {
       if (HB.presence) HB.presence.setTyping(false);
     }
   });

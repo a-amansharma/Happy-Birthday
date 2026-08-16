@@ -128,17 +128,52 @@
     return { me: p.name ? HB.titleCase(p.name) : 'you', partner: p.partner ? HB.titleCase(p.partner) : 'your person' };
   };
 
-  /* ---------------- Router ---------------- */
+  /* ---------------- Router (clean URLs via the History API) ----------------
+     No more #/ hashes. Every route is a plain pathname under the app's base:
+       GitHub Pages  → https://a-amansharma.github.io/Happy-Birthday/settings
+       local/root    → https://localhost:PORT/settings
+     The base is auto-detected (GitHub Pages project sites live in a subfolder),
+     so the exact same code runs in both places. Back/forward use popstate;
+     in-app navigation uses history.pushState — nothing ever reloads the page. */
+  var ROUTE_NAMES = ['home', 'chat', 'notes', 'daily', 'memories', 'quiz', 'dates', 'special', 'partner', 'settings', 'onboarding', 'chatinfo', 'companion', 'more'];
+
+  function detectBase() {
+    var raw = window.location.pathname || '/';
+    var p = raw.replace(/\/+$/, '');
+    if (p === '') return '';
+    var slash = p.lastIndexOf('/');
+    var seg = p.substring(slash + 1);
+    /* currently on a route (e.g. /Happy-Birthday/settings) → base is the prefix */
+    if (ROUTE_NAMES.indexOf(seg) !== -1) {
+      return p.substring(0, slash).replace(/\/+$/, '') || '';
+    }
+    if (seg === 'index.html') return p.substring(0, slash);
+    /* not a route → we're at the app root itself (e.g. /Happy-Birthday) */
+    return p;
+  }
+
+  HB.base = detectBase();
+
+  /* The current route path (e.g. '/settings'), independent of the base. */
+  HB.currentPath = function () {
+    var p = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
+    var b = HB.base;
+    if (b && p.indexOf(b) === 0) p = p.substring(b.length);
+    p = p.replace(/\/+$/, '') || '/';
+    return p;
+  };
+
   var routes = {};
   var current = '';
 
   HB.route = function (path, render) { routes[path] = render; };
 
   HB.navigate = function (path, opts) {
-    if (location.hash === '#' + path) {
+    if (HB.currentPath() === path) {
       render();
     } else {
-      location.hash = path;
+      window.history.pushState({}, '', HB.base + (path === '/' ? '/' : path));
+      render();
     }
     if (opts && opts.scrollTop) window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -158,7 +193,7 @@
       }
       main.innerHTML = '<div class="page"><div class="section-title"><h3>Oops…</h3><span class="hand">something went wrong</span></div>' +
         '<p class="muted" style="font-size:12.5px;max-width:420px;margin:10px auto">' + HB.esc(detail) + '</p>' +
-        '<button class="btn btn-soft btn-lg" onclick="location.hash=&#39;#/home&#39;">Go home ♡</button></div>';
+        '<button class="btn btn-soft btn-lg" onclick="HB.navigate(&#39;/home&#39;)">Go home ♡</button></div>';
     }
     HB.updateNav();
     window.scrollTo(0, 0);
@@ -167,8 +202,8 @@
   }
 
   function render() {
-    var path = location.hash.replace(/^#/, '') || '/';
-    if (!routes[path]) return;
+    var path = HB.currentPath();
+    if (!routes[path]) path = '/';
     current = path;
     var main = document.getElementById('main');
     if (!main) return;
@@ -186,7 +221,7 @@
     }
   }
 
-  window.addEventListener('hashchange', render);
+  window.addEventListener('popstate', render);
 
   HB.updateNav = function () {
     var navItems = [

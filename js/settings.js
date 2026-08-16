@@ -298,7 +298,7 @@
     if (!relWired) {
       relWired = true;
       window.addEventListener('hb:relchange', function () {
-        if (location.hash !== '#/settings') return;
+        if (HB.currentPath() !== '/settings') return;
         var m = document.getElementById('main');
         if (!m || !m.isConnected) return;
         if (HB.rel.data.status === 'connected' && m.querySelector('[data-copy-code]')) {

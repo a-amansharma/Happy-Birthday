@@ -31,8 +31,8 @@ global.document = {
   addEventListener(){},
   removeEventListener(){}
 };
-global.location = { hash: '', replace(){}, };
-global.history = { replaceState(){} };
+global.location = { hash: '', pathname: '/', search: '', replace(){}, };
+global.history = { replaceState(){}, pushState(){} };
 global.addEventListener = () => {};
 global.removeEventListener = () => {};
 global.requestAnimationFrame = (fn) => setTimeout(() => fn(Date.now()), 0);

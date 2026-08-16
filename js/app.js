@@ -61,9 +61,29 @@
     // Connection bar (needs the DOM, so boot-time)
     if (HB.net && HB.net.init) HB.net.init();
 
-    // Default route
-    if (!location.hash) {
-      history.replaceState(null, '', '#/' + (HB.state.onboarded ? 'home' : ''));
+    /* 1) Migrate legacy #/hash bookmarks to clean URLs once. */
+    var h = location.hash || '';
+    if (h && h.charAt(1) === '/') {
+      var legacy = h.replace(/^#/, '');
+      history.replaceState(null, '', HB.base + (legacy === '/' ? '/' : legacy));
+    }
+
+    /* 2) GitHub Pages SPA fallback: refreshing /settings serves 404.html,
+          which stashes the real path in sessionStorage and reloads the root.
+          Restore it here so the browser lands back on the exact page. */
+    var stored = null;
+    try { stored = sessionStorage.getItem('hb_spa_redirect'); } catch (e) {}
+    if (stored) {
+      try { sessionStorage.removeItem('hb_spa_redirect'); } catch (e) {}
+      var baseOk = HB.base
+        ? (stored === HB.base || stored.indexOf(HB.base + '/') === 0)
+        : stored.charAt(0) === '/';
+      if (baseOk) history.replaceState(null, '', stored);
+    }
+
+    /* 3) Default route: onboarded → /home, otherwise the landing page at /. */
+    if (HB.currentPath() === '/' && HB.state.onboarded) {
+      history.replaceState(null, '', HB.base + '/home');
     }
 
     HB.boot();

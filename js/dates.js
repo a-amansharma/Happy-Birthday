@@ -170,7 +170,7 @@
         '<div class="stat-card"><div class="st-num" style="font-size:30px">♡</div><div class="st-label">Forever</div></div>' +
       '</div>' +
       '<div class="stats-hint" style="display:none;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--ink-soft);margin:-8px 0 14px">' +
-        '<span>🧸</span><span>Tell us <a href="#/settings" style="color:var(--primary)">when you got together</a> and we\'ll count every day.</span>' +
+        '<span>🧸</span><span>Tell us <a href="' + HB.base + '/settings" data-path="/settings" style="color:var(--primary);cursor:pointer">when you got together</a> and we\'ll count every day.</span>' +
       '</div>' +
 
       '<div class="memories-toolbar">' +
@@ -182,6 +182,12 @@
       '</div>';
 
     main.querySelector('#add-event').addEventListener('click', showAddEvent);
+
+    var togetherLink = main.querySelector('[data-path="/settings"]');
+    if (togetherLink) togetherLink.addEventListener('click', function (e) {
+      e.preventDefault();
+      HB.navigate('/settings');
+    });
 
     renderEvents();
     renderStats();

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Loading your little world…</title>
+  <style>body{background:#FFF8F0;color:#4B3B32;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;}</style>
+  <script>
+    /* GitHub Pages SPA fallback.
+       This site uses clean URLs (no #/) via the History API. GitHub Pages
+       has no server-side rewrite, so a refresh on /settings would 404.
+       This 404.html is served for any unknown path: it stashes the real
+       path, reloads the app root, and the app restores the path. */
+    (function () {
+      var path = location.pathname + location.search;
+      try { sessionStorage.setItem('hb_spa_redirect', path); } catch (e) {}
+      var root = location.pathname.replace(/\/[^/]*$/, '/');
+      location.replace(root || '/');
+    })();
+  </script>
+</head>
+<body>
+  <p>Loading your little world ♡</p>
+</body>
+</html>

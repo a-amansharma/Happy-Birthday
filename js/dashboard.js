@@ -148,7 +148,8 @@
 
   /* Keep the home screen in sync (e.g. partner connects while you're here) */
   window.addEventListener('hb:relchange', function () {
-    if (location.hash === '#/home' || location.hash === '#/') {
+    var cp = HB.currentPath();
+    if (cp === '/home' || cp === '/') {
       var main = document.getElementById('main');
       if (main) renderHome(main);
     }

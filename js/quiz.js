@@ -29,7 +29,7 @@
     }
 
     HB.quiz.onChange(function () {
-      if (location.hash === '#/quiz') renderQuiz(main);
+      if (HB.currentPath() === '/quiz') renderQuiz(main);
     });
 
     qIndex = 0;
@@ -185,7 +185,7 @@
 
   /* Partner connected while we sat on the "waiting" screen → load the quiz. */
   window.addEventListener('hb:relchange', function () {
-    if (location.hash !== '#/quiz') return;
+    if (HB.currentPath() !== '/quiz') return;
     var main = document.getElementById('main');
     if (!main || !main.isConnected) return;
     if (HB.rel.data.status === 'connected' && main.querySelector('[data-partner]')) {

@@ -80,7 +80,7 @@
 
   /* Partner just connected while we were on the "not yet" screen → open it. */
   window.addEventListener('hb:relchange', function () {
-    if (location.hash !== '#/chatinfo') return;
+    if (HB.currentPath() !== '/chatinfo') return;
     var main = document.getElementById('main');
     if (!main || !main.isConnected) return;
     if (HB.rel.data.status === 'connected' && main.querySelector('[data-partner]')) {
