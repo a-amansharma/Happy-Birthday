@@ -8,6 +8,7 @@
 
   var backend = false;
   var connected = false;
+  var relWired = false;
 
   HB.route('/settings', function (main) {
     if (!HB.state.onboarded) { HB.navigate('/onboarding'); return; }
@@ -294,8 +295,8 @@
 
     /* When the partner connects, flip the "waiting" connection card to
        the "connected" one — but never clobber a half-typed form. */
-    if (!settings._relWired) {
-      settings._relWired = true;
+    if (!relWired) {
+      relWired = true;
       window.addEventListener('hb:relchange', function () {
         if (location.hash !== '#/settings') return;
         var m = document.getElementById('main');
