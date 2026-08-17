@@ -1,6 +1,6 @@
 
 -- ============================================================
--- OUR LITTLE WORLD ♡ — Complete Supabase Database Setup
+-- OUR LITTLE WORLD ♡ — Supabase Database Setup
 -- ============================================================
 --
 -- Run this ENTIRE file in: Supabase Dashboard → SQL Editor
@@ -9,33 +9,16 @@
 -- This creates:
 --   public.profiles     — one row per user (pairing, names)
 --   public.messages     — private couple chat
---   storage bucket      — relationship-media for chat photos
 --   RPC functions       — connect_with_partner, delete_my_data
 --   RLS policies        — strict two-person access
 --   Realtime            — live profile + message streaming
 --
+-- Chat images use base64 data URLs (no storage bucket needed).
 -- ============================================================
 
 
 -- ============================================================
--- 1. EXTENSIONS
--- ============================================================
-
-create extension if not exists pgcrypto;
-
-
--- ============================================================
--- 2. CLEAN OLD FUNCTIONS
--- ============================================================
-
-drop function if exists public.admin_get_insights();
-drop function if exists public.pair_with_code(text);
-drop function if exists public.connect_with_partner(text);
-drop function if exists public.delete_my_data();
-
-
--- ============================================================
--- 3. PROFILES TABLE
+-- 1. PROFILES TABLE
 -- ============================================================
 
 create table if not exists public.profiles (
@@ -60,7 +43,7 @@ alter table public.profiles add column if not exists last_active   timestamptz d
 
 
 -- ============================================================
--- 4. PROFILES INDEXES
+-- 2. PROFILES INDEXES
 -- ============================================================
 
 create unique index if not exists profiles_pairing_code_uniq
@@ -71,7 +54,7 @@ create index if not exists profiles_partner_id_idx
 
 
 -- ============================================================
--- 5. ROW LEVEL SECURITY — PROFILES
+-- 3. ROW LEVEL SECURITY — PROFILES
 -- ============================================================
 
 alter table public.profiles enable row level security;
@@ -100,7 +83,26 @@ create policy "profiles delete own" on public.profiles
 
 
 -- ============================================================
--- 6. CONNECT WITH PARTNER — RPC
+-- 4. COUPLE PAIR CHECK — Security Helper
+-- ============================================================
+
+create or replace function public.is_couple_pair(a uuid, b uuid)
+returns boolean
+language sql security definer set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.profiles me
+     where me.id = auth.uid()
+       and me.partner_id is not null
+       and a = least(me.id, me.partner_id)
+       and b = greatest(me.id, me.partner_id)
+  );
+$$;
+
+
+-- ============================================================
+-- 5. CONNECT WITH PARTNER — RPC
 -- ============================================================
 -- Called by Person 2 when they enter a pairing code.
 -- Creates Person 2's profile if needed, pairs both users,
@@ -184,11 +186,9 @@ begin
   );
 end $$;
 
-grant execute on function public.connect_with_partner(text) to anon, authenticated;
-
 
 -- ============================================================
--- 7. DELETE MY DATA — RPC
+-- 6. DELETE MY DATA — RPC
 -- ============================================================
 -- "Erase Everything" from Settings.
 -- Clears my profile row instead of deleting (avoids cascade to partner).
@@ -216,18 +216,19 @@ begin
    where id = me;
 end $$;
 
-grant execute on function public.delete_my_data() to anon, authenticated;
-
 
 -- ============================================================
--- 8. MESSAGES TABLE — Private Couple Chat
+-- 7. MESSAGES TABLE — Private Couple Chat
+-- ============================================================
+-- Chat images are stored as base64 data URLs in the message column.
+-- No external storage bucket required.
 -- ============================================================
 
 create table if not exists public.messages (
   id          uuid primary key default gen_random_uuid(),
-  user_a      uuid not null references public.profiles(id) on delete cascade,
-  user_b      uuid not null references public.profiles(id) on delete cascade,
-  sender_id   uuid not null references public.profiles(id) on delete cascade,
+  user_a      uuid not null,
+  user_b      uuid not null,
+  sender_id   uuid not null,
   type        text not null default 'text' check (type in ('text', 'image')),
   message     text not null default '',
   media_path  text not null default '',
@@ -240,28 +241,7 @@ create index if not exists messages_pair_idx
 
 
 -- ============================================================
--- 9. COUPLE PAIR CHECK — Security Helper
--- ============================================================
-
-create or replace function public.is_couple_pair(a uuid, b uuid)
-returns boolean
-language sql security definer set search_path = public
-stable
-as $$
-  select exists (
-    select 1 from public.profiles me
-     where me.id = auth.uid()
-       and me.partner_id is not null
-       and a = least(me.id, me.partner_id)
-       and b = greatest(me.id, me.partner_id)
-  );
-$$;
-
-grant execute on function public.is_couple_pair(uuid, uuid) to anon, authenticated;
-
-
--- ============================================================
--- 10. ROW LEVEL SECURITY — MESSAGES
+-- 8. ROW LEVEL SECURITY — MESSAGES
 -- ============================================================
 
 alter table public.messages enable row level security;
@@ -283,57 +263,7 @@ create policy "messages delete own" on public.messages
 
 
 -- ============================================================
--- 11. STORAGE — relationship-media bucket
--- ============================================================
-
-insert into storage.buckets (id, name, public)
-values ('relationship-media', 'relationship-media', false)
-on conflict (id) do nothing;
-
-create or replace function storage.storage_pair_ok(name text)
-returns boolean
-language sql security definer set search_path = public
-stable
-as $$
-  select public.is_couple_pair(
-    split_part((storage.foldername(name))[1], '_', 1)::uuid,
-    split_part((storage.foldername(name))[1], '_', 2)::uuid
-  );
-$$;
-
-grant execute on function storage.storage_pair_ok(text) to anon, authenticated;
-
-drop policy if exists "relationship-media select pair" on storage.objects;
-create policy "relationship-media select pair" on storage.objects
-  for select using (
-    bucket_id = 'relationship-media'
-    and storage.storage_pair_ok(name)
-  );
-
-drop policy if exists "relationship-media insert pair" on storage.objects;
-create policy "relationship-media insert pair" on storage.objects
-  for insert with check (
-    bucket_id = 'relationship-media'
-    and storage.storage_pair_ok(name)
-  );
-
-drop policy if exists "relationship-media update pair" on storage.objects;
-create policy "relationship-media update pair" on storage.objects
-  for update using (
-    bucket_id = 'relationship-media'
-    and storage.storage_pair_ok(name)
-  );
-
-drop policy if exists "relationship-media delete pair" on storage.objects;
-create policy "relationship-media delete pair" on storage.objects
-  for delete using (
-    bucket_id = 'relationship-media'
-    and storage.storage_pair_ok(name)
-  );
-
-
--- ============================================================
--- 12. REALTIME — Stream live changes to both phones
+-- 9. REALTIME — Stream live changes to both phones
 -- ============================================================
 
 do $$
@@ -357,7 +287,7 @@ end $$;
 
 
 -- ============================================================
--- 13. ADMIN INSIGHTS
+-- 10. ADMIN INSIGHTS
 -- ============================================================
 
 create or replace function public.admin_get_insights()
@@ -367,7 +297,6 @@ as $$
 declare
   result json;
 begin
-  -- Owner only
   if auth.uid() <> 'e65fabbb-cc49-48c6-adc0-ef1d59f41896'::uuid then
     raise exception 'Unauthorized';
   end if;
@@ -394,24 +323,8 @@ begin
   return result;
 end $$;
 
-grant execute on function public.admin_get_insights() to authenticated;
-
 
 -- ============================================================
--- 14. VERIFICATION
+-- DONE — Run this and the app is ready ♡
 -- ============================================================
-
-select
-  routine_name,
-  routine_type
-from information_schema.routines
-where routine_schema = 'public'
-  and routine_name in (
-    'connect_with_partner',
-    'delete_my_data',
-    'admin_get_insights',
-    'is_couple_pair'
-  )
-order by routine_name;
-
 select 'DATABASE SETUP COMPLETED SUCCESSFULLY' as status;

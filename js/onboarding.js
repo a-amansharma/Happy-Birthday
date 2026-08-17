@@ -46,6 +46,7 @@
     if (/network|fetch|failed|offline|NetworkError|ERR_NETWORK|timeout/i.test(all)) return 'You seem to be offline — check your connection and try again ♡';
     if (/Cannot read prop|null|undefined|TypeError|ReferenceError/i.test(all)) return 'Something went wrong on our end — please reload the page and try again ♡';
     if (/auth\/|token|session|forbidden|401|403/i.test(all)) return 'Your session expired — please reload and try again ♡';
+    if (/anonymous|disabled|not enabled|sign.in/i.test(all)) return 'Anonymous sign-in isn\'t enabled — go to Supabase Dashboard → Authentication → Settings → enable "Allow anonymous sign-ins" ♡';
     if (/500|internal|server/i.test(all)) return 'Something went wrong on the server — try again in a moment ♡';
     if (/CODE_USED/.test(msg)) return 'That code was already used — ask them for a fresh one ♡';
     if (/INVALID_CODE/.test(msg)) return 'That code didn\'t match — double-check it? ♡';
@@ -387,6 +388,13 @@
           return;
         }
         go();
+      }).catch(function (err) {
+        console.error('[ONBOARDING] signInAnonymously threw:', err);
+        if (card && card.parentNode) {
+          card.innerHTML = '<div class="connect-center"><p>' + friendly(err) + '</p>' +
+            '<button class="btn btn-soft" data-retry>Try again</button></div>';
+          card.querySelector('[data-retry]').addEventListener('click', function () { HB.navigate('/onboarding'); });
+        }
       });
     }
 

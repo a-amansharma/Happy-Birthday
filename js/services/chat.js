@@ -111,7 +111,8 @@
       });
     },
 
-    /* Upload a photo then insert an image message */
+    /* Read a photo as base64 data URL, then insert an image message.
+       No storage bucket required — the image lives in the message row. */
     sendImage: function (file) {
       var p = pair();
       if (!p) return Promise.resolve({ error: { message: 'NOT_CONNECTED' } });
@@ -125,31 +126,27 @@
         return Promise.resolve({ error: { message: 'UNSUPPORTED_TYPE' } });
       }
 
-      var id = uuid();
-      var ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
-      if (!ext) ext = 'jpg';
-      var safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      var path = p.key + '/' + id + '/' + safeName;
-
-      return HB.db.client().storage.from('relationship-media').upload(path, file, {
-        contentType: file.type,
-        upsert: false
-      }).then(function (up) {
-        if (up.error) throw up.error;
-        var row = {
-          id: id,
-          user_a: p.a,
-          user_b: p.b,
-          sender_id: meId(),
-          type: 'image',
-          message: file.name || '',
-          media_path: path
+      return new Promise(function (resolve) {
+        var reader = new FileReader();
+        reader.onerror = function () { resolve({ error: { message: 'READ_FAILED' } }); };
+        reader.onload = function () {
+          var dataUrl = reader.result;
+          var row = {
+            id: uuid(),
+            user_a: p.a,
+            user_b: p.b,
+            sender_id: meId(),
+            type: 'image',
+            message: file.name || '',
+            media_path: dataUrl
+          };
+          HB.db.client().from('messages').insert(row).select().single().then(function (res) {
+            if (res.error) return resolve(res);
+            if (res.data) chat.pushLocal(res.data);
+            return resolve(res);
+          });
         };
-        return HB.db.client().from('messages').insert(row).select().single();
-      }).then(function (res) {
-        if (res.error) return res;
-        if (res.data) chat.pushLocal(res.data);
-        return res;
+        reader.readAsDataURL(file);
       });
     },
 
@@ -244,6 +241,7 @@
 
     signedUrl: function (m) {
       if (!m || !m.media_path) return Promise.resolve(null);
+      if (m.media_path.indexOf('data:') === 0) return Promise.resolve(m.media_path);
       return HB.db.signedUrl(m.media_path);
     }
   };

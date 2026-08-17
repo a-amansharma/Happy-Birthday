@@ -88,6 +88,7 @@
   /* Signed URL helper (cached in memory) for private storage */
   db.signedUrl = function (path, expiresIn) {
     if (!path || !db.configured()) return Promise.resolve(null);
+    if (path.indexOf('data:') === 0) return Promise.resolve(path);
     expiresIn = expiresIn || 3600;
     if (signedUrlCache[path] && signedUrlCache[path].until > Date.now()) {
       return Promise.resolve(signedUrlCache[path].url);

@@ -32,8 +32,9 @@
     var cls = mine ? 'user' : 'ai';
     var avatar = '<span class="msg-avatar">' + (mine ? HB.chars.avatarImg('dudu', 'cute') : HB.chars.avatarImg('bubu', 'cute')) + '</span>';
     if (m.type === 'image') {
+      var src = (m.media_path && m.media_path.indexOf('data:') === 0) ? m.media_path : '';
       return '<div class="msg ' + cls + '">' + avatar +
-        '<div class="bubble bubble-img"><img class="msg-img" data-mid="' + HB.esc(m.id) + '" alt="photo" loading="lazy"/></div>' +
+        '<div class="bubble bubble-img"><img class="msg-img' + (src ? ' loaded' : '') + '" data-mid="' + HB.esc(m.id) + '" src="' + HB.esc(src) + '" alt="photo" loading="lazy"/></div>' +
         '<span class="msg-time">' + timeStr(m.created_at) + '</span></div>';
     }
     return '<div class="msg ' + cls + '">' + avatar +
@@ -74,6 +75,18 @@
 
   function loadImage(m) {
     pendingImages++;
+    if (m.media_path && m.media_path.indexOf('data:') === 0) {
+      pendingImages--;
+      if (!inner || !inner.isConnected) return;
+      var img = inner.querySelector('[data-mid="' + m.id + '"]');
+      if (img) {
+        img.src = m.media_path;
+        img.classList.add('loaded');
+        img.addEventListener('click', function () { openLightbox(m.media_path, m.message || ''); });
+      }
+      if (pendingImages === 0) scrollDown();
+      return;
+    }
     HB.chat.signedUrl(m).then(function (url) {
       pendingImages--;
       if (!inner || !inner.isConnected) return;
