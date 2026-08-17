@@ -1,503 +1,359 @@
 
 -- ============================================================
--- HAPPY BIRTHDAY / LITTLE WORLD
--- FRESH SUPABASE DATABASE SETUP
+-- OUR LITTLE WORLD ♡ — Complete Supabase Database Setup
 -- ============================================================
 --
--- IMPORTANT:
--- This resets:
---   public.profiles
---   public.activity
+-- Run this ENTIRE file in: Supabase Dashboard → SQL Editor
+-- Safe to re-run: every statement is idempotent.
 --
--- Supabase Auth users are NOT deleted.
---
--- This schema matches the JavaScript RPC calls:
---
---   connect_with_partner(code)
---   delete_my_data()
+-- This creates:
+--   public.profiles     — one row per user (pairing, names)
+--   public.messages     — private couple chat
+--   storage bucket      — relationship-media for chat photos
+--   RPC functions       — connect_with_partner, delete_my_data
+--   RLS policies        — strict two-person access
+--   Realtime            — live profile + message streaming
 --
 -- ============================================================
 
 
 -- ============================================================
--- 1. CLEAN OLD FUNCTIONS
+-- 1. EXTENSIONS
+-- ============================================================
+
+create extension if not exists pgcrypto;
+
+
+-- ============================================================
+-- 2. CLEAN OLD FUNCTIONS
 -- ============================================================
 
 drop function if exists public.admin_get_insights();
-
 drop function if exists public.pair_with_code(text);
-
 drop function if exists public.connect_with_partner(text);
-
 drop function if exists public.delete_my_data();
-
-
--- ============================================================
--- 2. CLEAN OLD TABLES
--- ============================================================
-
-drop table if exists public.activity cascade;
-drop table if exists public.profiles cascade;
 
 
 -- ============================================================
 -- 3. PROFILES TABLE
 -- ============================================================
 
-create table public.profiles (
-
-  id uuid primary key
-    references auth.users(id)
-    on delete cascade,
-
-  name text not null,
-
-  age integer,
-
-  pairing_code text unique,
-
-  partner_id uuid
-    references public.profiles(id)
-    on delete set null,
-
-  created_at timestamptz not null
-    default now(),
-
-  last_active timestamptz not null
-    default now()
+create table if not exists public.profiles (
+  id            uuid primary key references auth.users(id) on delete cascade,
+  name          text not null default '',
+  age           integer default null,
+  pairing_code  text,
+  partner_id    uuid references public.profiles(id) on delete set null,
+  partner_code  text,
+  created_at    timestamptz not null default now(),
+  last_active   timestamptz default now()
 );
 
-
--- ============================================================
--- 4. ACTIVITY TABLE
--- ============================================================
-
-create table public.activity (
-
-  id bigint generated always as identity primary key,
-
-  user_id uuid not null
-    references auth.users(id)
-    on delete cascade,
-
-  event text not null,
-
-  created_at timestamptz not null
-    default now()
-);
+-- Idempotent column additions (safe on live databases)
+alter table public.profiles add column if not exists name          text not null default '';
+alter table public.profiles add column if not exists age           integer default null;
+alter table public.profiles add column if not exists pairing_code  text;
+alter table public.profiles add column if not exists partner_id    uuid references public.profiles(id) on delete set null;
+alter table public.profiles add column if not exists partner_code  text;
+alter table public.profiles add column if not exists created_at    timestamptz not null default now();
+alter table public.profiles add column if not exists last_active   timestamptz default now();
 
 
 -- ============================================================
--- 5. INDEXES
+-- 4. PROFILES INDEXES
 -- ============================================================
 
-create index profiles_pairing_code_idx
-on public.profiles(pairing_code);
+create unique index if not exists profiles_pairing_code_uniq
+  on public.profiles (pairing_code) where pairing_code is not null;
 
-create index profiles_partner_id_idx
-on public.profiles(partner_id);
-
-create index activity_user_id_idx
-on public.activity(user_id);
-
-create index activity_created_at_idx
-on public.activity(created_at);
+create index if not exists profiles_partner_id_idx
+  on public.profiles (partner_id);
 
 
 -- ============================================================
--- 6. ROW LEVEL SECURITY
+-- 5. ROW LEVEL SECURITY — PROFILES
 -- ============================================================
 
 alter table public.profiles enable row level security;
-alter table public.activity enable row level security;
+
+drop policy if exists "profiles select self" on public.profiles;
+create policy "profiles select self" on public.profiles
+  for select using (auth.uid() = id);
+
+drop policy if exists "profiles select member" on public.profiles;
+create policy "profiles select member" on public.profiles
+  for select using (
+    id = (select partner_id from public.profiles where id = auth.uid())
+  );
+
+drop policy if exists "profiles insert own" on public.profiles;
+create policy "profiles insert own" on public.profiles
+  for insert with check (auth.uid() = id);
+
+drop policy if exists "profiles update own" on public.profiles;
+create policy "profiles update own" on public.profiles
+  for update using (auth.uid() = id) with check (auth.uid() = id);
+
+drop policy if exists "profiles delete own" on public.profiles;
+create policy "profiles delete own" on public.profiles
+  for delete using (auth.uid() = id);
 
 
 -- ============================================================
--- 7. PROFILE POLICIES
+-- 6. CONNECT WITH PARTNER — RPC
+-- ============================================================
+-- Called by Person 2 when they enter a pairing code.
+-- Creates Person 2's profile if needed, pairs both users,
+-- clears pairing codes, returns partner info.
+-- Uses advisory lock to prevent race conditions.
 -- ============================================================
 
-create policy "Users can view own profile"
-on public.profiles
-for select
-to authenticated
-using (
-  auth.uid() = id
-);
-
-
-create policy "Users can create own profile"
-on public.profiles
-for insert
-to authenticated
-with check (
-  auth.uid() = id
-);
-
-
-create policy "Users can update own profile"
-on public.profiles
-for update
-to authenticated
-using (
-  auth.uid() = id
-)
-with check (
-  auth.uid() = id
-);
-
-
-create policy "Paired partners can read each other's profiles"
-on public.profiles
-for select
-to authenticated
-using (
-  exists (
-    select 1
-    from public.profiles me
-    where me.id = auth.uid()
-      and me.partner_id = public.profiles.id
-  )
-);
-
-
--- ============================================================
--- 8. ACTIVITY POLICIES
--- ============================================================
-
-create policy "Users can create own activity"
-on public.activity
-for insert
-to authenticated
-with check (
-  auth.uid() = user_id
-);
-
-
-create policy "Users can view own activity"
-on public.activity
-for select
-to authenticated
-using (
-  auth.uid() = user_id
-);
-
-
--- ============================================================
--- 9. CONNECT WITH PARTNER
--- ============================================================
---
--- JavaScript calls:
---
--- HB.db.client().rpc('connect_with_partner', {
---   code: code
--- })
---
--- This function:
---
--- 1. Checks authentication
--- 2. Finds the profile using the pairing code
--- 3. Prevents self-pairing
--- 4. Checks that the current user has a profile
--- 5. Pairs both users
--- 6. Returns partner information
---
--- ============================================================
-
-create or replace function public.connect_with_partner(
-  code text
-)
-returns json
-language plpgsql
-security definer
-set search_path = public
+create or replace function public.connect_with_partner(code text)
+returns jsonb
+language plpgsql security definer set search_path = public
 as $$
-
 declare
-
-  current_user_id uuid;
-  target_user_id uuid;
-  result json;
-
+  me        uuid := auth.uid();
+  them      uuid;
+  them_name text;
+  them_age  integer;
 begin
-
-  -- ----------------------------------------------------------
-  -- CHECK AUTHENTICATION
-  -- ----------------------------------------------------------
-
-  current_user_id := auth.uid();
-
-  if current_user_id is null then
-
-    raise exception 'Not authenticated';
-
+  if me is null then
+    raise exception 'NOT_AUTHENTICATED';
   end if;
 
+  -- Person 2 may not have a profile row yet — create one
+  insert into public.profiles (id) values (me) on conflict (id) do nothing;
 
-  -- ----------------------------------------------------------
-  -- FIND PARTNER USING PAIRING CODE
-  -- ----------------------------------------------------------
+  -- Serialize concurrent pairing claims
+  perform pg_advisory_xact_lock(hashtext('hb_pairing_claim'));
 
-  select id
-  into target_user_id
-
-  from public.profiles
-
-  where pairing_code = upper(trim(code))
-    and id <> current_user_id
-
-  limit 1;
-
-
-  if target_user_id is null then
-
-    raise exception 'Invalid pairing code';
-
-  end if;
-
-
-  -- ----------------------------------------------------------
-  -- CHECK CURRENT USER PROFILE
-  -- ----------------------------------------------------------
-
-  if not exists (
-    select 1
-
+  select id into them
     from public.profiles
+   where upper(pairing_code) = upper(trim(code))
+   limit 1;
 
-    where id = current_user_id
-  ) then
-
-    raise exception 'Current user profile not found';
-
+  if them is null then
+    raise exception 'INVALID_CODE';
   end if;
 
+  if them = me then
+    raise exception 'SELF_CODE';
+  end if;
 
-  -- ----------------------------------------------------------
-  -- CHECK IF PARTNER IS ALREADY PAIRED
-  -- ----------------------------------------------------------
-
+  -- Already paired with each other — treat as success
   if exists (
-    select 1
-
-    from public.profiles
-
-    where id = target_user_id
-      and partner_id is not null
-      and partner_id <> current_user_id
+    select 1 from public.profiles
+     where id in (me, them) and partner_id in (them, me)
   ) then
-
-    raise exception 'This pairing code is already connected to another user';
-
+    update public.profiles set pairing_code = null where id in (them, me);
+    select name, age into them_name, them_age from public.profiles where id = them;
+    return jsonb_build_object(
+      'partner_id', them, 'partner_name', them_name,
+      'partner_age', them_age, 'status', 'connected'
+    );
   end if;
 
+  -- Code is single-use: owner cannot be claimed twice
+  if exists (
+    select 1 from public.profiles where id = them and partner_id is not null
+  ) then
+    raise exception 'CODE_USED';
+  end if;
 
-  -- ----------------------------------------------------------
-  -- PAIR CURRENT USER
-  -- ----------------------------------------------------------
+  -- Connector can only be in ONE relationship
+  if exists (
+    select 1 from public.profiles where id = me and partner_id is not null
+  ) then
+    raise exception 'ALREADY_CONNECTED';
+  end if;
 
-  update public.profiles
+  -- Link both sides; clear pairing codes; store partner_code
+  update public.profiles set
+    partner_id = me, pairing_code = null, partner_code = code
+   where id = them;
 
-  set
-    partner_id = target_user_id,
-    last_active = now()
+  update public.profiles set
+    partner_id = them, pairing_code = null
+   where id = me;
 
-  where id = current_user_id;
+  select name, age into them_name, them_age from public.profiles where id = them;
+  return jsonb_build_object(
+    'partner_id', them, 'partner_name', them_name,
+    'partner_age', them_age, 'status', 'connected'
+  );
+end $$;
 
-
-  -- ----------------------------------------------------------
-  -- PAIR TARGET USER
-  -- ----------------------------------------------------------
-
-  update public.profiles
-
-  set
-    partner_id = current_user_id,
-    last_active = now()
-
-  where id = target_user_id;
-
-
-  -- ----------------------------------------------------------
-  -- RETURN PARTNER INFORMATION (full profile for sync)
-  -- ----------------------------------------------------------
-
-  select json_build_object(
-
-    'success', true,
-
-    'partner_id', p.id,
-
-    'partner_name', p.name,
-
-    'partner_age', p.age,
-
-    'partner_created_at', p.created_at,
-
-    'partner_code', p.pairing_code
-
-  )
-
-  into result
-
-  from public.profiles p
-
-  where p.id = target_user_id;
-
-
-  return result;
-
-end;
-
-$$;
+grant execute on function public.connect_with_partner(text) to anon, authenticated;
 
 
 -- ============================================================
--- 10. CONNECT FUNCTION PERMISSIONS
+-- 7. DELETE MY DATA — RPC
 -- ============================================================
-
-revoke all
-on function public.connect_with_partner(text)
-from public;
-
-revoke all
-on function public.connect_with_partner(text)
-from anon;
-
-grant execute
-on function public.connect_with_partner(text)
-to authenticated;
-
-
--- ============================================================
--- 11. DELETE MY DATA / FRESH START
--- ============================================================
---
--- JavaScript calls:
---
--- HB.db.client().rpc('delete_my_data')
---
--- This removes:
---
--- - Current user's activity
--- - Current user's profile
--- - Their partner relationship
---
--- Because profiles.id references auth.users with ON DELETE CASCADE,
--- deleting the profile does NOT delete the Supabase Auth account.
---
--- The application can therefore create a completely fresh profile
--- after reset.
---
+-- "Erase Everything" from Settings.
+-- Clears my profile row instead of deleting (avoids cascade to partner).
+-- Unlinks partner so they can re-pair.
 -- ============================================================
 
 create or replace function public.delete_my_data()
-returns json
-language plpgsql
-security definer
-set search_path = public
+returns void
+language plpgsql security definer set search_path = public
 as $$
-
 declare
-
-  current_user_id uuid;
-  partner_user_id uuid;
-
+  me uuid := auth.uid();
 begin
+  if me is null then return; end if;
 
-  -- ----------------------------------------------------------
-  -- CHECK AUTHENTICATION
-  -- ----------------------------------------------------------
+  -- Unlink partner from me
+  update public.profiles
+     set partner_id = null
+   where partner_id = me;
 
-  current_user_id := auth.uid();
+  -- Clear my own row
+  update public.profiles
+     set name = '', age = null, partner_id = null,
+         pairing_code = null, partner_code = null
+   where id = me;
+end $$;
 
-  if current_user_id is null then
-
-    raise exception 'Not authenticated';
-
-  end if;
-
-
-  -- ----------------------------------------------------------
-  -- FIND CURRENT PARTNER
-  -- ----------------------------------------------------------
-
-  select partner_id
-  into partner_user_id
-
-  from public.profiles
-
-  where id = current_user_id;
+grant execute on function public.delete_my_data() to anon, authenticated;
 
 
-  -- ----------------------------------------------------------
-  -- CLEAR PARTNER CONNECTION
-  -- ----------------------------------------------------------
+-- ============================================================
+-- 8. MESSAGES TABLE — Private Couple Chat
+-- ============================================================
 
-  if partner_user_id is not null then
+create table if not exists public.messages (
+  id          uuid primary key default gen_random_uuid(),
+  user_a      uuid not null references public.profiles(id) on delete cascade,
+  user_b      uuid not null references public.profiles(id) on delete cascade,
+  sender_id   uuid not null references public.profiles(id) on delete cascade,
+  type        text not null default 'text' check (type in ('text', 'image')),
+  message     text not null default '',
+  media_path  text not null default '',
+  created_at  timestamptz not null default now(),
+  constraint messages_pair_sorted check (user_a < user_b)
+);
 
-    update public.profiles
-
-    set
-      partner_id = null,
-      last_active = now()
-
-    where id = partner_user_id;
-
-  end if;
-
-
-  -- ----------------------------------------------------------
-  -- DELETE CURRENT USER ACTIVITY
-  -- ----------------------------------------------------------
-
-  delete from public.activity
-
-  where user_id = current_user_id;
+create index if not exists messages_pair_idx
+  on public.messages (user_a, user_b, created_at);
 
 
-  -- ----------------------------------------------------------
-  -- DELETE CURRENT USER PROFILE
-  -- ----------------------------------------------------------
+-- ============================================================
+-- 9. COUPLE PAIR CHECK — Security Helper
+-- ============================================================
 
-  delete from public.profiles
-
-  where id = current_user_id;
-
-
-  -- ----------------------------------------------------------
-  -- RETURN SUCCESS
-  -- ----------------------------------------------------------
-
-  return json_build_object(
-
-    'success', true,
-
-    'message', 'User data deleted successfully',
-
-    'user_id', current_user_id
-
+create or replace function public.is_couple_pair(a uuid, b uuid)
+returns boolean
+language sql security definer set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.profiles me
+     where me.id = auth.uid()
+       and me.partner_id is not null
+       and a = least(me.id, me.partner_id)
+       and b = greatest(me.id, me.partner_id)
   );
-
-end;
-
 $$;
 
+grant execute on function public.is_couple_pair(uuid, uuid) to anon, authenticated;
+
 
 -- ============================================================
--- 12. DELETE FUNCTION PERMISSIONS
+-- 10. ROW LEVEL SECURITY — MESSAGES
 -- ============================================================
 
-revoke all
-on function public.delete_my_data()
-from public;
+alter table public.messages enable row level security;
 
-revoke all
-on function public.delete_my_data()
-from anon;
+drop policy if exists "messages select own pair" on public.messages;
+create policy "messages select own pair" on public.messages
+  for select using (public.is_couple_pair(user_a, user_b));
 
-grant execute
-on function public.delete_my_data()
-to authenticated;
+drop policy if exists "messages insert own pair" on public.messages;
+create policy "messages insert own pair" on public.messages
+  for insert with check (
+    sender_id = auth.uid()
+    and public.is_couple_pair(user_a, user_b)
+  );
+
+drop policy if exists "messages delete own" on public.messages;
+create policy "messages delete own" on public.messages
+  for delete using (sender_id = auth.uid());
+
+
+-- ============================================================
+-- 11. STORAGE — relationship-media bucket
+-- ============================================================
+
+insert into storage.buckets (id, name, public)
+values ('relationship-media', 'relationship-media', false)
+on conflict (id) do nothing;
+
+create or replace function storage.storage_pair_ok(name text)
+returns boolean
+language sql security definer set search_path = public
+stable
+as $$
+  select public.is_couple_pair(
+    split_part((storage.foldername(name))[1], '_', 1)::uuid,
+    split_part((storage.foldername(name))[1], '_', 2)::uuid
+  );
+$$;
+
+grant execute on function storage.storage_pair_ok(text) to anon, authenticated;
+
+drop policy if exists "relationship-media select pair" on storage.objects;
+create policy "relationship-media select pair" on storage.objects
+  for select using (
+    bucket_id = 'relationship-media'
+    and storage.storage_pair_ok(name)
+  );
+
+drop policy if exists "relationship-media insert pair" on storage.objects;
+create policy "relationship-media insert pair" on storage.objects
+  for insert with check (
+    bucket_id = 'relationship-media'
+    and storage.storage_pair_ok(name)
+  );
+
+drop policy if exists "relationship-media update pair" on storage.objects;
+create policy "relationship-media update pair" on storage.objects
+  for update using (
+    bucket_id = 'relationship-media'
+    and storage.storage_pair_ok(name)
+  );
+
+drop policy if exists "relationship-media delete pair" on storage.objects;
+create policy "relationship-media delete pair" on storage.objects
+  for delete using (
+    bucket_id = 'relationship-media'
+    and storage.storage_pair_ok(name)
+  );
+
+
+-- ============================================================
+-- 12. REALTIME — Stream live changes to both phones
+-- ============================================================
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+     where pubname = 'supabase_realtime'
+       and schemaname = 'public' and tablename = 'profiles'
+  ) then
+    alter publication supabase_realtime add table public.profiles;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+     where pubname = 'supabase_realtime'
+       and schemaname = 'public' and tablename = 'messages'
+  ) then
+    alter publication supabase_realtime add table public.messages;
+  end if;
+end $$;
 
 
 -- ============================================================
@@ -506,154 +362,56 @@ to authenticated;
 
 create or replace function public.admin_get_insights()
 returns json
-language plpgsql
-security definer
-set search_path = public
+language plpgsql security definer set search_path = public
 as $$
-
 declare
-
   result json;
-
 begin
-
-  -- ----------------------------------------------------------
-  -- OWNER ONLY
-  -- ----------------------------------------------------------
-
+  -- Owner only
   if auth.uid() <> 'e65fabbb-cc49-48c6-adc0-ef1d59f41896'::uuid then
-
     raise exception 'Unauthorized';
-
   end if;
 
-
-  -- ----------------------------------------------------------
-  -- BUILD RESULT
-  -- ----------------------------------------------------------
-
   select json_build_object(
-
-    'total_users',
-
-    (
-      select count(*)
-
-      from public.profiles
-    ),
-
-
-    'total_couples',
-
-    (
-      select count(*)
-
-      from public.profiles
-
-      where partner_id is not null
-    ) / 2,
-
-
-    'users',
-
-    coalesce(
-
-      (
-
-        select json_agg(
-
-          json_build_object(
-
-            'name',
-            p.name,
-
-            'age',
-            p.age,
-
-            'code',
-            p.pairing_code,
-
-            'partner',
-
-            (
-              select pp.name
-
-              from public.profiles pp
-
-              where pp.id = p.partner_id
-            ),
-
-            'connected',
-            p.partner_id is not null,
-
-            'joined',
-            p.created_at,
-
-            'last_active',
-            p.last_active
-
-          )
-
-          order by p.created_at desc
-
-        )
-
-        from public.profiles p
-
-      ),
-
+    'total_users', (select count(*) from public.profiles),
+    'total_couples', (select count(*) from public.profiles where partner_id is not null) / 2,
+    'users', coalesce(
+      (select json_agg(
+        json_build_object(
+          'name', p.name,
+          'age', p.age,
+          'code', p.pairing_code,
+          'partner', (select pp.name from public.profiles pp where pp.id = p.partner_id),
+          'connected', p.partner_id is not null,
+          'joined', p.created_at,
+          'last_active', p.last_active
+        ) order by p.created_at desc
+      ) from public.profiles p),
       '[]'::json
-
     )
-
-  )
-
-  into result;
-
+  ) into result;
 
   return result;
+end $$;
 
-end;
-
-$$;
-
-
--- ============================================================
--- 14. ADMIN FUNCTION PERMISSIONS
--- ============================================================
-
-revoke all
-on function public.admin_get_insights()
-from public;
-
-revoke all
-on function public.admin_get_insights()
-from anon;
-
-grant execute
-on function public.admin_get_insights()
-to authenticated;
+grant execute on function public.admin_get_insights() to authenticated;
 
 
 -- ============================================================
--- 15. FINAL VERIFICATION
+-- 14. VERIFICATION
 -- ============================================================
 
 select
   routine_name,
   routine_type
-
 from information_schema.routines
-
 where routine_schema = 'public'
-
-and routine_name in (
-  'connect_with_partner',
-  'delete_my_data',
-  'admin_get_insights'
-)
-
+  and routine_name in (
+    'connect_with_partner',
+    'delete_my_data',
+    'admin_get_insights',
+    'is_couple_pair'
+  )
 order by routine_name;
-
 
 select 'DATABASE SETUP COMPLETED SUCCESSFULLY' as status;

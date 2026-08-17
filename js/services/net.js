@@ -200,15 +200,15 @@
         if (HB.db && HB.db.configured()) {
           ping();
         }
-      }, 2000);
+      }, 1000);
 
-      /* Periodic ping every 15s to detect silent disconnects */
+      /* Periodic ping every 30s to detect silent disconnects */
       if (pingTimer) clearInterval(pingTimer);
       pingTimer = setInterval(function () {
         if (HB.db && HB.db.configured()) {
           ping();
         }
-      }, 15000);
+      }, 30000);
     }
   };
 })();

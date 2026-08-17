@@ -100,7 +100,7 @@
     if (!HB.state.onboarded) {
       setTimeout(function () {
         HB.toast('Welcome to your little world ♡', '🐻');
-      }, 900);
+      }, 500);
     }
     console.log('[BOOT] Boot complete');
   }

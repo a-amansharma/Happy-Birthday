@@ -128,6 +128,16 @@
     return { me: p.name ? HB.titleCase(p.name) : 'you', partner: p.partner ? HB.titleCase(p.partner) : 'your person' };
   };
 
+  /* Navigation lock: true when the user is "waiting" — onboarded,
+     has a profile with a pairing code, but not yet connected. */
+  HB.isWaiting = function () {
+    if (!HB.state.onboarded) return false;
+    if (HB.rel && HB.rel.data) {
+      return HB.rel.data.status === 'waiting';
+    }
+    return false;
+  };
+
   /* ---------------- Router (clean URLs via the History API) ----------------
      No more #/ hashes. Every route is a plain pathname under the app's base:
        GitHub Pages  → https://a-amansharma.github.io/Happy-Birthday/settings
@@ -181,8 +191,6 @@
     if (opts && opts.scrollTop) window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  var renderTimer = null;
-
   function paint(main, path) {
     main.innerHTML = '';
     try {
@@ -202,32 +210,24 @@
     window.scrollTo(0, 0);
     main.classList.remove('bb-leave');
     main.classList.add('bb-enter');
-    if (window.APP_CONFIG && window.APP_CONFIG.DEBUG) {
-      console.log('[NAVIGATION] Painted route:', path);
-    }
   }
 
   function render() {
     var path = HB.currentPath();
     if (!routes[path]) path = '/';
     current = path;
-    if (window.APP_CONFIG && window.APP_CONFIG.DEBUG) {
-      console.log('[NAVIGATION] render() → current:', current);
+
+    /* Navigation lock: when Person 1 is waiting (has pairing code
+       but not connected), all pages except /, /home, /settings,
+       and /partner redirect to the waiting screen. */
+    if (HB.isWaiting && HB.isWaiting() && path !== '/' && path !== '/settings' && path !== '/home' && path !== '/partner') {
+      current = '/home';
+      path = '/home';
     }
+
     var main = document.getElementById('main');
     if (!main) return;
-    var reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-    if (renderTimer) { clearTimeout(renderTimer); renderTimer = null; }
-    if (reduced || main.childElementCount === 0) {
-      paint(main, path);
-    } else {
-      main.classList.remove('bb-enter');
-      main.classList.add('bb-leave');
-      renderTimer = setTimeout(function () {
-        renderTimer = null;
-        paint(main, path);
-      }, 170);
-    }
+    paint(main, path);
   }
 
   window.addEventListener('popstate', render);

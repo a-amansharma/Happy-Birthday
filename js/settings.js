@@ -280,10 +280,21 @@
     if (leave) leave.addEventListener('click', function () {
       HB.confirm('Delete my data & leave?', 'This deletes your profile, unlinks you two, and clears this device. Your partner is set free too — you can both start fresh and pair again anytime.', function () {
         HB.rel.leave().then(function () {
-          localStorage.removeItem('ourLittleWorld_v1');
+          /* Clear all local state */
+          try {
+            localStorage.removeItem('ourLittleWorld_v1');
+            var keysToRemove = [];
+            for (var i = 0; i < localStorage.length; i++) {
+              var key = localStorage.key(i);
+              if (key && key.indexOf('sb-') === 0) keysToRemove.push(key);
+            }
+            keysToRemove.forEach(function (k) { localStorage.removeItem(k); });
+          } catch (e) {}
+          try { sessionStorage.clear(); } catch (e) {}
+
           HB.toast('Your data is gone. Goodbye for now, love ♡', '🕊️');
-          history.replaceState(null, '', location.pathname + location.search);
-          setTimeout(function () { location.reload(); }, 900);
+          history.replaceState(null, '', HB.base + '/');
+          setTimeout(function () { location.reload(); }, 500);
         }).catch(function () {
           HB.toast('Hmm, that didn\'t work. Try again?', '💔');
         });
@@ -308,22 +319,9 @@
   });
 
   /* Erase everything: wipe the device, delete the profile + unlink the
-     pair on the cloud, then show a 0→100% "deleting…" popup and land on
-     the fresh-start page (where it asks for details or a partner code). */
+     pair on the cloud, then redirect to the fresh-start page. */
   function runEraseAll() {
     console.log('[RESET] Erase all data initiated');
-
-    var STEPS = [
-      [0, 'Deleting memories…'],
-      [14, 'Deleting love notes…'],
-      [28, 'Deleting photos…'],
-      [42, 'Deleting daily answers…'],
-      [56, 'Deleting special dates…'],
-      [70, 'Deleting your profile…'],
-      [86, 'Unlinking you two…'],
-      [100, 'A fresh start… ✨']
-    ];
-    var DURATION = 2000;
 
     var overlay = document.createElement('div');
     overlay.className = 'erase-overlay';
@@ -331,71 +329,14 @@
     overlay.innerHTML =
       '<div style="background:var(--card,#fff);border-radius:24px;padding:34px 30px;max-width:320px;width:88%;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,0.4);font-family:var(--font-body)">' +
         '<div style="font-size:44px;line-height:1">🧹</div>' +
-        '<div style="margin:14px 0 6px;font-size:19px;font-weight:800;color:var(--ink,#4B3B32);font-family:var(--font-display)">Erasing your little world…</div>' +
-        '<div class="erase-sub" style="font-size:13px;color:var(--ink-soft,#8a7468);font-weight:700;min-height:18px;margin-bottom:16px">' + STEPS[0][1] + '</div>' +
-        '<div class="erase-track" style="height:11px;border-radius:999px;background:rgba(75,59,50,0.14);overflow:hidden;margin-bottom:8px">' +
-          '<div class="erase-fill" style="height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg,#ff9db4,#ff6f91);transition:width 0.12s linear"></div>' +
-        '</div>' +
-        '<div class="erase-pct" style="font-size:15px;font-weight:800;color:var(--primary,#ff6f91)">0%</div>' +
+        '<div style="margin:14px 0 6px;font-size:19px;font-weight:800;color:var(--ink,#4B3B32);font-family:var(--font-display)">Erasing everything…</div>' +
+        '<div class="typing" style="justify-content:center;margin:12px 0"><i></i><i></i><i></i></div>' +
+        '<div style="font-size:12px;color:var(--ink-soft,#8a7468);font-weight:600">Your data is being wiped clean</div>' +
       '</div>';
     document.body.appendChild(overlay);
     overlay.addEventListener('click', function (e) { e.stopPropagation(); });
 
-    var subEl = overlay.querySelector('.erase-sub');
-    var pctEl = overlay.querySelector('.erase-pct');
-    var fillEl = overlay.querySelector('.erase-fill');
-
-    /* Step 1: Clear app state from localStorage */
-    console.log('[RESET] Clearing localStorage (app state)');
-    try {
-      localStorage.removeItem('ourLittleWorld_v1');
-    } catch (e) {
-      console.error('[RESET] Failed to clear app localStorage:', e);
-    }
-
-    /* Step 2: Leave/delete from Supabase cloud + sign out from auth */
-    var wipe = (HB.rel && HB.rel.leave) ? HB.rel.leave() : Promise.resolve();
-
-    /* Also ensure Supabase auth session is fully cleared */
-    wipe = wipe.then(function () {
-      console.log('[RESET] Supabase leave done, signing out…');
-      if (HB.auth && HB.auth.signOut) {
-        return HB.auth.signOut();
-      }
-      return Promise.resolve();
-    }).then(function () {
-      console.log('[RESET] Auth signed out successfully');
-    }).catch(function (err) {
-      console.error('[RESET] Auth sign-out error:', err);
-      /* Continue even if sign-out fails — localStorage is already cleared */
-    });
-
-    /* Step 3: Also clear Supabase's own auth tokens from localStorage */
-    try {
-      var keysToRemove = [];
-      for (var i = 0; i < localStorage.length; i++) {
-        var key = localStorage.key(i);
-        if (key && key.indexOf('sb-') === 0) {
-          keysToRemove.push(key);
-        }
-      }
-      keysToRemove.forEach(function (k) {
-        console.log('[RESET] Removing Supabase key:', k);
-        localStorage.removeItem(k);
-      });
-    } catch (e) {
-      console.error('[RESET] Failed to clear Supabase keys:', e);
-    }
-
-    /* Step 4: Clear session storage too */
-    try {
-      sessionStorage.clear();
-      console.log('[RESET] Session storage cleared');
-    } catch (e) {
-      console.error('[RESET] Failed to clear session storage:', e);
-    }
-
-    /* Step 5: Stop presence/chat if active */
+    /* 1) Stop any active subscriptions/presence */
     if (HB.presence && HB.presence.stop) {
       try { HB.presence.stop(); } catch (e) {}
     }
@@ -403,39 +344,71 @@
       try { HB.db.clearSubscriptions(); } catch (e) {}
     }
 
-    console.log('[RESET] All local data cleared, animating…');
+    /* 2) Delete from Supabase cloud (profile + unlink partner) */
+    var wipe = (HB.rel && HB.rel.leave) ? HB.rel.leave() : Promise.resolve();
 
-    var start = Date.now();
-
-    function tick() {
-      var p = Math.min(100, (Date.now() - start) / DURATION * 100);
-      pctEl.textContent = Math.round(p) + '%';
-      fillEl.style.width = p + '%';
-      for (var i = STEPS.length - 1; i >= 0; i--) {
-        if (p >= STEPS[i][0]) { subEl.textContent = STEPS[i][1]; break; }
+    wipe = wipe.then(function () {
+      console.log('[RESET] Supabase leave done');
+      /* 3) Sign out from Supabase auth */
+      if (HB.auth && HB.auth.signOut) {
+        return HB.auth.signOut();
       }
-      if (p < 100) { requestAnimationFrame(tick); }
-      else { finish(); }
-    }
-
-    function finish() {
-      console.log('[RESET] Animation done → reloading to landing page');
-      history.replaceState(null, '', HB.base + '/');
-      location.reload();
-    }
-
-    /* Safety: force-reload after 3s no matter what (Supabase wipe may hang) */
-    setTimeout(function () {
-      console.log('[RESET] Safety timeout → force reload');
-      history.replaceState(null, '', HB.base + '/');
-      location.reload();
-    }, 3000);
-
-    /* Let Supabase wipe run in background — don't block the reload */
-    wipe.catch(function (err) {
-      console.error('[RESET] Background wipe error (non-blocking):', err);
+      return Promise.resolve();
+    }).catch(function (err) {
+      console.error('[RESET] Supabase wipe error (continuing):', err);
     });
 
-    requestAnimationFrame(tick);
+    /* 4) Clear ALL localStorage keys (app + Supabase auth tokens) */
+    wipe.then(function () {
+      console.log('[RESET] Clearing all localStorage');
+      try {
+        /* Remove app state */
+        localStorage.removeItem('ourLittleWorld_v1');
+        /* Remove all Supabase auth tokens (sb-* prefix) */
+        var keysToRemove = [];
+        for (var i = 0; i < localStorage.length; i++) {
+          var key = localStorage.key(i);
+          if (key && (key.indexOf('sb-') === 0 || key.indexOf('ourLittleWorld') === 0)) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(function (k) { localStorage.removeItem(k); });
+      } catch (e) {
+        console.error('[RESET] localStorage clear error:', e);
+      }
+
+      /* 5) Clear session storage */
+      try { sessionStorage.clear(); } catch (e) {}
+
+      console.log('[RESET] All data cleared, redirecting to fresh start');
+
+      /* 6) Reset in-memory state */
+      HB.state = {
+        onboarded: false,
+        profile: { name: '', partner: '', age: '', partnerAge: '', relationship: '', vibes: [], chatStyle: [], story: '', theme: 'milk', togetherSince: '' },
+        chatHistory: [],
+        loveNotes: [],
+        dailyAnswers: [],
+        memories: [],
+        specialDates: [],
+        settings: { music: false, notifications: true, privacy: true }
+      };
+      HB.authSession = null;
+      HB.authUser = null;
+
+      /* 7) Redirect to landing page (fresh start) */
+      history.replaceState(null, '', HB.base + '/');
+      /* Force full reload to clear all JS state completely */
+      location.reload();
+    });
+
+    /* Safety: force-reload after 5s no matter what */
+    setTimeout(function () {
+      console.log('[RESET] Safety timeout → force reload');
+      try { localStorage.clear(); } catch (e) {}
+      try { sessionStorage.clear(); } catch (e) {}
+      history.replaceState(null, '', HB.base + '/');
+      location.reload();
+    }, 5000);
   }
 })();

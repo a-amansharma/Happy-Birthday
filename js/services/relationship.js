@@ -27,7 +27,7 @@
   var HB = window.HB = window.HB || {};
 
   var CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  var WAIT_POLL_MS = 5000;
+  var WAIT_POLL_MS = 3000;
 
   function generateCode() {
     var out = 'LOVE-';
@@ -298,22 +298,22 @@
       return Promise.resolve({ error: null });
     },
 
-    /* Leave / delete my data. Tries the delete_my_data RPC; when that
-       function doesn't exist it clears MY profile row instead. */
+    /* Leave / delete my data. Calls delete_my_data RPC which clears
+       my profile row and unlinks partner, then signs out. */
     leave: function () {
       var user = HB.auth.user();
       if (!HB.db.configured() || !user) return Promise.resolve();
       console.log('[RESET] Leaving/deleting user data');
+      stopWaitingWatch();
       return HB.db.client().rpc('delete_my_data')
+        .then(function () {
+          console.log('[RESET] delete_my_data RPC succeeded');
+        })
         .catch(function (err) {
-          console.warn('[RESET] delete_my_data RPC failed, falling back to profile update:', err);
-          return HB.db.client().from('profiles')
-            .update({ partner_id: null, pairing_code: null, name: '' })
-            .eq('id', user.id).then(function () {});
+          console.warn('[RESET] delete_my_data RPC failed:', err);
         })
         .then(function () {
-          console.log('[RESET] Data deleted, signing out');
-          stopWaitingWatch();
+          console.log('[RESET] Signing out');
           if (HB.auth) return HB.auth.signOut();
         });
     },

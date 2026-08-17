@@ -25,6 +25,56 @@
     var rel = (p.relationship || '').toLowerCase();
     var relEmoji = { couple: '💑', 'best friends': '🧸', crush: '💘', 'long distance': '🌍', 'newly together': '🌱', married: '💍', 'talking stage': '💬', "it's complicated": '🌀' }[rel.toLowerCase()] || '✨';
 
+    var connected = HB.rel && HB.rel.data && HB.rel.data.status === 'connected';
+    var waiting = HB.rel && HB.rel.data && HB.rel.data.status === 'waiting';
+
+    /* When waiting — show the waiting screen with pairing code instead
+       of the normal dashboard. This is the "home" view while waiting. */
+    if (waiting && !connected) {
+      var code = HB.rel.data.me && HB.rel.data.me.pairing_code || 'LOVE-?????';
+      main.innerHTML =
+        '<div class="page">' +
+        '<div class="dash-hello">' +
+          '<h1>Waiting for <span class="hand">' + HB.esc(n.partner) + '</span> ♡</h1>' +
+          '<p>Your little world is ready — share your code and they\'ll join you in a moment.</p>' +
+        '</div>' +
+        '<div class="waiting-card">' +
+          '<div class="waiting-dudu" data-wait-du></div>' +
+          '<div class="waiting-emoji">💕</div>' +
+          '<h2 class="waiting-title">Your Pairing Code</h2>' +
+          '<div class="waiting-code">' + HB.esc(code) + '</div>' +
+          '<button class="btn btn-primary waiting-copy" id="waiting-copy">' + HB.icon('copy') + ' Copy Code</button>' +
+          '<p class="waiting-hint">Send this to your person — they\'ll enter it on their phone to join you.</p>' +
+        '</div>' +
+        '</div>';
+
+      var hero = main.querySelector('[data-wait-du]');
+      if (hero && HB.chars) HB.chars.hero(hero, { which: 'both', actions: ['wait', 'love', 'happy'], size: 'hero', alt: 'Waiting for your person' });
+
+      var copyBtn = main.querySelector('#waiting-copy');
+      if (copyBtn) copyBtn.addEventListener('click', function () {
+        var btn = this;
+        navigator.clipboard.writeText(code).then(function () {
+          btn.innerHTML = '✓ Copied 💕';
+          setTimeout(function () { btn.innerHTML = HB.icon('copy') + ' Copy Code'; }, 1600);
+          HB.toast('Code copied — send it to your person ♡', '💌');
+        }).catch(function () {
+          HB.toast('Couldn\'t copy — long-press the code instead ♡', '🐻');
+        });
+      });
+
+      /* Auto-transition when partner connects */
+      window.addEventListener('hb:relchange', function onConnect() {
+        if (HB.rel.data.status === 'connected') {
+          window.removeEventListener('hb:relchange', onConnect);
+          HB.burst(window.innerWidth / 2, window.innerHeight / 3, 40);
+          HB.toast('You\'re connected! Welcome to your little world ♡', '🎉');
+          if (HB.currentPath() === '/home') renderHome(main);
+        }
+      });
+      return;
+    }
+
     var timeOfDay = '';
     var h = new Date().getHours();
     if (h < 12) timeOfDay = 'Good morning';
@@ -38,18 +88,6 @@
       HB.VIBES.forEach(function (v) { vibeEmoji[v.label] = v.emoji; });
       var vibeLabels = p.vibes.slice(0, 2).map(function (v) { return typeof v === 'string' ? v : v.label; });
       tags += '<span class="rh-tag">' + vibeLabels.map(function (l) { return (vibeEmoji[l] || '✨') + ' ' + HB.esc(l); }).join('</span><span class="rh-tag">') + '</span>';
-    }
-
-    var connected = HB.rel && HB.rel.data && HB.rel.data.status === 'connected';
-    var waiting = HB.rel && HB.rel.data && HB.rel.data.status === 'waiting';
-
-    var waitingBanner = '';
-    if (waiting && !connected) {
-      waitingBanner =
-        '<div class="card" style="text-align:center;padding:18px 22px;border-left:3px solid var(--accent,#c084fc)">' +
-          '<p style="margin:0;font-weight:800;color:var(--ink)">Waiting for your person to connect… ♡</p>' +
-          '<p style="margin:6px 0 0;font-size:13px;color:var(--ink-soft);font-weight:600">Share your code from the Partner page, or they can enter it on their phone.</p>' +
-        '</div>';
     }
 
     var tiles = TILES.map(function (t) {
@@ -66,8 +104,6 @@
         '<h1>' + timeOfDay + ', <span class="hand">' + HB.esc(n.me) + '</span> ♡</h1>' +
         '<p>Welcome back to your little world with <span class="hand" style="font-size:1.2em">' + HB.esc(n.partner) + '</span>.</p>' +
       '</div>' +
-
-      waitingBanner +
 
       '<div class="relation-hero">' +
         '<div class="rh-dudu" data-hero></div>' +
@@ -93,13 +129,19 @@
   HB.renderHome = renderHome;
   HB.route('/home', renderHome);
 
-  window.addEventListener('hb:relchange', function () {
-    var cp = HB.currentPath();
-    if (cp === '/home' || cp === '/') {
-      var main = document.getElementById('main');
-      if (main) renderHome(main);
-    }
-  });
+  /* Register this listener ONCE — it checks the current path
+     before re-rendering, so it's safe across multiple calls. */
+  var _dashRelWired = false;
+  if (!_dashRelWired) {
+    _dashRelWired = true;
+    window.addEventListener('hb:relchange', function () {
+      var cp = HB.currentPath();
+      if (cp === '/home' || cp === '/') {
+        var main = document.getElementById('main');
+        if (main) renderHome(main);
+      }
+    });
+  }
 
   function formatDate(iso) {
     try {

@@ -45,7 +45,7 @@
         '<button class="code-card-copy" data-copy>' + HB.icon('copy') + ' Copy code</button>' +
       '</div>' +
       '<p class="muted" style="font-size:13px;margin-top:14px;font-weight:600">We\'ll celebrate the moment they connect. ♡</p>' +
-      '<button class="btn btn-ghost" data-home>Go to my little world →</button>' +
+      '<button class="btn btn-primary btn-lg" data-home>Go to my little world →</button>' +
       '</section>';
 
     var stage = main.querySelector('[data-dudu]');

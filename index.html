@@ -18,7 +18,7 @@
     // so the app still boots offline / unconfigured.
     window.__sbReady = Promise.race([
       new Promise(function (r) { window.__resolveSb = r; }),
-      new Promise(function (r) { setTimeout(r, 4000); })
+      new Promise(function (r) { setTimeout(r, 2000); })
     ]);
   </script>
 </head>

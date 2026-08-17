@@ -1,65 +1,79 @@
+
 -- ============================================================
---  OUR LITTLE WORLD ♡ — Supabase schema (profiles-only)
---  Run this whole file in: Supabase Dashboard → SQL Editor
---  Safe to re-run: every statement is idempotent.
+-- OUR LITTLE WORLD ♡ — Complete Supabase Database Setup
+-- ============================================================
 --
---  This project uses the profiles-only pairing model:
---    * one `profiles` row per person
---    * pairing via pairing_code / partner_id / partner_code
---    * Row Level Security: a person reads/updates ONLY their own
---      row (plus their paired partner's name/age — the "select
---      member" policy below — so each phone shows the real other
---      person instead of a typed guess)
+-- Run this ENTIRE file in: Supabase Dashboard → SQL Editor
+-- Safe to re-run: every statement is idempotent.
 --
---  Because of that RLS, the actual pairing happens in the
---  security-definer RPC connect_with_partner(code) — a client can't
---  read or edit another person's row, so the code lookup + link
---  must run inside the database.
+-- This creates:
+--   public.profiles     — one row per user (pairing, names)
+--   public.messages     — private couple chat
+--   storage bucket      — relationship-media for chat photos
+--   RPC functions       — connect_with_partner, delete_my_data
+--   RLS policies        — strict two-person access
+--   Realtime            — live profile + message streaming
 --
---  New in this version (private couple chat is a hard requirement):
---    * `messages` table — pair-scoped text/image rows, RLS allows
---      ONLY the two people in the pair to read/insert their own rows
---    * `relationship-media` storage bucket — uploads scoped the same
---      way via the storage_pair_ok() helper
---    * partner-select policy on profiles (name/age of your person)
---
---  No existing column is touched, no existing table is dropped.
+-- ============================================================
+
+
+-- ============================================================
+-- 1. EXTENSIONS
 -- ============================================================
 
 create extension if not exists pgcrypto;
 
--- ------------------------------------------------------------
--- PROFILES — one row per authenticated user.
--- Only columns that already exist in the live database. On a fresh
--- database the create-table builds the same shape; on the live one
--- every ALTER is a no-op (IF NOT EXISTS).
--- ------------------------------------------------------------
+
+-- ============================================================
+-- 2. CLEAN OLD FUNCTIONS
+-- ============================================================
+
+drop function if exists public.admin_get_insights();
+drop function if exists public.pair_with_code(text);
+drop function if exists public.connect_with_partner(text);
+drop function if exists public.delete_my_data();
+
+
+-- ============================================================
+-- 3. PROFILES TABLE
+-- ============================================================
+
 create table if not exists public.profiles (
-  id            uuid primary key references auth.users (id) on delete cascade,
+  id            uuid primary key references auth.users(id) on delete cascade,
   name          text not null default '',
   age           integer default null,
   pairing_code  text,
-  partner_id    uuid references public.profiles (id) on delete set null,
+  partner_id    uuid references public.profiles(id) on delete set null,
   partner_code  text,
   created_at    timestamptz not null default now(),
   last_active   timestamptz default now()
 );
 
+-- Idempotent column additions (safe on live databases)
 alter table public.profiles add column if not exists name          text not null default '';
 alter table public.profiles add column if not exists age           integer default null;
 alter table public.profiles add column if not exists pairing_code  text;
-alter table public.profiles add column if not exists partner_id    uuid references public.profiles (id) on delete set null;
+alter table public.profiles add column if not exists partner_id    uuid references public.profiles(id) on delete set null;
 alter table public.profiles add column if not exists partner_code  text;
 alter table public.profiles add column if not exists created_at    timestamptz not null default now();
 alter table public.profiles add column if not exists last_active   timestamptz default now();
 
--- one live pairing code per person (partial → keeps historical nulls unique-safe)
+
+-- ============================================================
+-- 4. PROFILES INDEXES
+-- ============================================================
+
 create unique index if not exists profiles_pairing_code_uniq
   on public.profiles (pairing_code) where pairing_code is not null;
 
--- ------------------------------------------------------------
--- ROW LEVEL SECURITY — self-only, plus your partner's details.
--- ------------------------------------------------------------
+create index if not exists profiles_partner_id_idx
+  on public.profiles (partner_id);
+
+
+-- ============================================================
+-- 5. ROW LEVEL SECURITY — PROFILES
+-- ============================================================
+
 alter table public.profiles enable row level security;
 
 drop policy if exists "profiles select self" on public.profiles;
@@ -68,7 +82,9 @@ create policy "profiles select self" on public.profiles
 
 drop policy if exists "profiles select member" on public.profiles;
 create policy "profiles select member" on public.profiles
-  for select using (id = (select partner_id from public.profiles where id = auth.uid()));
+  for select using (
+    id = (select partner_id from public.profiles where id = auth.uid())
+  );
 
 drop policy if exists "profiles insert own" on public.profiles;
 create policy "profiles insert own" on public.profiles
@@ -82,28 +98,23 @@ drop policy if exists "profiles delete own" on public.profiles;
 create policy "profiles delete own" on public.profiles
   for delete using (auth.uid() = id);
 
--- ------------------------------------------------------------
--- RPC: connect with a partner code (run by the second person)
--- ------------------------------------------------------------
--- Atomic + single-use:
---   * creates my profile row too (a person joining by code may not
---     have one yet) — on conflict = no-op
---   * an advisory xact lock serializes simultaneous claims,
---     so a code can never be grabbed by two phones at once
---   * the code owner is rejected if already paired elsewhere
---     (CODE_USED), and the connector if they already are
---     (ALREADY_CONNECTED); pairing with the same person twice
---     is an idempotent success
---   * pairing_code is cleared from BOTH profiles once paired;
---     partner_code remembers the code that was used
---   * returns the partner's real name/age (the app hydrates them)
+
+-- ============================================================
+-- 6. CONNECT WITH PARTNER — RPC
+-- ============================================================
+-- Called by Person 2 when they enter a pairing code.
+-- Creates Person 2's profile if needed, pairs both users,
+-- clears pairing codes, returns partner info.
+-- Uses advisory lock to prevent race conditions.
+-- ============================================================
+
 create or replace function public.connect_with_partner(code text)
 returns jsonb
 language plpgsql security definer set search_path = public
 as $$
 declare
-  me       uuid := auth.uid();
-  them     uuid;
+  me        uuid := auth.uid();
+  them      uuid;
   them_name text;
   them_age  integer;
 begin
@@ -111,10 +122,10 @@ begin
     raise exception 'NOT_AUTHENTICATED';
   end if;
 
-  -- I might have arrived by code without ever creating a profile row.
+  -- Person 2 may not have a profile row yet — create one
   insert into public.profiles (id) values (me) on conflict (id) do nothing;
 
-  -- serialize concurrent pairing claims
+  -- Serialize concurrent pairing claims
   perform pg_advisory_xact_lock(hashtext('hb_pairing_claim'));
 
   select id into them
@@ -125,11 +136,12 @@ begin
   if them is null then
     raise exception 'INVALID_CODE';
   end if;
+
   if them = me then
     raise exception 'SELF_CODE';
   end if;
 
-  -- already paired with each other? treat as success (idempotent-ish)
+  -- Already paired with each other — treat as success
   if exists (
     select 1 from public.profiles
      where id in (me, them) and partner_id in (them, me)
@@ -142,22 +154,21 @@ begin
     );
   end if;
 
-  -- a code is single-use: the owner cannot be claimed twice
+  -- Code is single-use: owner cannot be claimed twice
   if exists (
     select 1 from public.profiles where id = them and partner_id is not null
   ) then
     raise exception 'CODE_USED';
   end if;
 
-  -- I can only ever be in ONE relationship
+  -- Connector can only be in ONE relationship
   if exists (
     select 1 from public.profiles where id = me and partner_id is not null
   ) then
     raise exception 'ALREADY_CONNECTED';
   end if;
 
-  -- link BOTH sides; the owner's code is now single-use; the connector
-  -- keeps a record of which code they used (partner_code).
+  -- Link both sides; clear pairing codes; store partner_code
   update public.profiles set
     partner_id = me, pairing_code = null, partner_code = code
    where id = them;
@@ -175,13 +186,15 @@ end $$;
 
 grant execute on function public.connect_with_partner(text) to anon, authenticated;
 
--- ------------------------------------------------------------
--- RPC: clear my own data ("Start over" / leave).
--- Clears MY profile row (name, age, pairing, links) instead of
--- deleting it — deleting would cascade through partner_id and could
--- take the partner's row with it. Also unlinks my partner so they
--- can re-pair with a fresh code on their next visit.
--- ------------------------------------------------------------
+
+-- ============================================================
+-- 7. DELETE MY DATA — RPC
+-- ============================================================
+-- "Erase Everything" from Settings.
+-- Clears my profile row instead of deleting (avoids cascade to partner).
+-- Unlinks partner so they can re-pair.
+-- ============================================================
+
 create or replace function public.delete_my_data()
 returns void
 language plpgsql security definer set search_path = public
@@ -190,9 +203,13 @@ declare
   me uuid := auth.uid();
 begin
   if me is null then return; end if;
+
+  -- Unlink partner from me
   update public.profiles
      set partner_id = null
    where partner_id = me;
+
+  -- Clear my own row
   update public.profiles
      set name = '', age = null, partner_id = null,
          pairing_code = null, partner_code = null
@@ -201,17 +218,16 @@ end $$;
 
 grant execute on function public.delete_my_data() to anon, authenticated;
 
--- ------------------------------------------------------------
--- PRIVATE COUPLE CHAT — one `messages` table, strictly two people.
--- user_a < user_b always (sorted pair) so a couple owns exactly one
--- deterministic pair key. RLS only lets the two paired members read
--- or insert their own pair's rows.
--- ------------------------------------------------------------
+
+-- ============================================================
+-- 8. MESSAGES TABLE — Private Couple Chat
+-- ============================================================
+
 create table if not exists public.messages (
   id          uuid primary key default gen_random_uuid(),
-  user_a      uuid not null references public.profiles (id) on delete cascade,
-  user_b      uuid not null references public.profiles (id) on delete cascade,
-  sender_id   uuid not null references public.profiles (id) on delete cascade,
+  user_a      uuid not null references public.profiles(id) on delete cascade,
+  user_b      uuid not null references public.profiles(id) on delete cascade,
+  sender_id   uuid not null references public.profiles(id) on delete cascade,
   type        text not null default 'text' check (type in ('text', 'image')),
   message     text not null default '',
   media_path  text not null default '',
@@ -222,7 +238,11 @@ create table if not exists public.messages (
 create index if not exists messages_pair_idx
   on public.messages (user_a, user_b, created_at);
 
--- security-definer helper: is (a, b) exactly my own sorted couple pair?
+
+-- ============================================================
+-- 9. COUPLE PAIR CHECK — Security Helper
+-- ============================================================
+
 create or replace function public.is_couple_pair(a uuid, b uuid)
 returns boolean
 language sql security definer set search_path = public
@@ -238,6 +258,11 @@ as $$
 $$;
 
 grant execute on function public.is_couple_pair(uuid, uuid) to anon, authenticated;
+
+
+-- ============================================================
+-- 10. ROW LEVEL SECURITY — MESSAGES
+-- ============================================================
 
 alter table public.messages enable row level security;
 
@@ -256,11 +281,11 @@ drop policy if exists "messages delete own" on public.messages;
 create policy "messages delete own" on public.messages
   for delete using (sender_id = auth.uid());
 
--- ------------------------------------------------------------
--- PRIVATE MEDIA — relationship-media bucket for chat photos.
--- Path shape: {pairKey}/{messageId}/{filename} where pairKey is
--- sorted-id-a_sorted-id-b. Policies use the same couple-pair check.
--- ------------------------------------------------------------
+
+-- ============================================================
+-- 11. STORAGE — relationship-media bucket
+-- ============================================================
+
 insert into storage.buckets (id, name, public)
 values ('relationship-media', 'relationship-media', false)
 on conflict (id) do nothing;
@@ -306,11 +331,11 @@ create policy "relationship-media delete pair" on storage.objects
     and storage.storage_pair_ok(name)
   );
 
--- ------------------------------------------------------------
--- REALTIME — stream profile + message changes live to both phones
--- (so partner_id appears the moment the RPC links them, and each
--- message shows up without a refresh). Idempotent.
--- ------------------------------------------------------------
+
+-- ============================================================
+-- 12. REALTIME — Stream live changes to both phones
+-- ============================================================
+
 do $$
 begin
   if not exists (
@@ -330,4 +355,63 @@ begin
   end if;
 end $$;
 
--- done ♡
+
+-- ============================================================
+-- 13. ADMIN INSIGHTS
+-- ============================================================
+
+create or replace function public.admin_get_insights()
+returns json
+language plpgsql security definer set search_path = public
+as $$
+declare
+  result json;
+begin
+  -- Owner only
+  if auth.uid() <> 'e65fabbb-cc49-48c6-adc0-ef1d59f41896'::uuid then
+    raise exception 'Unauthorized';
+  end if;
+
+  select json_build_object(
+    'total_users', (select count(*) from public.profiles),
+    'total_couples', (select count(*) from public.profiles where partner_id is not null) / 2,
+    'users', coalesce(
+      (select json_agg(
+        json_build_object(
+          'name', p.name,
+          'age', p.age,
+          'code', p.pairing_code,
+          'partner', (select pp.name from public.profiles pp where pp.id = p.partner_id),
+          'connected', p.partner_id is not null,
+          'joined', p.created_at,
+          'last_active', p.last_active
+        ) order by p.created_at desc
+      ) from public.profiles p),
+      '[]'::json
+    )
+  ) into result;
+
+  return result;
+end $$;
+
+grant execute on function public.admin_get_insights() to authenticated;
+
+
+-- ============================================================
+-- 14. VERIFICATION
+-- ============================================================
+
+select
+  routine_name,
+  routine_type
+from information_schema.routines
+where routine_schema = 'public'
+  and routine_name in (
+    'connect_with_partner',
+    'delete_my_data',
+    'admin_get_insights',
+    'is_couple_pair'
+  )
+order by routine_name;
+
+select 'DATABASE SETUP COMPLETED SUCCESSFULLY' as status;

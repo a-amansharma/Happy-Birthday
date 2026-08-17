@@ -285,10 +285,12 @@
       HB.save();
 
       celebrate();
-      setTimeout(function () { HB.navigate('/home'); }, 600);
 
       if (backend) {
         setupAccount();
+      } else {
+        /* No backend — go straight to home */
+        setTimeout(function () { HB.navigate('/home'); }, 600);
       }
     }
 
@@ -340,8 +342,8 @@
                 celebrate();
                 setTimeout(function () { HB.navigate('/home'); }, 600);
               } else {
-                /* Wizard is done — redirect to landing which will show the
-                   waiting screen with the pairing code. */
+                /* Wizard done — redirect to landing which shows waiting screen
+                   with the pairing code. */
                 if (!card.parentNode) return;
                 celebrate();
                 setTimeout(function () { HB.navigate('/'); }, 600);
