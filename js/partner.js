@@ -1,8 +1,11 @@
 /* ============================================================
    PARTNER — your connection to your person ♡
    ------------------------------------------------------------
-   Shows your LOVE- code (owner) or a code entry (connector),
-   live connection status, and your shared bond details.
+   Shows:
+     - Connected: "You two are connected ♡" + partner details
+     - Waiting: your pairing code + share instructions
+     - Fresh: code entry form (Person 2 only)
+     - Identity prompt if Person 2 joined without a name
    ============================================================ */
 (function () {
   'use strict';
@@ -50,6 +53,15 @@
     if (connected) {
       var partnerName = (relData.partner && relData.partner.name) || HB.state.profile.partner || 'your person';
       var partnerAge = relData.partner && relData.partner.age != null ? String(relData.partner.age) : (HB.state.profile.partnerAge || '—');
+      var partnerSince = relData.partner && relData.partner.created_at;
+      var sinceStr = '';
+      if (partnerSince) {
+        try {
+          var d = new Date(partnerSince);
+          sinceStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+        } catch (e) {}
+      }
+
       body =
         '<div class="connect-center">' +
           '<div class="dudu-big" data-du></div>' +
@@ -60,7 +72,29 @@
           '<div class="card mini-stat"><div class="ms-label">You</div><div class="ms-val">' + HB.esc(relData.me.name || '—') + '</div></div>' +
           '<div class="card mini-stat"><div class="ms-label">Your person</div><div class="ms-val">' + HB.esc(partnerName) + '</div></div>' +
         '</div>' +
-        '<p class="muted" style="text-align:center;margin-top:14px;font-size:13px">They\'re ' + HB.esc(partnerAge) + ' and they\'re all yours ♡</p>';
+        '<p class="muted" style="text-align:center;margin-top:14px;font-size:13px">They\'re ' + HB.esc(partnerAge) + ' and they\'re all yours ♡</p>' +
+        (sinceStr ? '<p class="muted" style="text-align:center;margin-top:4px;font-size:12px">Connected since ' + HB.esc(sinceStr) + '</p>' : '');
+
+      /* Identity prompt for Person 2 who joined without filling wizard */
+      if (HB.rel.data.me && !(HB.rel.data.me.name || '').trim()) {
+        body +=
+          '<div class="card settings-card" style="margin-top:22px;max-width:480px;margin-left:auto;margin-right:auto">' +
+            '<h3><span class="sc-emoji">🧸</span> Quick hello!</h3>' +
+            '<p class="muted" style="font-size:13px;font-weight:600;margin:2px 0 12px">You joined by code without filling the intro — tell them who you are?</p>' +
+            '<div class="row" style="gap:10px;flex-wrap:wrap">' +
+              '<div class="field" style="flex:2;min-width:150px"><label class="label">Your name</label><input class="input" id="qi-name" placeholder="e.g. Dudu" maxlength="40" autocomplete="off"/></div>' +
+              '<div class="field" style="flex:1;min-width:90px"><label class="label">Age</label><input class="input" id="qi-age" type="number" min="13" max="99" placeholder="e.g. 24"/></div>' +
+            '</div>' +
+            '<button class="btn btn-primary" id="qi-save" style="width:100%;margin-top:6px">Say hello ♡</button>' +
+          '</div>';
+      }
+
+      /* Disconnect / reset */
+      body +=
+        '<div style="text-align:center;margin-top:28px">' +
+          '<button class="btn btn-ghost btn-sm" id="leave-btn" style="color:var(--ink-soft);font-size:12px">Disconnect from ' + HB.esc(partnerName) + '…</button>' +
+        '</div>';
+
     } else if (waiting && code) {
       body =
         '<div class="connect-center">' +
@@ -116,6 +150,47 @@
       });
       connectBtn.addEventListener('click', function () { doConnect(input, main); });
     }
+
+    var qiSave = main.querySelector('#qi-save');
+    if (qiSave) qiSave.addEventListener('click', function () {
+      var nameEl = main.querySelector('#qi-name');
+      var ageEl = main.querySelector('#qi-age');
+      var name = (nameEl.value || '').trim();
+      if (!name) { nameEl.focus(); HB.toast('Your name can\'t be empty ♡', '🐻'); return; }
+      var age = (ageEl.value || '').trim();
+      HB.state.profile.name = name;
+      HB.state.profile.age = age;
+      HB.save();
+      HB.updateNav();
+      if (HB.rel && HB.rel.updateMyProfile) {
+        HB.rel.updateMyProfile({ name: name, age: age || '' }).then(function () {
+          HB.toast('Your person will see this now ♡', '✨');
+          if (main.isConnected) render(main);
+        });
+      } else {
+        HB.toast('Saved ♡', '✨');
+        if (main.isConnected) render(main);
+      }
+    });
+
+    var leaveBtn = main.querySelector('#leave-btn');
+    if (leaveBtn) leaveBtn.addEventListener('click', function () {
+      HB.modal({
+        title: 'Disconnect from your person?',
+        text: 'This will remove your pairing. Both of you will need to re-enter a code to reconnect.',
+        actions: [
+          { label: 'Disconnect', kind: 'btn-primary', onClick: function () {
+            if (HB.rel && HB.rel.leave) {
+              HB.rel.leave().then(function () {
+                HB.toast('Disconnected. Returning to the start ♡', '🐻');
+                setTimeout(function () { HB.navigate('/'); }, 600);
+              });
+            }
+          }},
+          { label: 'Cancel', kind: 'btn-ghost' }
+        ]
+      });
+    });
   }
 
   function doConnect(input, main) {
@@ -137,7 +212,7 @@
       }
       HB.toast('You\'re connected! Welcome to your little world ♡', '🎉');
       HB.burst(window.innerWidth / 2, window.innerHeight / 3, 40);
-      HB.navigate('/partner');
+      render(main);
     });
   }
 

@@ -1,34 +1,84 @@
 /* ============================================================
    LANDING — Dudu & Bubu hero + account entry
+   ------------------------------------------------------------
+   Three possible states:
+     1. Fresh — never onboarded → show "Create Our Space" + "I already have our space"
+     2. Creator waiting — onboarded, Supabase says status=waiting → show pairing code
+     3. Connected — onboarded, status=connected → redirect to home
    ============================================================ */
 (function () {
   'use strict';
   var HB = window.HB = window.HB || {};
 
-  HB.route('/', function (main) {
-    console.log('[NAVIGATION] Landing page opened (onboarded:', HB.state.onboarded, ', authed:', !!(window.HB && HB.auth && HB.auth.user()), ')');
-    // If already onboarded, show the personalized dashboard instead
-    if (HB.state.onboarded) {
-      if (HB.renderHome) { HB.renderHome(main); return; }
+  function renderLanding(main) {
+    /* ---- Connected → go straight home ---- */
+    if (HB.state.onboarded && HB.rel && HB.rel.data && HB.rel.data.status === 'connected') {
       HB.navigate('/home');
       return;
     }
 
-    /* After a reset/fresh start: HB.state.onboarded is false.
-       Even if Supabase auth tokens linger briefly, we must NOT show
-       the "Signed in as you" / "Open your world" flow. The user
-       should always see the fresh start landing page. */
+    /* ---- Creator waiting → show their pairing code ---- */
+    if (HB.state.onboarded && HB.rel && HB.rel.data && HB.rel.data.status === 'waiting') {
+      var code = HB.rel.data.me && HB.rel.data.me.pairing_code;
+      renderWaiting(main, code);
+      return;
+    }
 
-    var authed = window.HB && HB.auth && HB.auth.user() && HB.state.onboarded;
+    /* ---- Fresh landing (Person 1 or Person 2 first visit) ---- */
+    renderFresh(main);
+  }
 
-    var status = authed
-      ? '<div class="landing-account"><span class="landing-avatar">' + HB.chars.avatarImg('dudu', 'cute', 'landing-avatar') + '</span>' +
-        '<span>Signed in as <b>' + HB.esc(HB.firstNames().me) + '</b></span>' +
-        '<button class="btn btn-primary btn-sm" data-open>Open your world ♡</button></div>'
-      : '<div class="landing-account"><span class="pulse-dot"></span>' +
-        '<span>This little world lives on two phones — yours and your person&rsquo;s.</span>' +
-        '<button class="btn btn-soft btn-sm" data-login>I already have our space</button></div>';
+  /* ---- Waiting screen for Person 1 (creator) ---- */
+  function renderWaiting(main, code) {
+    code = code || 'LOVE-?????';
+    var n = HB.firstNames();
 
+    main.innerHTML =
+      '<section class="landing">' +
+      '<div class="landing-badge"><span class="pulse-dot"></span> A little world made for two ♡</div>' +
+      '<div class="landing-dudu" data-dudu></div>' +
+      '<h1>Your little world is <span class="accent">ready</span> ♡</h1>' +
+      '<p class="sub">Hi ' + HB.esc(n.me) + ' — share this code with your person. They\'ll enter it on their phone to join you.</p>' +
+      '<div class="code-card" style="max-width:380px;margin:0 auto">' +
+        '<div class="code-card-label">Your pairing code 💕</div>' +
+        '<div class="code-card-value">' + HB.esc(code) + '</div>' +
+        '<button class="code-card-copy" data-copy>' + HB.icon('copy') + ' Copy code</button>' +
+      '</div>' +
+      '<p class="muted" style="font-size:13px;margin-top:14px;font-weight:600">We\'ll celebrate the moment they connect. ♡</p>' +
+      '<button class="btn btn-ghost" data-home>Go to my little world →</button>' +
+      '</section>';
+
+    var stage = main.querySelector('[data-dudu]');
+    if (stage && HB.chars) {
+      HB.chars.hero(stage, { which: 'both', actions: ['wait', 'love', 'happy'], size: 'land', alt: 'Waiting for your person' });
+    }
+
+    main.querySelector('[data-copy]').addEventListener('click', function () {
+      var btn = this;
+      navigator.clipboard.writeText(code).then(function () {
+        btn.innerHTML = '✓ Copied 💕';
+        setTimeout(function () { btn.innerHTML = HB.icon('copy') + ' Copy code'; }, 1600);
+        HB.toast('Code copied — send it to your person ♡', '💌');
+      }).catch(function () {
+        HB.toast('Couldn\'t copy — long-press the code instead ♡', '🐻');
+      });
+    });
+
+    main.querySelector('[data-home]').addEventListener('click', function () { HB.navigate('/home'); });
+
+    /* Auto-transition when partner connects */
+    window.addEventListener('hb:relchange', function onConnect() {
+      if (HB.rel.data.status === 'connected') {
+        window.removeEventListener('hb:relchange', onConnect);
+        HB.burst(window.innerWidth / 2, window.innerHeight / 3, 40);
+        HB.toast('You\'re connected! Welcome to your little world ♡', '🎉');
+        setTimeout(function () { HB.navigate('/home'); }, 800);
+      }
+    });
+  }
+
+  /* ---- Fresh landing page (Person 1: Create, Person 2: enter code) ---- */
+  function renderFresh(main) {
     main.innerHTML =
       '<section class="landing">' +
       '<div class="landing-badge"><span class="pulse-dot"></span> A little world made for two ♡</div>' +
@@ -38,7 +88,11 @@
       '<div class="landing-ctas">' +
         '<button class="btn btn-primary btn-lg" data-go="onboarding">Create Our Space ♡</button>' +
       '</div>' +
-      '<div class="landing-status">' + status + '</div>' +
+      '<div class="landing-status">' +
+        '<div class="landing-account"><span class="pulse-dot"></span>' +
+        '<span>This little world lives on two phones — yours and your person\'s.</span>' +
+        '<button class="btn btn-soft btn-sm" data-login>I already have our space</button></div>' +
+      '</div>' +
       '</section>';
 
     var stage = main.querySelector('[data-dudu]');
@@ -58,17 +112,36 @@
       HB.navigate('/onboarding');
     });
 
-    var openBtn = main.querySelector('[data-open]');
-    if (openBtn) openBtn.addEventListener('click', function () {
-      if (HB.enterWorld) HB.enterWorld(); else HB.navigate('/home');
-    });
-
     var loginBtn = main.querySelector('[data-login]');
     if (loginBtn) loginBtn.addEventListener('click', showPairModal);
+  }
+
+  HB.route('/', function (main) {
+    console.log('[NAVIGATION] Landing page opened (onboarded:', HB.state.onboarded, ')');
+
+    /* If backend is configured and we have an auth session, init the
+       relationship to detect waiting/connected state before rendering. */
+    var backend = !!(window.HB && HB.db && HB.db.configured());
+    var hasUser = !!(window.HB && HB.auth && HB.auth.user());
+
+    if (backend && hasUser && HB.state.onboarded) {
+      /* Check Supabase status — init() will set rel.data.status to
+         'waiting' or 'connected', then we re-render with the right view */
+      HB.rel.init().then(function () {
+        renderLanding(main);
+      }).catch(function () {
+        /* Backend error — show fresh landing as fallback */
+        renderFresh(main);
+      });
+      /* Show a minimal loading state while we check */
+      main.innerHTML = '<section class="landing"><div class="connect-center"><div class="typing"><i></i><i></i><i></i></div></div></section>';
+      return;
+    }
+
+    renderLanding(main);
   });
 
-  /* "I already have our space" — a single pairing code, nothing else.
-     No email, no password. The other person just enters the LOVE- code. */
+  /* ---- Pairing modal (Person 2 enters code) ---- */
   function showPairModal() {
     HB.modal({
       title: 'Join your person ♡',
@@ -130,11 +203,11 @@
 
     HB.auth.signInAnonymously().then(function (res) {
       if (res && res.error) {
-        console.error('[SUPABASE] Anonymous sign-in failed during pairing:', res.error);
+        console.error('[PAIRING] Anonymous sign-in failed:', res.error);
         err && (err.textContent = 'Couldn\'t create your little identity. Try again? ♡');
         return;
       }
-      console.log('[SUPABASE] Anonymous sign-in successful, initializing relationship');
+      console.log('[PAIRING] Anonymous sign-in successful');
       return HB.rel.init().then(function () {
         var me = HB.rel.data.me;
 
@@ -145,9 +218,9 @@
           return true;
         }
 
-        /* A valid code means IMMEDIATE pairing. If Person 2 has no
-           profile row yet, create a minimal one (their own identity)
-           and connect — never send them through the setup form. */
+        /* Person 2 needs a profile row before the RPC can pair them.
+           Create a minimal one (name/age are empty — they don't need
+           the wizard). */
         var ensure = me
           ? Promise.resolve()
           : HB.rel.ensureProfile({ name: HB.state.profile.name || '', age: HB.state.profile.age || '' });

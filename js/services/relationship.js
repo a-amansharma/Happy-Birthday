@@ -3,15 +3,14 @@
    ------------------------------------------------------------
    Matches the LIVE Supabase schema: profiles only
    (id, name, age, pairing_code, partner_id, created_at,
-    last_active, partner_code).
+    last_active).
 
    Pairing model (profiles-only):
      * pairing_code  — MY unique single-use code (LOVE-XXXXX).
      * partner_id    — set on BOTH profiles once connected.
-     * partner_code  — the code I used to join (connector).
 
    RLS lets a person read/update ONLY their own row PLUS the
-   paired partner's row (see schema.sql). The code lookup + the
+   paired partner's row (see supabase.sql). The code lookup + the
    linking write both happen inside the security-definer RPC
    connect_with_partner(code) — a client can never read another
    user's pairing_code or write their partner_id directly.
@@ -19,6 +18,9 @@
    While "waiting" we poll our own profile every 5s (and watch it
    via realtime when the table is published) until partner_id
    appears → status flips to connected on BOTH phones.
+
+   After pairing, Person 2's local profile is hydrated from
+   Person 1's profile data returned by the RPC.
    ============================================================ */
 (function () {
   'use strict';
@@ -60,6 +62,7 @@
     var uid = user.id;
     _ownKey = 'waiting:' + uid;
     HB.db.subscribe(_ownKey, { table: 'profiles', filter: 'id=eq.' + uid }, function () {
+      console.log('[REALTIME] Own profile changed — rechecking pairing status');
       rel.init(true).then(function () { rel.dispatch(); }).catch(function () {});
     });
     _pollTimer = setInterval(function () {
@@ -116,20 +119,22 @@
       .catch(function (err) {
         data.error = String(err.message || err);
         data.status = 'error';
-        console.error('[SUPABASE] Relationship init error:', {
+        var errDetail = {
           error: String(err.message || err),
           code: String(err.code || ''),
           time: new Date().toISOString(),
           operation: 'relationship.init',
+          file: 'js/services/relationship.js:doInit',
           suggestion: 'Check Supabase connection, RLS policies, and profiles table schema.'
-        });
+        };
+        console.error('[SUPABASE] Relationship init error:', errDetail);
         /* schema not deployed yet → tell the owner what to do, once */
         if (HB._schemaNotice) return;
         var msg = String(err.message || err) + ' ' + String(err.code || '');
         if (/PGRST205|42P01|42703|Could not find|does not exist/.test(msg)) {
           HB._schemaNotice = true;
           data.status = 'unconfigured';
-          if (HB.toast) HB.toast('Database isn\'t ready — run supabase/schema.sql in Supabase, then reload ♡', '⚠️');
+          if (HB.toast) HB.toast('Database isn\'t ready — run supabase.sql in Supabase SQL Editor, then reload ♡', '⚠️');
         }
       });
   }
@@ -204,34 +209,52 @@
       if (!HB.db.configured()) return Promise.resolve({ error: { message: 'NOT_CONFIGURED' } });
       if (!code || !code.trim()) return Promise.resolve({ error: { message: 'INVALID_CODE' } });
       data.busy = true;
-      console.log('[SUPABASE] Connecting with code:', code.substring(0, 5) + '…');
+      console.log('[PAIRING] Connecting with code:', code.substring(0, 9) + '…');
       return HB.db.client().rpc('connect_with_partner', { code: code }).then(function (res) {
         if (res.error) {
           var msg = String(res.error.message || res.error);
-          console.error('[SUPABASE] Pairing RPC error:', {
+          var errDetail = {
             error: msg,
             code: String(res.error.code || ''),
             time: new Date().toISOString(),
             operation: 'connect_with_partner',
-            input: code.substring(0, 5) + '…'
-          });
+            file: 'js/services/relationship.js:connectWithCode',
+            input_code_prefix: code.substring(0, 9) + '…'
+          };
+          console.error('[PAIRING] RPC error:', errDetail);
           if (/Could not find the function|PGRST202/.test(msg) && !HB._rpcNotice) {
             HB._rpcNotice = true;
-            if (HB.toast) HB.toast('Run the pairing SQL first — supabase/schema.sql in Supabase → SQL Editor ♡', '⚠️');
+            if (HB.toast) HB.toast('Run the pairing SQL first — supabase.sql in Supabase SQL Editor ♡', '⚠️');
           }
           return { error: { message: 'RPC:' + (HB.db.rpcError(res.error) || msg) } };
         }
-        console.log('[SUPABASE] Pairing successful');
+
+        console.log('[PAIRING] Pairing successful');
+
+        /* The RPC returns partner profile data — store it so Person 2
+           can hydrate their local profile with Person 1's info. */
+        var rpcData = res.data || {};
+        data._lastRpcPartner = {
+          id: rpcData.partner_id,
+          name: rpcData.partner_name,
+          age: rpcData.partner_age,
+          created_at: rpcData.partner_created_at,
+          pairing_code: rpcData.partner_code
+        };
+
         /* force a fresh fetch — the RPC just changed the database */
         return rel.init(true).then(function () {
           return { partner_id: data.me ? data.me.partner_id : null, status: data.status, error: null };
         });
       }).catch(function (err) {
-        console.error('[SUPABASE] Pairing RPC network error:', {
+        var errDetail = {
           error: String(err.message || err),
           time: new Date().toISOString(),
-          operation: 'connect_with_partner'
-        });
+          operation: 'connect_with_partner',
+          file: 'js/services/relationship.js:connectWithCode',
+          likely_cause: 'Network error or Supabase unreachable'
+        };
+        console.error('[PAIRING] RPC network error:', errDetail);
         return { error: { message: 'RPC:' + String(err.message || err) } };
       }).then(function (out) { data.busy = false; return out; });
     },
@@ -264,16 +287,16 @@
     leave: function () {
       var user = HB.auth.user();
       if (!HB.db.configured() || !user) return Promise.resolve();
-      console.log('[SUPABASE] Leaving/deleting user data');
+      console.log('[RESET] Leaving/deleting user data');
       return HB.db.client().rpc('delete_my_data')
         .catch(function (err) {
-          console.warn('[SUPABASE] delete_my_data RPC failed, falling back to profile update:', err);
+          console.warn('[RESET] delete_my_data RPC failed, falling back to profile update:', err);
           return HB.db.client().from('profiles')
-            .update({ partner_id: null, pairing_code: null, partner_code: null, name: '' })
+            .update({ partner_id: null, pairing_code: null, name: '' })
             .eq('id', user.id).then(function () {});
         })
         .then(function () {
-          console.log('[SUPABASE] Data deleted, signing out');
+          console.log('[RESET] Data deleted, signing out');
           stopWaitingWatch();
           if (HB.auth) return HB.auth.signOut();
         });
@@ -288,12 +311,14 @@
       if (_ownKey) { HB.db.unsubscribe(_ownKey); _ownKey = null; }
       _ownKey = 'me:' + user.id;
       HB.db.subscribe(_ownKey, { table: 'profiles', filter: 'id=eq.' + user.id }, function () {
+        console.log('[REALTIME] Own profile updated');
         rel.init(true).then(function () { rel.dispatch(); }).catch(function () {});
       });
       if (data.me && data.me.partner_id && data.me.partner_id !== _partnerKey) {
         if (_partnerKey) { HB.db.unsubscribe(_partnerKey); _partnerKey = null; }
         _partnerKey = 'partner:' + data.me.partner_id;
         HB.db.subscribe(_partnerKey, { table: 'profiles', filter: 'id=eq.' + data.me.partner_id }, function () {
+          console.log('[REALTIME] Partner profile updated');
           rel.init(true).then(function () { rel.dispatch(); }).catch(function () {});
         });
       }
@@ -309,9 +334,16 @@
 
     /* -------------------- local hydration --------------------
        Mirrors backend data into HB.state.profile so all the existing
-       local features keep working. The partner's name/age come from
-       their actual profile row (RLS allows each partner to read the
-       other's row) — never from a local-only guess. */
+       local features keep working.
+
+       For Person 2 (who joined via code), the RPC returns Person 1's
+       profile data. We use it to fill in Person 2's local state so
+       they automatically have Person 1's name, age, and profile info
+       without filling the wizard.
+
+       The partner's name/age come from their actual profile row (RLS
+       allows each partner to read the other's row) — never from a
+       local-only guess. */
     hydrate: function () {
       if (!HB.state || !HB.state.profile) return;
       var p = HB.state.profile;
@@ -325,6 +357,11 @@
       if (data.partner) {
         p.partner = data.partner.name || p.partner;
         if (data.partner.age != null) p.partnerAge = String(data.partner.age);
+      } else if (data._lastRpcPartner) {
+        /* Person 2 just paired — use RPC data to hydrate partner info */
+        var rp = data._lastRpcPartner;
+        if (rp.name) p.partner = rp.name;
+        if (rp.age != null) p.partnerAge = String(rp.age);
       }
 
       if (HB.save) HB.save();

@@ -96,11 +96,6 @@
 
     HB.boot();
 
-    if (HB.chars && HB.chars.cornerStart) {
-      console.log('[DOODLE] Starting doodle system');
-      HB.chars.cornerStart();
-    }
-
     // Welcome micro-interaction
     if (!HB.state.onboarded) {
       setTimeout(function () {

@@ -9,8 +9,7 @@
      HB.chars.show(el, opts)       -> crossfade a new GIF into a stage
      HB.chars.hero(el, opts)       -> auto-rotating pair/single hero
      HB.chars.avatarImg(w,a,cls)   -> round GIF avatar HTML
-     HB.chars.preload(list)        -> warm the cache
-     HB.chars.cornerStart()        -> random corner peekers
+      HB.chars.preload(list)        -> warm the cache
    ============================================================ */
 (function () {
   'use strict';
@@ -167,147 +166,6 @@
     return '<img class="bb-avatar' + (cls ? ' ' + cls : '') + '" src="' + AVATAR_MEMO[key] + '" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"/>';
   }
 
-  /* Random Bubu/Dudu characters that appear from screen edges and walk
-     along the bottom. One character at a time. Supports:
-       - Left edge peeking with a message
-       - Right edge peeking with a message
-       - Bottom walking animation across the screen
-     Responsive sizes: smaller on mobile. */
-  function cornerStart() {
-    if (!document.body) return;
-    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    var container = document.getElementById('bb-doodles');
-    if (!container) {
-      container = document.createElement('div');
-      container.id = 'bb-doodles';
-      container.className = 'bb-doodles';
-      document.body.appendChild(container);
-    }
-
-    var activeDoodle = null; /* only one doodle at a time */
-
-    var MESSAGES = [
-      'Hi 👋', 'Hii 💕', 'Hello!', 'Hiii ♡', 'Hewwo~',
-      'Heyy 💗', 'Hii there!', 'Hellooo ✨', 'Hiii 🥰', 'Hewwo ♡',
-      'Heyy 🫧', 'Hiiii 💖', 'Hullo~', 'Hello! ♡', 'Hiii 🌸'
-    ];
-
-    function isMobile() {
-      return window.innerWidth <= 860;
-    }
-
-    function pickChar() {
-      return Math.random() < 0.5 ? 'dudu' : 'bubu';
-    }
-
-    function pickAction() {
-      var actions = ['happy', 'cute', 'dance', 'funny', 'cool', 'think'];
-      return actions[(Math.random() * actions.length) | 0];
-    }
-
-    function pickMessage() {
-      return MESSAGES[(Math.random() * MESSAGES.length) | 0];
-    }
-
-    /* Remove any existing active doodle */
-    function clearActive() {
-      if (activeDoodle && activeDoodle.isConnected) {
-        activeDoodle.classList.add('bb-doodle-exit');
-        setTimeout(function () {
-          if (activeDoodle && activeDoodle.parentNode) activeDoodle.remove();
-          activeDoodle = null;
-        }, 500);
-      } else {
-        activeDoodle = null;
-      }
-    }
-
-    /* Create a peeker from left or right edge */
-    function spawnPeek(side) {
-      clearActive();
-      var which = pickChar();
-      var action = pickAction();
-      var msg = pickMessage();
-      var u = src(which, action) || FALLBACK;
-      console.log('[DOODLE] Spawning peek:', side, which, action, msg);
-
-      var el = document.createElement('div');
-      el.className = 'bb-doodle bb-doodle-peek bb-doodle-' + side;
-      el.innerHTML =
-        '<div class="bb-doodle-msg">' + HB.esc(msg) + '</div>' +
-        '<img class="bb-doodle-img" src="' + u + '" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"/>';
-
-      container.appendChild(el);
-      activeDoodle = el;
-
-      /* Auto-remove after 4-6 seconds */
-      var dur = 4000 + Math.random() * 2000;
-      setTimeout(function () {
-        if (activeDoodle === el) {
-          el.classList.add('bb-doodle-exit');
-          setTimeout(function () {
-            if (el.parentNode) el.remove();
-            if (activeDoodle === el) activeDoodle = null;
-          }, 500);
-        }
-      }, dur);
-    }
-
-    /* Create a walker along the bottom edge */
-    function spawnWalker() {
-      clearActive();
-      var which = pickChar();
-      var action = 'dance'; /* walking/dancing looks best */
-      var u = src(which, action) || FALLBACK;
-      var goRight = Math.random() < 0.5;
-      console.log('[DOODLE] Spawning walker:', which, goRight ? 'left→right' : 'right→left');
-
-      var el = document.createElement('div');
-      el.className = 'bb-doodle bb-doodle-walk';
-      if (goRight) {
-        el.classList.add('bb-doodle-walk-lr');
-      } else {
-        el.classList.add('bb-doodle-walk-rl');
-      }
-      el.innerHTML = '<img class="bb-doodle-img" src="' + u + '" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"/>';
-
-      container.appendChild(el);
-      activeDoodle = el;
-
-      /* Duration based on screen width */
-      var walkDur = isMobile() ? 6000 : 8000 + Math.random() * 4000;
-      el.style.setProperty('--walk-dur', walkDur + 'ms');
-
-      /* Auto-remove after walk completes */
-      setTimeout(function () {
-        if (el.parentNode) el.remove();
-        if (activeDoodle === el) activeDoodle = null;
-      }, walkDur + 1000);
-    }
-
-    function once() {
-      /* Random interval between spawns: 20-40 seconds */
-      var wait = 20000 + Math.random() * 20000;
-      setTimeout(function () {
-        if (!document.body) return;
-        if (!activeDoodle) {
-          /* Pick a random behavior */
-          var r = Math.random();
-          if (r < 0.3) {
-            spawnPeek('left');
-          } else if (r < 0.6) {
-            spawnPeek('right');
-          } else {
-            spawnWalker();
-          }
-        }
-        once();
-      }, wait);
-    }
-
-    once();
-  }
-
   HB.chars = {
     src: src,
     stageHtml: stageHtml,
@@ -315,7 +173,6 @@
     hero: hero,
     avatarImg: avatarImg,
     preload: preload,
-    cornerStart: cornerStart,
     FALLBACK: FALLBACK
   };
 })();

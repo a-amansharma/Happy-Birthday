@@ -323,12 +323,14 @@
                 setTimeout(function () { HB.navigate('/home'); }, 600);
               });
             }
-            var code = HB.rel.data.me && HB.rel.data.me.pairing_code;
             if (HB.rel.data.status === 'connected') {
               celebrate();
               setTimeout(function () { HB.navigate('/home'); }, 600);
             } else {
-              showCode(code);
+              /* Wizard is done — redirect to landing which will show the
+                 waiting screen with the pairing code. */
+              celebrate();
+              setTimeout(function () { HB.navigate('/'); }, 600);
             }
           });
         }).catch(function (err) {
@@ -355,54 +357,6 @@
           return;
         }
         go();
-      });
-    }
-
-    /* Reveal the LOVE- code so the other person can pair with you */
-    function showCode(code) {
-      code = code || 'LOVE-?????';
-      var card = main.querySelector('.wizard-card');
-      var actions = main.querySelector('.wizard-actions');
-      var progress = main.querySelector('.progress');
-      progress.innerHTML = '';
-      actions.innerHTML = '';
-
-      card.innerHTML =
-        '<div class="connect-center">' +
-          '<div class="dudu-small-stage" data-du></div>' +
-          '<h2 class="hand" style="font-size:30px">Your person is next ♡</h2>' +
-          '<p class="wizard-step-hint">Share this code with your person — they\'ll open your little world on <b>their</b> phone, tap "I already have our space", and enter it to connect with you.</p>' +
-          '<div class="code-card">' +
-            '<div class="code-card-label">Your pairing code 💕</div>' +
-            '<div class="code-card-value">' + HB.esc(code) + '</div>' +
-            '<button class="code-card-copy" data-copy>' + HB.icon('copy') + ' Copy code</button>' +
-          '</div>' +
-          '<p class="muted" style="font-size:12.5px;margin-top:16px">Your little world is ready — you can also go in now and wait. We\'ll throw a tiny celebration the moment they connect. ♡</p>' +
-          '<button class="btn btn-ghost" data-home>Go to my little world →</button>' +
-        '</div>';
-
-      HB.chars.hero(card.querySelector('[data-du]'), { which: 'both', actions: ['love', 'hug', 'happy', 'dance', 'wait'], size: 'sm', alt: 'Bubu ♡ Dudu' });
-
-      card.querySelector('[data-copy]').addEventListener('click', function () {
-        var btn = this;
-        navigator.clipboard.writeText(code).then(function () {
-          btn.innerHTML = '✓ Copied 💕';
-          setTimeout(function () { btn.innerHTML = HB.icon('copy') + ' Copy code'; }, 1600);
-          HB.toast('Code copied — send it to your person ♡', '💌');
-        }).catch(function () {
-          HB.toast('Couldn\'t copy — long-press the code instead ♡', '🐻');
-        });
-      });
-
-      card.querySelector('[data-home]').addEventListener('click', function () { HB.navigate('/home'); });
-
-      // The moment the partner connects, celebrate and head home.
-      window.addEventListener('hb:relchange', function onConnect() {
-        if (HB.rel.data.status === 'connected') {
-          window.removeEventListener('hb:relchange', onConnect);
-          celebrate();
-          setTimeout(function () { HB.navigate('/home'); }, 900);
-        }
       });
     }
 
