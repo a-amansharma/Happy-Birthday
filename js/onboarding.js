@@ -37,16 +37,21 @@
     var msg = String((err && err.message) || err || '');
     var code = String((err && err.code) || '');
     var all = msg + ' ' + code;
+    console.error('[ONBOARDING] Error caught:', { message: msg, code: code, raw: err });
     if (/NOT_CONFIGURED/.test(all)) return 'Cloud connection isn\'t set up yet — open js/config.js first.';
     if (/NOT_AUTHENTICATED|sign in/i.test(all)) return 'Please sign in first, then try again ♡';
-    if (/23505|unique/.test(all)) return 'That code is already in use — we made you a fresh one, try again ♡';
-    if (/PGRST205|42P01|42703|Could not find|does not exist|schema/.test(all)) return 'The database isn\'t ready yet — run supabase/schema.sql, then try again ♡';
-    if (/permission denied|42501|row-level security|RLS/.test(all)) return 'We couldn\'t save that — permission issue on this account.';
-    if (/network|fetch|failed|offline/i.test(all)) return 'You seem to be offline — check your connection and try again ♡';
+    if (/23505|unique|duplicate/.test(all)) return 'That code is already in use — we made you a fresh one, try again ♡';
+    if (/PGRST205|42P01|42703|Could not find|does not exist|schema|relation.*does not exist/i.test(all)) return 'The database isn\'t ready yet — run supabase.sql in Supabase SQL Editor, then reload ♡';
+    if (/permission denied|42501|row-level security|RLS|42501/.test(all)) return 'We couldn\'t save that — permission issue on this account. Run supabase.sql in Supabase SQL Editor.';
+    if (/network|fetch|failed|offline|NetworkError|ERR_NETWORK|timeout/i.test(all)) return 'You seem to be offline — check your connection and try again ♡';
+    if (/Cannot read prop|null|undefined|TypeError|ReferenceError/i.test(all)) return 'Something went wrong on our end — please reload the page and try again ♡';
+    if (/auth\/|token|session|forbidden|401|403/i.test(all)) return 'Your session expired — please reload and try again ♡';
+    if (/500|internal|server/i.test(all)) return 'Something went wrong on the server — try again in a moment ♡';
     if (/CODE_USED/.test(msg)) return 'That code was already used — ask them for a fresh one ♡';
     if (/INVALID_CODE/.test(msg)) return 'That code didn\'t match — double-check it? ♡';
     if (/SELF_CODE/.test(msg)) return 'That\'s your own code, silly! 💞';
     if (/ALREADY_CONNECTED/.test(msg)) return 'You\'re already part of a couple ♡';
+    if (/PROFILE_FAILED|CONNECT_FAILED/.test(msg)) return 'Profile setup didn\'t work — try again ♡';
     return 'Hmm, something went wrong. Please try again ♡';
   }
 
@@ -306,14 +311,18 @@
       card.querySelector('[data-du]').innerHTML = HB.chars.stageHtml({ which: 'dudu', action: 'think', size: 'sm', alt: 'Dudu is thinking' });
 
       var run = function () {
+        console.log('[ONBOARDING] Starting account setup…');
         HB.rel.ensureProfile({
           name: draft.name,
           age: draft.age
         }).then(function (res) {
+          console.log('[ONBOARDING] ensureProfile resolved:', res && res.error ? 'error: ' + res.error.message : 'ok');
           if (res && res.error) {
             throw new Error(res.error.message || 'PROFILE_FAILED');
           }
+          console.log('[ONBOARDING] Calling init(true)…');
           return HB.rel.init(true).then(function () {
+            console.log('[ONBOARDING] init resolved, status:', HB.rel.data.status);
             if (HB.pendingCode) {
               var pending = HB.pendingCode;
               HB.pendingCode = null;
@@ -334,6 +343,7 @@
             }
           });
         }).catch(function (err) {
+          console.error('[ONBOARDING] Setup account failed:', err && err.message, err);
           var msg = friendly(err);
           card.innerHTML = '<div class="connect-center"><p>' + msg + '</p>' +
             '<button class="btn btn-soft" data-retry>Try again</button></div>';
