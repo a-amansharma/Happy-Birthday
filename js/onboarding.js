@@ -284,13 +284,12 @@
       }];
       HB.save();
 
-      if (!backend) {
-        console.log('[ONBOARDING] No backend, saving locally only');
-        celebrate();
-        setTimeout(function () { HB.navigate('/home'); }, 600);
-        return;
+      celebrate();
+      setTimeout(function () { HB.navigate('/home'); }, 600);
+
+      if (backend) {
+        setupAccount();
       }
-      setupAccount();
     }
 
     function celebrate() {
@@ -303,12 +302,14 @@
       var card = main.querySelector('.wizard-card');
       var actions = main.querySelector('.wizard-actions');
       var progress = main.querySelector('.progress');
-      progress.innerHTML = '';
-      actions.innerHTML = '';
-      card.innerHTML = '<div class="connect-center"><div class="dudu-small-stage" data-du></div>' +
-        '<h3>Setting up your little world…</h3>' +
-        '<div class="typing"><i></i><i></i><i></i></div></div>';
-      card.querySelector('[data-du]').innerHTML = HB.chars.stageHtml({ which: 'dudu', action: 'think', size: 'sm', alt: 'Dudu is thinking' });
+      if (card) {
+        progress.innerHTML = '';
+        actions.innerHTML = '';
+        card.innerHTML = '<div class="connect-center"><div class="dudu-small-stage" data-du></div>' +
+          '<h3>Setting up your little world…</h3>' +
+          '<div class="typing"><i></i><i></i><i></i></div></div>';
+        card.querySelector('[data-du]').innerHTML = HB.chars.stageHtml({ which: 'dudu', action: 'think', size: 'sm', alt: 'Dudu is thinking' });
+      }
 
       var run = function () {
         console.log('[ONBOARDING] Starting account setup…');
@@ -329,33 +330,40 @@
                 HB.pendingCode = null;
                 return HB.rel.connectWithCode(pending).then(function (out) {
                   if (out && out.error) throw new Error(out.error.message || 'CONNECT_FAILED');
+                  if (!card.parentNode) return;
                   celebrate();
                   setTimeout(function () { HB.navigate('/home'); }, 600);
                 });
               }
               if (HB.rel.data.status === 'connected') {
+                if (!card.parentNode) return;
                 celebrate();
                 setTimeout(function () { HB.navigate('/home'); }, 600);
               } else {
                 /* Wizard is done — redirect to landing which will show the
                    waiting screen with the pairing code. */
+                if (!card.parentNode) return;
                 celebrate();
                 setTimeout(function () { HB.navigate('/'); }, 600);
               }
             });
           }).catch(function (err) {
             console.error('[ONBOARDING] Setup account failed:', err && err.message, err);
-            var msg = friendly(err);
-            card.innerHTML = '<div class="connect-center"><p>' + msg + '</p>' +
-              '<button class="btn btn-soft" data-retry>Try again</button></div>';
-            card.querySelector('[data-retry]').addEventListener('click', run);
+            if (card && card.parentNode) {
+              var msg = friendly(err);
+              card.innerHTML = '<div class="connect-center"><p>' + msg + '</p>' +
+                '<button class="btn btn-soft" data-retry>Try again</button></div>';
+              card.querySelector('[data-retry]').addEventListener('click', run);
+            }
           });
         } catch (syncErr) {
           console.error('[ONBOARDING] Synchronous error in setup:', syncErr);
-          var msg = friendly(syncErr);
-          card.innerHTML = '<div class="connect-center"><p>' + msg + '</p>' +
-            '<button class="btn btn-soft" data-retry>Try again</button></div>';
-          card.querySelector('[data-retry]').addEventListener('click', run);
+          if (card && card.parentNode) {
+            var msg = friendly(syncErr);
+            card.innerHTML = '<div class="connect-center"><p>' + msg + '</p>' +
+              '<button class="btn btn-soft" data-retry>Try again</button></div>';
+            card.querySelector('[data-retry]').addEventListener('click', run);
+          }
         }
       };
 
@@ -369,9 +377,11 @@
       }
       HB.auth.signInAnonymously().then(function (res) {
         if (res && res.error) {
-          card.innerHTML = '<div class="connect-center"><p>We couldn\'t create your little identity: ' + HB.esc(String(res.error.message || res.error)) + '</p>' +
-            '<button class="btn btn-soft" data-back>Back to start</button></div>';
-          card.querySelector('[data-back]').addEventListener('click', function () { HB.navigate('/onboarding'); });
+          if (card && card.parentNode) {
+            card.innerHTML = '<div class="connect-center"><p>We couldn\'t create your little identity: ' + HB.esc(String(res.error.message || res.error)) + '</p>' +
+              '<button class="btn btn-soft" data-back>Back to start</button></div>';
+            card.querySelector('[data-back]').addEventListener('click', function () { HB.navigate('/onboarding'); });
+          }
           return;
         }
         go();
