@@ -89,6 +89,7 @@
     try {
       var client = HB.db.client();
       if (!client) { data.status = 'unconfigured'; return Promise.resolve(); }
+      console.log('[REL] doInit — querying profiles for user:', user.id.substring(0, 8) + '…');
       return client
         .from('profiles').select('*').eq('id', user.id).maybeSingle()
         .then(function (res) {
@@ -190,9 +191,16 @@
 
     /* -------------------- creation -------------------- */
     ensureProfile: function (fields) {
-      if (!HB.db.configured()) return Promise.resolve({ error: { message: 'NOT_CONFIGURED' } });
+      if (!HB.db.configured()) {
+        console.error('[PROFILE] DB not configured');
+        return Promise.resolve({ error: { message: 'NOT_CONFIGURED' } });
+      }
       var user = HB.auth.user();
-      if (!user) return Promise.resolve({ error: { message: 'NOT_AUTHENTICATED' } });
+      if (!user) {
+        console.error('[PROFILE] No auth user');
+        return Promise.resolve({ error: { message: 'NOT_AUTHENTICATED' } });
+      }
+      console.log('[PROFILE] ensureProfile called for user:', user.id.substring(0, 8) + '…', 'name:', fields.name);
 
       var keep = (data.me && data.me.pairing_code) ? data.me.pairing_code : null;
       var attempt = function (code) {
@@ -201,16 +209,23 @@
           if (fields.age !== undefined && fields.age !== '') row.age = Number(fields.age);
           row.pairing_code = code;
           var client = HB.db.client();
-          if (!client) return Promise.resolve({ error: { message: 'NOT_CONFIGURED' } });
+          if (!client) {
+            console.error('[PROFILE] Supabase client is null');
+            return Promise.resolve({ error: { message: 'NOT_CONFIGURED' } });
+          }
+          console.log('[PROFILE] Upserting profile row…');
           return client.from('profiles').upsert(row).then(function (res) {
             if (res.error) {
-              console.error('[PROFILE] Upsert error:', res.error.code, res.error.message);
+              console.error('[PROFILE] Upsert error:', JSON.stringify({ code: res.error.code, message: res.error.message, details: res.error.details, hint: res.error.hint }));
               if (res.error.code === '23505') return attempt(generateCode());
               throw res.error;
             }
-            console.log('[PROFILE] Profile created/updated successfully');
+            console.log('[PROFILE] Profile created/updated successfully, pairing_code:', code);
             if (data.me) data.me.pairing_code = code;
             return res;
+          }).catch(function (err) {
+            console.error('[PROFILE] Upsert network/promise error:', err);
+            throw err;
           });
         } catch (e) {
           console.error('[PROFILE] Synchronous error in ensureProfile:', e);

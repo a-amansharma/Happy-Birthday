@@ -32,17 +32,19 @@
 
   var N_STEPS = 9;
 
-  /* Map a technical error to a short, friendly message. */
+  /* Map a technical error to a short, friendly message.
+     Also returns diagnostic info so the admin can debug. */
   function friendly(err) {
     var msg = String((err && err.message) || err || '');
     var code = String((err && err.code) || '');
     var all = msg + ' ' + code;
-    console.error('[ONBOARDING] Error caught:', { message: msg, code: code, raw: err });
+    console.error('[ONBOARDING] friendly() input:', { message: msg, code: code, type: typeof err, raw: err });
+
     if (/NOT_CONFIGURED/.test(all)) return 'Cloud connection isn\'t set up yet — open js/config.js first.';
     if (/NOT_AUTHENTICATED|sign in/i.test(all)) return 'Please sign in first, then try again ♡';
     if (/23505|unique|duplicate/.test(all)) return 'That code is already in use — we made you a fresh one, try again ♡';
     if (/PGRST205|42P01|42703|Could not find|does not exist|schema|relation.*does not exist/i.test(all)) return 'The database isn\'t ready yet — run supabase.sql in Supabase SQL Editor, then reload ♡';
-    if (/permission denied|42501|row-level security|RLS|42501/.test(all)) return 'We couldn\'t save that — permission issue on this account. Run supabase.sql in Supabase SQL Editor.';
+    if (/permission denied|42501|row-level security|RLS/i.test(all)) return 'We couldn\'t save that — permission issue. Run supabase.sql in Supabase SQL Editor, then reload ♡';
     if (/network|fetch|failed|offline|NetworkError|ERR_NETWORK|timeout/i.test(all)) return 'You seem to be offline — check your connection and try again ♡';
     if (/Cannot read prop|null|undefined|TypeError|ReferenceError/i.test(all)) return 'Something went wrong on our end — please reload the page and try again ♡';
     if (/auth\/|token|session|forbidden|401|403/i.test(all)) return 'Your session expired — please reload and try again ♡';
@@ -53,7 +55,9 @@
     if (/SELF_CODE/.test(msg)) return 'That\'s your own code, silly! 💞';
     if (/ALREADY_CONNECTED/.test(msg)) return 'You\'re already part of a couple ♡';
     if (/PROFILE_FAILED|CONNECT_FAILED/.test(msg)) return 'Profile setup didn\'t work — try again ♡';
-    return 'Hmm, something went wrong. Please try again ♡';
+    /* Unknown error — include a hint of the actual message for debugging */
+    var hint = msg.length > 0 ? msg.substring(0, 100) : 'unknown error';
+    return 'Hmm, something went wrong — ' + HB.esc(hint) + '. Please try again ♡';
   }
 
   HB.route('/onboarding', function (main) {
@@ -314,20 +318,35 @@
         card.querySelector('[data-du]').innerHTML = HB.chars.stageHtml({ which: 'dudu', action: 'think', size: 'sm', alt: 'Dudu is thinking' });
       }
 
+      /* Safety: if setup hangs for 15s, show a retryable error instead of
+         leaving the user stuck on the loading animation forever. */
+      var safetyTimer = setTimeout(function () {
+        if (card && card.parentNode) {
+          console.error('[ONBOARDING] Safety timeout — setup took too long');
+          card.innerHTML = '<div class="connect-center"><p>Setup is taking longer than expected. Check your connection and try again ♡</p>' +
+            '<button class="btn btn-soft" data-retry>Try again</button></div>';
+          card.querySelector('[data-retry]').addEventListener('click', function () { HB.navigate('/onboarding'); });
+        }
+      }, 15000);
+
       var run = function () {
         console.log('[ONBOARDING] Starting account setup…');
+        console.log('[ONBOARDING] DB configured:', !!(HB.db && HB.db.configured()));
+        console.log('[ONBOARDING] Auth user:', HB.auth.user() ? HB.auth.user().id.substring(0, 8) + '…' : 'none');
+        console.log('[ONBOARDING] Supabase client:', HB.db.client() ? 'exists' : 'null');
         try {
           HB.rel.ensureProfile({
             name: draft.name,
             age: draft.age
           }).then(function (res) {
-            console.log('[ONBOARDING] ensureProfile resolved:', res && res.error ? 'error: ' + res.error.message : 'ok');
+            console.log('[ONBOARDING] ensureProfile resolved:', res && res.error ? 'error: ' + res.error.message + ' (code: ' + res.error.code + ')' : 'ok');
             if (res && res.error) {
               throw new Error(res.error.message || 'PROFILE_FAILED');
             }
             console.log('[ONBOARDING] Calling init(true)…');
             return HB.rel.init(true).then(function () {
               console.log('[ONBOARDING] init resolved, status:', HB.rel.data.status);
+              clearTimeout(safetyTimer);
               if (HB.pendingCode) {
                 var pending = HB.pendingCode;
                 HB.pendingCode = null;
@@ -343,29 +362,30 @@
                 celebrate();
                 setTimeout(function () { HB.navigate('/home'); }, 600);
               } else {
-                /* Wizard done — redirect to landing which shows waiting screen
-                   with the pairing code. */
                 if (!card.parentNode) return;
                 celebrate();
                 setTimeout(function () { HB.navigate('/'); }, 600);
               }
             });
           }).catch(function (err) {
+            clearTimeout(safetyTimer);
             console.error('[ONBOARDING] Setup account failed:', err && err.message, err);
+            console.error('[ONBOARDING] Full error object:', JSON.stringify(err, null, 2));
             if (card && card.parentNode) {
               var msg = friendly(err);
               card.innerHTML = '<div class="connect-center"><p>' + msg + '</p>' +
                 '<button class="btn btn-soft" data-retry>Try again</button></div>';
-              card.querySelector('[data-retry]').addEventListener('click', run);
+              card.querySelector('[data-retry]').addEventListener('click', function () { HB.navigate('/onboarding'); });
             }
           });
         } catch (syncErr) {
+          clearTimeout(safetyTimer);
           console.error('[ONBOARDING] Synchronous error in setup:', syncErr);
           if (card && card.parentNode) {
             var msg = friendly(syncErr);
             card.innerHTML = '<div class="connect-center"><p>' + msg + '</p>' +
               '<button class="btn btn-soft" data-retry>Try again</button></div>';
-            card.querySelector('[data-retry]').addEventListener('click', run);
+            card.querySelector('[data-retry]').addEventListener('click', function () { HB.navigate('/onboarding'); });
           }
         }
       };
@@ -374,21 +394,28 @@
         run();
       };
 
+      console.log('[ONBOARDING] Checking auth state…');
       if (HB.auth.user()) {
+        console.log('[ONBOARDING] User already authenticated:', HB.auth.user().id.substring(0, 8) + '…');
         go();
         return;
       }
+      console.log('[ONBOARDING] No auth user — calling signInAnonymously…');
       HB.auth.signInAnonymously().then(function (res) {
         if (res && res.error) {
+          clearTimeout(safetyTimer);
+          console.error('[ONBOARDING] signInAnonymously returned error:', res.error);
           if (card && card.parentNode) {
             card.innerHTML = '<div class="connect-center"><p>We couldn\'t create your little identity: ' + HB.esc(String(res.error.message || res.error)) + '</p>' +
-              '<button class="btn btn-soft" data-back>Back to start</button></div>';
-            card.querySelector('[data-back]').addEventListener('click', function () { HB.navigate('/onboarding'); });
+              '<button class="btn btn-soft" data-retry>Try again</button></div>';
+            card.querySelector('[data-retry]').addEventListener('click', function () { HB.navigate('/onboarding'); });
           }
           return;
         }
+        console.log('[ONBOARDING] signInAnonymously succeeded');
         go();
       }).catch(function (err) {
+        clearTimeout(safetyTimer);
         console.error('[ONBOARDING] signInAnonymously threw:', err);
         if (card && card.parentNode) {
           card.innerHTML = '<div class="connect-center"><p>' + friendly(err) + '</p>' +

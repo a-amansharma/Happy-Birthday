@@ -23,7 +23,7 @@
       console.log('[SUPABASE] Signing in anonymously');
       return HB.db.client().auth.signInAnonymously().then(function (res) {
         if (res.error) {
-          console.error('[SUPABASE] Anonymous sign-in failed:', res.error);
+          console.error('[SUPABASE] Anonymous sign-in error:', JSON.stringify({ code: res.error.code, message: res.error.message, status: res.error.status }));
           return { error: res.error };
         }
         console.log('[SUPABASE] Anonymous sign-in success, user:', res.data.session.user.id.substring(0, 8) + '…');
@@ -31,6 +31,9 @@
         window.HB.authUser = res.data.session.user;
         auth.notify();
         return { user: res.data.session.user, error: null };
+      }).catch(function (err) {
+        console.error('[SUPABASE] signInAnonymously network error:', err);
+        return { error: { message: String(err && err.message || err || 'NETWORK_ERROR'), code: 'NETWORK' } };
       });
     },
 
