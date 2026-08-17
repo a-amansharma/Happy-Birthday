@@ -98,6 +98,8 @@ create policy "profiles delete own" on public.profiles
 -- 4. COUPLE PAIR CHECK — Security Helper
 -- ============================================================
 
+drop policy if exists "messages select own pair" on public.messages;
+drop policy if exists "messages insert own pair" on public.messages;
 drop function if exists public.is_couple_pair(uuid, uuid);
 create function public.is_couple_pair(a uuid, b uuid)
 returns boolean
@@ -112,6 +114,17 @@ as $$
        and b = greatest(me.id, me.partner_id)
   );
 $$;
+
+drop policy if exists "messages select own pair" on public.messages;
+create policy "messages select own pair" on public.messages
+  for select using (public.is_couple_pair(user_a, user_b));
+
+drop policy if exists "messages insert own pair" on public.messages;
+create policy "messages insert own pair" on public.messages
+  for insert with check (
+    sender_id = auth.uid()
+    and public.is_couple_pair(user_a, user_b)
+  );
 
 
 -- ============================================================
