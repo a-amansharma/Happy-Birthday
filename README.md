@@ -49,7 +49,7 @@ admin/                  ← PRIVATE owner insights page (not linked in UI)
 2. **Run the schema.** In the Supabase dashboard → SQL Editor, paste the entire contents of `supabase.sql` and run it. It creates:
    - Tables: `profiles`, `messages`
    - RLS policies (strict two-person access)
-   - RPC functions: `connect_with_partner`, `delete_my_data`, `is_couple_pair`, `admin_get_insights`
+   - RPC functions: `connect_with_partner`, `delete_my_data`, `is_couple_pair`, `my_partner_id`, `admin_get_insights`
    - Realtime publications for `profiles` and `messages`
 
 3. **Enable anonymous sign-ins.** Dashboard → Authentication → Providers → enable "Anonymous sign-ins".

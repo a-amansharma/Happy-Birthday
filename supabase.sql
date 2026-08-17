@@ -10,7 +10,7 @@
 --   public.profiles     — one row per user (pairing, names)
 --   public.messages     — private couple chat
 --   RPC functions       — connect_with_partner, delete_my_data
---   RLS policies        — strict two-person access
+--   RLS policies        — strict two-person access (with recursion-safe helper)
 --   Realtime            — live profile + message streaming
 --
 -- Chat images use base64 data URLs (no storage bucket needed).
@@ -59,6 +59,18 @@ create index if not exists profiles_partner_id_idx
 
 alter table public.profiles enable row level security;
 
+-- Helper: returns current user's partner_id without triggering RLS recursion.
+-- SECURITY DEFINER bypasses row-level security, breaking the infinite loop
+-- that would occur if the "select member" policy read from profiles directly.
+drop function if exists public.my_partner_id();
+create function public.my_partner_id()
+returns uuid
+language sql security definer set search_path = public
+stable
+as $$
+  select partner_id from public.profiles where id = auth.uid();
+$$;
+
 drop policy if exists "profiles select self" on public.profiles;
 create policy "profiles select self" on public.profiles
   for select using (auth.uid() = id);
@@ -66,7 +78,7 @@ create policy "profiles select self" on public.profiles
 drop policy if exists "profiles select member" on public.profiles;
 create policy "profiles select member" on public.profiles
   for select using (
-    id = (select partner_id from public.profiles where id = auth.uid())
+    id = public.my_partner_id()
   );
 
 drop policy if exists "profiles insert own" on public.profiles;
@@ -86,7 +98,8 @@ create policy "profiles delete own" on public.profiles
 -- 4. COUPLE PAIR CHECK — Security Helper
 -- ============================================================
 
-create or replace function public.is_couple_pair(a uuid, b uuid)
+drop function if exists public.is_couple_pair(uuid, uuid);
+create function public.is_couple_pair(a uuid, b uuid)
 returns boolean
 language sql security definer set search_path = public
 stable

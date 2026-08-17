@@ -301,6 +301,7 @@ This single file sets up the **entire database** for the app. It creates:
 | Function | `connect_with_partner(code)` | Pairs two users using a LOVE-XXXXX code |
 | Function | `delete_my_data()` | Erases a user's profile and unlinks partner |
 | Function | `is_couple_pair(a, b)` | Security helper — checks if two UUIDs are a paired couple |
+| Function | `my_partner_id()` | Returns current user's partner_id (security definer, breaks RLS recursion) |
 | Function | `admin_get_insights()` | Returns admin data (owner-only, security definer) |
 | Index | `profiles_pairing_code_uniq` | Fast lookup of pairing codes |
 | Index | `profiles_partner_id_idx` | Fast partner lookups |
@@ -352,8 +353,8 @@ One row per user. This is the core table — everything (pairing, names, connect
 | `last_active` | timestamptz | Last heartbeat timestamp | No (updated periodically) |
 
 **RLS Policies:**
-- `profiles select self` — users can read their own row
-- `profiles select member` — users can read their partner's row
+- `profiles select self` — users can read their own row (`auth.uid() = id`)
+- `profiles select member` — users can read their partner's row (uses `my_partner_id()` security definer function to avoid RLS recursion)
 - `profiles insert own` — users can insert their own row
 - `profiles update own` — users can update their own row
 - `profiles delete own` — users can delete their own row
@@ -591,6 +592,7 @@ In `js/onboarding.js`, the `setupAccount()` function called `signInAnonymously()
 3. **Common causes:**
    - If "relation does not exist" → SQL hasn't been run → run `supabase.sql`
    - If "permission denied" → RLS issue → check policies in Supabase Dashboard
+   - If "infinite recursion detected in policy" → old SQL without `my_partner_id()` function → run the latest `supabase.sql` (the `select member` policy used to read from `profiles` within itself, causing infinite recursion — now fixed with a `security definer` function)
    - If "Anonymous sign-ins are disabled" → enable in Authentication → Providers
    - If network error → check internet connection
    - If "Could not find the function" → SQL functions haven't been created → run `supabase.sql`
@@ -903,3 +905,12 @@ END $$;
 | 17 Aug 2026 | Rewrote memories page — two-column layout (one per person), sticky notes, polaroid cards, responsive modal | `js/memories.js`, `css/styles.css` | None | Better UX for two-person memories |
 | 17 Aug 2026 | Rewrote settings erase — full state reset, localStorage purge, Supabase signout, reload | `js/settings.js` | `delete_my_data` RPC clears profile + unlinks partner | "Erase Everything" now properly resets all state |
 | 17 Aug 2026 | Created `INSTRUCTION_FOR_ADMIN.md` | `INSTRUCTION_FOR_ADMIN.md` (new) | None | Complete admin documentation |
+| 17 Aug 2026 | Fixed infinite recursion in profiles RLS — created `my_partner_id()` security definer function, updated `select member` policy to use it instead of inline subquery | `supabase.sql` | New function `my_partner_id()` added; `profiles select member` policy rewritten | "infinite recursion detected in policy for relation profiles" error — the old policy's subquery read from `profiles` (the same table), causing PostgreSQL to evaluate the policy recursively forever |
+| 17 Aug 2026 | Added comprehensive diagnostic logging to `setupAccount()`, `ensureProfile()`, and `signInAnonymously()` | `js/onboarding.js`, `js/services/relationship.js`, `js/services/auth.js` | None | Shows actual Supabase error in browser console for debugging |
+| 17 Aug 2026 | Added 15-second safety timeout in `setupAccount()` | `js/onboarding.js` | None | Prevents infinite loading if backend hangs |
+| 17 Aug 2026 | Improved `friendly()` error handler — shows hint of actual error | `js/onboarding.js` | None | Users can now report the actual problem |
+| 17 Aug 2026 | Rewrote chat image handling — base64 data URLs | `js/services/chat.js`, `js/couplechat.js`, `js/services/db.js` | `messages.media_path` stores base64 data URLs | No storage bucket needed |
+| 17 Aug 2026 | Removed navigation animation delay, reduced timeouts | `js/core.js`, `index.html`, `js/app.js`, `js/services/net.js` | None | Performance improvement |
+| 17 Aug 2026 | Added navigation lock for waiting state | `js/core.js` | None | Prevents confused navigation |
+| 17 Aug 2026 | Rewrote memories page — two-column layout | `js/memories.js`, `css/styles.css` | None | Better UX |
+| 17 Aug 2026 | Rewrote settings erase — full state reset | `js/settings.js` | `delete_my_data` RPC | Proper erase flow |
