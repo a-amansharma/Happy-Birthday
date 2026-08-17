@@ -62,6 +62,8 @@ alter table public.profiles enable row level security;
 -- Helper: returns current user's partner_id without triggering RLS recursion.
 -- SECURITY DEFINER bypasses row-level security, breaking the infinite loop
 -- that would occur if the "select member" policy read from profiles directly.
+-- NOTE: drop the policy first — it depends on the function.
+drop policy if exists "profiles select member" on public.profiles;
 drop function if exists public.my_partner_id();
 create function public.my_partner_id()
 returns uuid
@@ -75,7 +77,6 @@ drop policy if exists "profiles select self" on public.profiles;
 create policy "profiles select self" on public.profiles
   for select using (auth.uid() = id);
 
-drop policy if exists "profiles select member" on public.profiles;
 create policy "profiles select member" on public.profiles
   for select using (
     id = public.my_partner_id()
