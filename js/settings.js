@@ -323,7 +323,7 @@
       [86, 'Unlinking you two…'],
       [100, 'A fresh start… ✨']
     ];
-    var DURATION = 2800;
+    var DURATION = 2000;
 
     var overlay = document.createElement('div');
     overlay.className = 'erase-overlay';
@@ -405,7 +405,6 @@
 
     console.log('[RESET] All local data cleared, animating…');
 
-    var animDone = false, wipeDone = false;
     var start = Date.now();
 
     function tick() {
@@ -416,23 +415,25 @@
         if (p >= STEPS[i][0]) { subEl.textContent = STEPS[i][1]; break; }
       }
       if (p < 100) { requestAnimationFrame(tick); }
-      else { animDone = true; maybeFinish(); }
+      else { finish(); }
     }
 
-    function maybeFinish() {
-      if (!animDone || !wipeDone) return;
-      console.log('[RESET] Animation done + wipe done → reloading to landing page');
-      /* Force-replace URL to root and reload for a clean start */
+    function finish() {
+      console.log('[RESET] Animation done → reloading to landing page');
       history.replaceState(null, '', HB.base + '/');
-      setTimeout(function () { location.reload(); }, 250);
+      location.reload();
     }
 
-    wipe.then(function () {
-      console.log('[RESET] Wipe complete');
-      wipeDone = true; maybeFinish();
-    }).catch(function (err) {
-      console.error('[RESET] Wipe error (continuing):', err);
-      wipeDone = true; maybeFinish();
+    /* Safety: force-reload after 3s no matter what (Supabase wipe may hang) */
+    setTimeout(function () {
+      console.log('[RESET] Safety timeout → force reload');
+      history.replaceState(null, '', HB.base + '/');
+      location.reload();
+    }, 3000);
+
+    /* Let Supabase wipe run in background — don't block the reload */
+    wipe.catch(function (err) {
+      console.error('[RESET] Background wipe error (non-blocking):', err);
     });
 
     requestAnimationFrame(tick);
