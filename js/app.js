@@ -15,6 +15,7 @@
     if (wiredChat) return;
     if (HB.rel.data.status !== 'connected') return;
     wiredChat = true;
+    console.log('[CONNECTION] Wiring couple chat + presence (status: connected)');
     if (HB.chat) {
       HB.chat.onChange = function () {
         HB.setUnread('/chat', HB.chat.unreadCount());
@@ -30,6 +31,7 @@
   function initBackend() {
     if (backendReady || !HB.db || !HB.db.configured()) return;
     backendReady = true;
+    console.log('[SUPABASE] Backend initialized');
 
     window.addEventListener('hb:relchange', function () { wireChat(); });
     window.addEventListener('online', function () {
@@ -39,7 +41,12 @@
       if (HB.auth && HB.auth.user()) HB.toast('You\'re offline — messages will send when you\'re back ♡', '🌙');
     });
 
-    HB.rel.init().then(function () { wireChat(); });
+    HB.rel.init().then(function () {
+      console.log('[SUPABASE] Relationship status:', HB.rel.data.status);
+      wireChat();
+    }).catch(function (err) {
+      console.error('[SUPABASE] Relationship init failed:', err);
+    });
   }
 
   /* From the landing page: after signing in / pairing, open the world.
@@ -58,6 +65,7 @@
   HB.onReady = initBackend;
 
   function boot() {
+    console.log('[BOOT] Initializing little world…');
     // Connection bar (needs the DOM, so boot-time)
     if (HB.net && HB.net.init) HB.net.init();
 
@@ -88,7 +96,10 @@
 
     HB.boot();
 
-    if (HB.chars && HB.chars.cornerStart) HB.chars.cornerStart();
+    if (HB.chars && HB.chars.cornerStart) {
+      console.log('[DOODLE] Starting doodle system');
+      HB.chars.cornerStart();
+    }
 
     // Welcome micro-interaction
     if (!HB.state.onboarded) {
@@ -96,6 +107,7 @@
         HB.toast('Welcome to your little world ♡', '🐻');
       }, 900);
     }
+    console.log('[BOOT] Boot complete');
   }
 
   if (document.readyState === 'loading') {

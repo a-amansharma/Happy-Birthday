@@ -20,8 +20,13 @@
        identity, and LOVE- codes pair two phones into one relationship. */
     signInAnonymously: function () {
       if (!HB.db.configured()) return Promise.resolve({ error: { message: 'NOT_CONFIGURED' } });
+      console.log('[SUPABASE] Signing in anonymously');
       return HB.db.client().auth.signInAnonymously().then(function (res) {
-        if (res.error) return { error: res.error };
+        if (res.error) {
+          console.error('[SUPABASE] Anonymous sign-in failed:', res.error);
+          return { error: res.error };
+        }
+        console.log('[SUPABASE] Anonymous sign-in success, user:', res.data.session.user.id.substring(0, 8) + '…');
         window.HB.authSession = res.data.session;
         window.HB.authUser = res.data.session.user;
         auth.notify();
@@ -31,7 +36,9 @@
 
     signOut: function () {
       if (!HB.db.configured()) return Promise.resolve();
+      console.log('[SUPABASE] Signing out');
       return HB.db.client().auth.signOut().then(function () {
+        console.log('[SUPABASE] Sign-out complete');
         window.HB.authSession = null;
         window.HB.authUser = null;
         auth.notify();

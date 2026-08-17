@@ -11,6 +11,7 @@
   var relWired = false;
 
   HB.route('/settings', function (main) {
+    console.log('[NAVIGATION] Settings page opened');
     // Settings is always reachable — even before pairing or onboarding.
     backend = !!(window.HB && HB.db && HB.db.configured());
     connected = HB.rel.data.status === 'connected';
@@ -310,6 +311,8 @@
      pair on the cloud, then show a 0→100% "deleting…" popup and land on
      the fresh-start page (where it asks for details or a partner code). */
   function runEraseAll() {
+    console.log('[RESET] Erase all data initiated');
+
     var STEPS = [
       [0, 'Deleting memories…'],
       [14, 'Deleting love notes…'],
@@ -342,9 +345,65 @@
     var pctEl = overlay.querySelector('.erase-pct');
     var fillEl = overlay.querySelector('.erase-fill');
 
-    /* Wipe the device + cloud in parallel while the popup plays. */
-    localStorage.removeItem('ourLittleWorld_v1');
+    /* Step 1: Clear app state from localStorage */
+    console.log('[RESET] Clearing localStorage (app state)');
+    try {
+      localStorage.removeItem('ourLittleWorld_v1');
+    } catch (e) {
+      console.error('[RESET] Failed to clear app localStorage:', e);
+    }
+
+    /* Step 2: Leave/delete from Supabase cloud + sign out from auth */
     var wipe = (HB.rel && HB.rel.leave) ? HB.rel.leave() : Promise.resolve();
+
+    /* Also ensure Supabase auth session is fully cleared */
+    wipe = wipe.then(function () {
+      console.log('[RESET] Supabase leave done, signing out…');
+      if (HB.auth && HB.auth.signOut) {
+        return HB.auth.signOut();
+      }
+      return Promise.resolve();
+    }).then(function () {
+      console.log('[RESET] Auth signed out successfully');
+    }).catch(function (err) {
+      console.error('[RESET] Auth sign-out error:', err);
+      /* Continue even if sign-out fails — localStorage is already cleared */
+    });
+
+    /* Step 3: Also clear Supabase's own auth tokens from localStorage */
+    try {
+      var keysToRemove = [];
+      for (var i = 0; i < localStorage.length; i++) {
+        var key = localStorage.key(i);
+        if (key && key.indexOf('sb-') === 0) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(function (k) {
+        console.log('[RESET] Removing Supabase key:', k);
+        localStorage.removeItem(k);
+      });
+    } catch (e) {
+      console.error('[RESET] Failed to clear Supabase keys:', e);
+    }
+
+    /* Step 4: Clear session storage too */
+    try {
+      sessionStorage.clear();
+      console.log('[RESET] Session storage cleared');
+    } catch (e) {
+      console.error('[RESET] Failed to clear session storage:', e);
+    }
+
+    /* Step 5: Stop presence/chat if active */
+    if (HB.presence && HB.presence.stop) {
+      try { HB.presence.stop(); } catch (e) {}
+    }
+    if (HB.db && HB.db.clearSubscriptions) {
+      try { HB.db.clearSubscriptions(); } catch (e) {}
+    }
+
+    console.log('[RESET] All local data cleared, animating…');
 
     var animDone = false, wipeDone = false;
     var start = Date.now();
@@ -362,12 +421,19 @@
 
     function maybeFinish() {
       if (!animDone || !wipeDone) return;
+      console.log('[RESET] Animation done + wipe done → reloading to landing page');
+      /* Force-replace URL to root and reload for a clean start */
       history.replaceState(null, '', HB.base + '/');
       setTimeout(function () { location.reload(); }, 250);
     }
 
-    wipe.then(function () { wipeDone = true; maybeFinish(); })
-         .catch(function () { wipeDone = true; maybeFinish(); });
+    wipe.then(function () {
+      console.log('[RESET] Wipe complete');
+      wipeDone = true; maybeFinish();
+    }).catch(function (err) {
+      console.error('[RESET] Wipe error (continuing):', err);
+      wipeDone = true; maybeFinish();
+    });
 
     requestAnimationFrame(tick);
   }

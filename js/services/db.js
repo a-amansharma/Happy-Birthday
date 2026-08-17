@@ -40,6 +40,8 @@
       var channel = client.channel('hb:' + key);
       var s = { channel: channel, key: key, handler: handler };
 
+      console.log('[SUPABASE] Subscribing to realtime:', opts.table, opts.event || '*', opts.filter || '');
+
       channel
         .on('postgres_changes', {
           event: opts.event || '*',
@@ -47,10 +49,13 @@
           table: opts.table,
           filter: opts.filter
         }, function (payload) {
-          try { handler(payload); } catch (e) { console.error('[HB] realtime handler error', e); }
+          try { handler(payload); } catch (e) { console.error('[SUPABASE] Realtime handler error:', e); }
         })
         .subscribe(function (status) {
-          if (status === 'SUBSCRIBED' && opts.onSubscribed) opts.onSubscribed();
+          if (status === 'SUBSCRIBED') {
+            console.log('[SUPABASE] Realtime subscribed:', opts.table);
+            if (opts.onSubscribed) opts.onSubscribed();
+          }
         });
 
       subscriptions[key] = s;
@@ -60,12 +65,17 @@
     unsubscribe: function (key) {
       var s = subscriptions[key];
       if (s) {
-        try { db.client().removeChannel(s.channel); } catch (e) {}
+        try {
+          console.log('[SUPABASE] Unsubscribing:', key);
+          db.client().removeChannel(s.channel);
+        } catch (e) {}
         delete subscriptions[key];
       }
     },
 
     clearSubscriptions: function () {
+      var count = Object.keys(subscriptions).length;
+      if (count > 0) console.log('[SUPABASE] Clearing', count, 'subscriptions');
       Object.keys(subscriptions).forEach(function (k) { db.unsubscribe(k); });
     },
 
@@ -85,7 +95,10 @@
     return db.client().storage.from('relationship-media')
       .createSignedUrl(path, expiresIn)
       .then(function (res) {
-        if (res.error) throw res.error;
+        if (res.error) {
+          console.error('[SUPABASE] Signed URL error:', res.error);
+          throw res.error;
+        }
         signedUrlCache[path] = { url: res.signedUrl, until: Date.now() + (expiresIn - 60) * 1000 };
         return res.signedUrl;
       });

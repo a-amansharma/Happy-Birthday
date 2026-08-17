@@ -116,6 +116,13 @@
       .catch(function (err) {
         data.error = String(err.message || err);
         data.status = 'error';
+        console.error('[SUPABASE] Relationship init error:', {
+          error: String(err.message || err),
+          code: String(err.code || ''),
+          time: new Date().toISOString(),
+          operation: 'relationship.init',
+          suggestion: 'Check Supabase connection, RLS policies, and profiles table schema.'
+        });
         /* schema not deployed yet → tell the owner what to do, once */
         if (HB._schemaNotice) return;
         var msg = String(err.message || err) + ' ' + String(err.code || '');
@@ -197,20 +204,34 @@
       if (!HB.db.configured()) return Promise.resolve({ error: { message: 'NOT_CONFIGURED' } });
       if (!code || !code.trim()) return Promise.resolve({ error: { message: 'INVALID_CODE' } });
       data.busy = true;
+      console.log('[SUPABASE] Connecting with code:', code.substring(0, 5) + '…');
       return HB.db.client().rpc('connect_with_partner', { code: code }).then(function (res) {
         if (res.error) {
           var msg = String(res.error.message || res.error);
+          console.error('[SUPABASE] Pairing RPC error:', {
+            error: msg,
+            code: String(res.error.code || ''),
+            time: new Date().toISOString(),
+            operation: 'connect_with_partner',
+            input: code.substring(0, 5) + '…'
+          });
           if (/Could not find the function|PGRST202/.test(msg) && !HB._rpcNotice) {
             HB._rpcNotice = true;
             if (HB.toast) HB.toast('Run the pairing SQL first — supabase/schema.sql in Supabase → SQL Editor ♡', '⚠️');
           }
           return { error: { message: 'RPC:' + (HB.db.rpcError(res.error) || msg) } };
         }
+        console.log('[SUPABASE] Pairing successful');
         /* force a fresh fetch — the RPC just changed the database */
         return rel.init(true).then(function () {
           return { partner_id: data.me ? data.me.partner_id : null, status: data.status, error: null };
         });
       }).catch(function (err) {
+        console.error('[SUPABASE] Pairing RPC network error:', {
+          error: String(err.message || err),
+          time: new Date().toISOString(),
+          operation: 'connect_with_partner'
+        });
         return { error: { message: 'RPC:' + String(err.message || err) } };
       }).then(function (out) { data.busy = false; return out; });
     },
@@ -243,13 +264,16 @@
     leave: function () {
       var user = HB.auth.user();
       if (!HB.db.configured() || !user) return Promise.resolve();
+      console.log('[SUPABASE] Leaving/deleting user data');
       return HB.db.client().rpc('delete_my_data')
-        .catch(function () {
+        .catch(function (err) {
+          console.warn('[SUPABASE] delete_my_data RPC failed, falling back to profile update:', err);
           return HB.db.client().from('profiles')
             .update({ partner_id: null, pairing_code: null, partner_code: null, name: '' })
             .eq('id', user.id).then(function () {});
         })
         .then(function () {
+          console.log('[SUPABASE] Data deleted, signing out');
           stopWaitingWatch();
           if (HB.auth) return HB.auth.signOut();
         });

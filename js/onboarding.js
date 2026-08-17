@@ -51,6 +51,7 @@
   }
 
   HB.route('/onboarding', function (main) {
+    console.log('[NAVIGATION] Onboarding opened');
     var backend = !!(window.HB && HB.db && HB.db.configured());
 
     /* Safety net: if we arrived here holding a pairing code (and already
@@ -59,6 +60,7 @@
     if (backend && HB.pendingCode && HB.auth.user()) {
       var pending = HB.pendingCode;
       HB.pendingCode = null;
+      console.log('[ONBOARDING] Pending pairing code found, pairing immediately');
       main.innerHTML = '<div class="page"><div class="connect-center"><h3>Pairing you two…</h3>' +
         '<div class="typing"><i></i><i></i><i></i></div></div></div>';
       HB.rel.connectWithCode(pending).then(function (out) {
@@ -267,6 +269,7 @@
     }
 
     function finalize() {
+      console.log('[ONBOARDING] Finalizing wizard data');
       Object.assign(HB.state.profile, draft);
       HB.state.onboarded = true;
       HB.save();
@@ -277,6 +280,7 @@
       HB.save();
 
       if (!backend) {
+        console.log('[ONBOARDING] No backend, saving locally only');
         celebrate();
         setTimeout(function () { HB.navigate('/home'); }, 600);
         return;
@@ -290,6 +294,7 @@
     }
 
     function setupAccount() {
+      console.log('[ONBOARDING] Setting up account');
       var card = main.querySelector('.wizard-card');
       var actions = main.querySelector('.wizard-actions');
       var progress = main.querySelector('.progress');

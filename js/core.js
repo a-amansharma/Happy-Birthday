@@ -169,6 +169,9 @@
   HB.route = function (path, render) { routes[path] = render; };
 
   HB.navigate = function (path, opts) {
+    if (window.APP_CONFIG && window.APP_CONFIG.DEBUG) {
+      console.log('[NAVIGATION] navigate:', path, '(current:', HB.currentPath() + ')');
+    }
     if (HB.currentPath() === path) {
       render();
     } else {
@@ -185,7 +188,7 @@
     try {
       routes[path](main);
     } catch (e) {
-      if (window.console) console.error('route render error:', path, e);
+      if (window.console) console.error('[NAVIGATION] route render error:', path, e);
       var detail = 'Something unexpected happened on this screen.';
       if (e && e.message) {
         detail = String(e.message).replace(/^Error: /, '');
@@ -199,12 +202,18 @@
     window.scrollTo(0, 0);
     main.classList.remove('bb-leave');
     main.classList.add('bb-enter');
+    if (window.APP_CONFIG && window.APP_CONFIG.DEBUG) {
+      console.log('[NAVIGATION] Painted route:', path);
+    }
   }
 
   function render() {
     var path = HB.currentPath();
     if (!routes[path]) path = '/';
     current = path;
+    if (window.APP_CONFIG && window.APP_CONFIG.DEBUG) {
+      console.log('[NAVIGATION] render() → current:', current);
+    }
     var main = document.getElementById('main');
     if (!main) return;
     var reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -236,6 +245,15 @@
       { path: '/partner', icon: HB.icon('sparkle'), label: 'Partner' },
       { path: '/settings', icon: HB.icon('gear'), label: 'Settings' }
     ];
+
+    /* Determine which nav path is active. We match the current route
+       against each nav item's path. For the root "/" we also accept
+       "/home" as equivalent. */
+    var activePath = current;
+    if (activePath === '/home') activePath = '/';
+    /* Also handle "/more" on mobile — no single sidebar item for it */
+    if (activePath === '/more') activePath = null;
+
     var sb = document.getElementById('sidebar');
     var bn = document.getElementById('bottom-nav');
 
@@ -243,7 +261,7 @@
       '<div><div class="logo-text">Our Little World</div><div class="logo-sub">' + HB.esc(HB.couple()) + '</div></div></div>';
 
     var items = navItems.map(function (n) {
-      var active = current === n.path ? ' active' : '';
+      var active = activePath === n.path ? ' active' : '';
       var badge = n.badge
         ? '<i class="nav-badge' + ((HB.unreadCounts[n.badge] || 0) > 0 ? ' show' : '') + '" data-badge="' + n.badge + '">' + HB.badgeText(n.badge) + '</i>'
         : '';
@@ -256,7 +274,7 @@
     sb.innerHTML = logo + items + footer;
 
     function bnItemHtml(n, path) {
-      var active = current === path ? ' active' : '';
+      var active = activePath === path ? ' active' : '';
       var badge = n.badge
         ? '<i class="nav-badge' + ((HB.unreadCounts[n.badge] || 0) > 0 ? ' show' : '') + '" data-badge="' + n.badge + '">' + HB.badgeText(n.badge) + '</i>'
         : '';
@@ -278,6 +296,10 @@
 
     document.body.className = document.body.className.replace(/theme-[a-z]+/, '').trim();
     document.body.classList.add('theme-' + (HB.state.profile.theme || 'milk'));
+
+    if (window.APP_CONFIG && window.APP_CONFIG.DEBUG) {
+      console.log('[NAVIGATION] updateNav → activePath:', activePath, 'current:', current);
+    }
   };
 
   /* Unread badges (used by realtime couple chat) */

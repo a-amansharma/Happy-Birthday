@@ -6,6 +6,7 @@
   var HB = window.HB = window.HB || {};
 
   HB.route('/', function (main) {
+    console.log('[NAVIGATION] Landing page opened (onboarded:', HB.state.onboarded, ', authed:', !!(window.HB && HB.auth && HB.auth.user()), ')');
     // If already onboarded, show the personalized dashboard instead
     if (HB.state.onboarded) {
       if (HB.renderHome) { HB.renderHome(main); return; }
@@ -13,7 +14,12 @@
       return;
     }
 
-    var authed = window.HB && HB.auth && HB.auth.user();
+    /* After a reset/fresh start: HB.state.onboarded is false.
+       Even if Supabase auth tokens linger briefly, we must NOT show
+       the "Signed in as you" / "Open your world" flow. The user
+       should always see the fresh start landing page. */
+
+    var authed = window.HB && HB.auth && HB.auth.user() && HB.state.onboarded;
 
     var status = authed
       ? '<div class="landing-account"><span class="landing-avatar">' + HB.chars.avatarImg('dudu', 'cute', 'landing-avatar') + '</span>' +
@@ -124,9 +130,11 @@
 
     HB.auth.signInAnonymously().then(function (res) {
       if (res && res.error) {
+        console.error('[SUPABASE] Anonymous sign-in failed during pairing:', res.error);
         err && (err.textContent = 'Couldn\'t create your little identity. Try again? ♡');
         return;
       }
+      console.log('[SUPABASE] Anonymous sign-in successful, initializing relationship');
       return HB.rel.init().then(function () {
         var me = HB.rel.data.me;
 

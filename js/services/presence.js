@@ -41,6 +41,7 @@
       myName = (HB.rel.data.me && HB.rel.data.me.name) || 'you';
 
       var pairKey = [me.id, partnerId].sort().join('_');
+      console.log('[PRESENCE] Starting presence channel for pair:', pairKey.substring(0, 12) + '…');
       channel = HB.db.client().channel('couple:' + pairKey);
 
       channel.on('presence', { event: 'sync' }, function () {
@@ -63,7 +64,10 @@
       });
 
       channel.subscribe(function (status) {
-        if (status === 'SUBSCRIBED') track();
+        if (status === 'SUBSCRIBED') {
+          console.log('[PRESENCE] Channel subscribed');
+          track();
+        }
       });
 
       /* untrack when hidden so we never fake presence */
@@ -87,6 +91,7 @@
 
     stop: function () {
       if (channel) {
+        console.log('[PRESENCE] Stopping presence channel');
         try { HB.db.client().removeChannel(channel); } catch (e) {}
         channel = null;
       }
