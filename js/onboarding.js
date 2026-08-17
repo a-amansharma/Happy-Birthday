@@ -312,43 +312,51 @@
 
       var run = function () {
         console.log('[ONBOARDING] Starting account setup…');
-        HB.rel.ensureProfile({
-          name: draft.name,
-          age: draft.age
-        }).then(function (res) {
-          console.log('[ONBOARDING] ensureProfile resolved:', res && res.error ? 'error: ' + res.error.message : 'ok');
-          if (res && res.error) {
-            throw new Error(res.error.message || 'PROFILE_FAILED');
-          }
-          console.log('[ONBOARDING] Calling init(true)…');
-          return HB.rel.init(true).then(function () {
-            console.log('[ONBOARDING] init resolved, status:', HB.rel.data.status);
-            if (HB.pendingCode) {
-              var pending = HB.pendingCode;
-              HB.pendingCode = null;
-              return HB.rel.connectWithCode(pending).then(function (out) {
-                if (out && out.error) throw new Error(out.error.message || 'CONNECT_FAILED');
+        try {
+          HB.rel.ensureProfile({
+            name: draft.name,
+            age: draft.age
+          }).then(function (res) {
+            console.log('[ONBOARDING] ensureProfile resolved:', res && res.error ? 'error: ' + res.error.message : 'ok');
+            if (res && res.error) {
+              throw new Error(res.error.message || 'PROFILE_FAILED');
+            }
+            console.log('[ONBOARDING] Calling init(true)…');
+            return HB.rel.init(true).then(function () {
+              console.log('[ONBOARDING] init resolved, status:', HB.rel.data.status);
+              if (HB.pendingCode) {
+                var pending = HB.pendingCode;
+                HB.pendingCode = null;
+                return HB.rel.connectWithCode(pending).then(function (out) {
+                  if (out && out.error) throw new Error(out.error.message || 'CONNECT_FAILED');
+                  celebrate();
+                  setTimeout(function () { HB.navigate('/home'); }, 600);
+                });
+              }
+              if (HB.rel.data.status === 'connected') {
                 celebrate();
                 setTimeout(function () { HB.navigate('/home'); }, 600);
-              });
-            }
-            if (HB.rel.data.status === 'connected') {
-              celebrate();
-              setTimeout(function () { HB.navigate('/home'); }, 600);
-            } else {
-              /* Wizard is done — redirect to landing which will show the
-                 waiting screen with the pairing code. */
-              celebrate();
-              setTimeout(function () { HB.navigate('/'); }, 600);
-            }
+              } else {
+                /* Wizard is done — redirect to landing which will show the
+                   waiting screen with the pairing code. */
+                celebrate();
+                setTimeout(function () { HB.navigate('/'); }, 600);
+              }
+            });
+          }).catch(function (err) {
+            console.error('[ONBOARDING] Setup account failed:', err && err.message, err);
+            var msg = friendly(err);
+            card.innerHTML = '<div class="connect-center"><p>' + msg + '</p>' +
+              '<button class="btn btn-soft" data-retry>Try again</button></div>';
+            card.querySelector('[data-retry]').addEventListener('click', run);
           });
-        }).catch(function (err) {
-          console.error('[ONBOARDING] Setup account failed:', err && err.message, err);
-          var msg = friendly(err);
+        } catch (syncErr) {
+          console.error('[ONBOARDING] Synchronous error in setup:', syncErr);
+          var msg = friendly(syncErr);
           card.innerHTML = '<div class="connect-center"><p>' + msg + '</p>' +
             '<button class="btn btn-soft" data-retry>Try again</button></div>';
           card.querySelector('[data-retry]').addEventListener('click', run);
-        });
+        }
       };
 
       var go = function () {

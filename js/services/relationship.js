@@ -86,57 +86,64 @@
       return Promise.resolve();
     }
 
-    return HB.db.client()
-      .from('profiles').select('*').eq('id', user.id).maybeSingle()
-      .then(function (res) {
-        if (res.error) throw res.error;
-        if (!res.data) {
-          stopWaitingWatch();
-          data.status = 'not-connected';
-          return;
-        }
+    try {
+      var client = HB.db.client();
+      if (!client) { data.status = 'unconfigured'; return Promise.resolve(); }
+      return client
+        .from('profiles').select('*').eq('id', user.id).maybeSingle()
+        .then(function (res) {
+          if (res.error) throw res.error;
+          if (!res.data) {
+            stopWaitingWatch();
+            data.status = 'not-connected';
+            return;
+          }
 
-        data.me = res.data;
-        rel.touch();
-        if (data.me.partner_id) {
-          /* fetch my partner (RLS lets each person read their partner's row) */
-          return HB.db.client()
-            .from('profiles').select('*').eq('id', data.me.partner_id).maybeSingle()
-            .then(function (pRes) {
-              data.partner = (pRes && !pRes.error && pRes.data) ? pRes.data : null;
-              stopWaitingWatch();
-              data.status = 'connected';
-              rel.hydrate();
-              rel.subscribeRealtime();
-            });
-        }
+          data.me = res.data;
+          rel.touch();
+          if (data.me.partner_id) {
+            return client
+              .from('profiles').select('*').eq('id', data.me.partner_id).maybeSingle()
+              .then(function (pRes) {
+                data.partner = (pRes && !pRes.error && pRes.data) ? pRes.data : null;
+                stopWaitingWatch();
+                data.status = 'connected';
+                rel.hydrate();
+                rel.subscribeRealtime();
+              });
+          }
 
-        data.partner = null;
-        data.status = 'waiting';
-        rel.hydrate();
-        startWaitingWatch();
-      })
-      .catch(function (err) {
-        data.error = String(err.message || err);
-        data.status = 'error';
-        var errDetail = {
-          error: String(err.message || err),
-          code: String(err.code || ''),
-          time: new Date().toISOString(),
-          operation: 'relationship.init',
-          file: 'js/services/relationship.js:doInit',
-          suggestion: 'Check Supabase connection, RLS policies, and profiles table schema.'
-        };
-        console.error('[SUPABASE] Relationship init error:', errDetail);
-        /* schema not deployed yet → tell the owner what to do, once */
-        if (HB._schemaNotice) return;
-        var msg = String(err.message || err) + ' ' + String(err.code || '');
-        if (/PGRST205|42P01|42703|Could not find|does not exist/.test(msg)) {
-          HB._schemaNotice = true;
-          data.status = 'unconfigured';
-          if (HB.toast) HB.toast('Database isn\'t ready — run supabase.sql in Supabase SQL Editor, then reload ♡', '⚠️');
-        }
-      });
+          data.partner = null;
+          data.status = 'waiting';
+          rel.hydrate();
+          startWaitingWatch();
+        })
+        .catch(function (err) {
+          data.error = String(err.message || err);
+          data.status = 'error';
+          var errDetail = {
+            error: String(err.message || err),
+            code: String(err.code || ''),
+            time: new Date().toISOString(),
+            operation: 'relationship.init',
+            file: 'js/services/relationship.js:doInit',
+            suggestion: 'Check Supabase connection, RLS policies, and profiles table schema.'
+          };
+          console.error('[SUPABASE] Relationship init error:', errDetail);
+          if (HB._schemaNotice) return;
+          var msg = String(err.message || err) + ' ' + String(err.code || '');
+          if (/PGRST205|42P01|42703|Could not find|does not exist/.test(msg)) {
+            HB._schemaNotice = true;
+            data.status = 'unconfigured';
+            if (HB.toast) HB.toast('Database isn\'t ready — run supabase.sql in Supabase SQL Editor, then reload ♡', '⚠️');
+          }
+        });
+    } catch (e) {
+      console.error('[SUPABASE] Synchronous error in doInit:', e);
+      data.error = String(e.message || e);
+      data.status = 'error';
+      return Promise.resolve();
+    }
   }
 
   /* Hook fired by the auth service after any session change: re-check
@@ -189,17 +196,26 @@
 
       var keep = (data.me && data.me.pairing_code) ? data.me.pairing_code : null;
       var attempt = function (code) {
-        var row = { id: user.id, name: fields.name || '' };
-        if (fields.age !== undefined && fields.age !== '') row.age = Number(fields.age);
-        row.pairing_code = code;
-        return HB.db.client().from('profiles').upsert(row).then(function (res) {
-          if (res.error) {
-            if (res.error.code === '23505') return attempt(generateCode()); // pairing_code collision → retry
-            throw res.error;
-          }
-          if (data.me) data.me.pairing_code = code;
-          return res;
-        });
+        try {
+          var row = { id: user.id, name: fields.name || '' };
+          if (fields.age !== undefined && fields.age !== '') row.age = Number(fields.age);
+          row.pairing_code = code;
+          var client = HB.db.client();
+          if (!client) return Promise.resolve({ error: { message: 'NOT_CONFIGURED' } });
+          return client.from('profiles').upsert(row).then(function (res) {
+            if (res.error) {
+              console.error('[PROFILE] Upsert error:', res.error.code, res.error.message);
+              if (res.error.code === '23505') return attempt(generateCode());
+              throw res.error;
+            }
+            console.log('[PROFILE] Profile created/updated successfully');
+            if (data.me) data.me.pairing_code = code;
+            return res;
+          });
+        } catch (e) {
+          console.error('[PROFILE] Synchronous error in ensureProfile:', e);
+          return Promise.reject(e);
+        }
       };
       return attempt(fields.pairing_code || keep || generateCode());
     },
