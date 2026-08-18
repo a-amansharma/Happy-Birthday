@@ -179,6 +179,7 @@
 
     err && (err.textContent = 'Pairing you two…');
     var finish = function (out) {
+      console.log('[PAIRING] connectWithCode result:', JSON.stringify(out));
       if (out && out.error) {
         var msg = String(out.error.message || '');
         var hint = msg.indexOf('INVALID') !== -1 ? 'That code didn\'t match — double-check it? ♡'
@@ -207,7 +208,7 @@
         err && (err.textContent = 'Couldn\'t create your little identity. Try again? ♡');
         return;
       }
-      console.log('[PAIRING] Anonymous sign-in successful');
+      console.log('[PAIRING] Anonymous sign-in successful, user:', res.user ? res.user.id.substring(0, 8) + '...' : 'none');
       return HB.rel.init().then(function () {
         var me = HB.rel.data.me;
 

@@ -240,9 +240,10 @@
       if (!HB.db.configured()) return Promise.resolve({ error: { message: 'NOT_CONFIGURED' } });
       if (!code || !code.trim()) return Promise.resolve({ error: { message: 'INVALID_CODE' } });
       data.busy = true;
-      console.log('[PAIRING] Connecting with code:', code.substring(0, 9) + '…');
-      return HB.db.client().rpc('connect_with_partner', { code: code }).then(function (res) {
-        if (res.error) {
+        console.log('[PAIRING] Connecting with code:', code.substring(0, 9) + '…');
+        return HB.db.client().rpc('connect_with_partner', { code: code }).then(function (res) {
+          console.log('[PAIRING] RPC raw response:', JSON.stringify({ data: res.data, error: res.error }));
+          if (res.error) {
           var msg = String(res.error.message || res.error);
           var errDetail = {
             error: msg,
