@@ -22,26 +22,25 @@
 --    MUST run this FIRST to remove old broken policies
 -- ============================================================
 
--- Drop all policies on profiles first (order matters!)
+-- Drop ALL policies first (dependents before functions)
 drop policy if exists "profiles select member" on public.profiles;
 drop policy if exists "profiles select self" on public.profiles;
 drop policy if exists "profiles insert own" on public.profiles;
 drop policy if exists "profiles update own" on public.profiles;
 drop policy if exists "profiles delete own" on public.profiles;
 
--- Drop the recursion-safe helper functions
+drop policy if exists "messages select own pair" on public.messages;
+drop policy if exists "messages insert own pair" on public.messages;
+drop policy if exists "messages delete own" on public.messages;
+
+-- Now safe to drop functions (no dependents left)
 drop function if exists public.my_partner_id();
 drop function if exists public.is_couple_pair(uuid, uuid);
 drop function if exists public.connect_with_partner(text);
 drop function if exists public.delete_my_data();
 drop function if exists public.admin_get_insights();
 
--- Drop message policies
-drop policy if exists "messages select own pair" on public.messages;
-drop policy if exists "messages insert own pair" on public.messages;
-drop policy if exists "messages delete own" on public.messages;
-
--- Disable RLS temporarily to allow clean drops
+-- Disable RLS temporarily
 alter table public.profiles disable row level security;
 alter table public.messages disable row level security;
 
