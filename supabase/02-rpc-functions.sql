@@ -4,7 +4,6 @@
 -- delete_my_data — erase everything for current user
 -- ============================================================
 
--- Drop old versions first
 drop function if exists public.connect_with_partner(text);
 drop function if exists public.delete_my_data();
 

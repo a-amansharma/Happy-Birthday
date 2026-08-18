@@ -1,6 +1,6 @@
 -- ============================================================
 -- OUR LITTLE WORLD — ONE SHOT SETUP
--- Run this entire file in Supabase SQL Editor (not psql)
+-- Run this entire file in Supabase SQL Editor
 -- Safe to re-run (all statements are idempotent)
 -- ============================================================
 
@@ -14,13 +14,28 @@ drop policy if exists "profiles select member" on public.profiles;
 drop policy if exists "profiles insert own" on public.profiles;
 drop policy if exists "profiles update own" on public.profiles;
 drop policy if exists "profiles delete own" on public.profiles;
+drop policy if exists "Paired partners can read each other's profiles" on public.profiles;
+drop policy if exists "Users can view own profile" on public.profiles;
+drop policy if exists "Users can create own profile" on public.profiles;
+drop policy if exists "Users can update own profile" on public.profiles;
 
 drop policy if exists "messages select own pair" on public.messages;
 drop policy if exists "messages insert own pair" on public.messages;
 drop policy if exists "messages delete own" on public.messages;
 
+drop policy if exists "activity select own" on public.activity;
+drop policy if exists "activity insert own" on public.activity;
+drop policy if exists "Users can view own activity" on public.activity;
+drop policy if exists "Users can create own activity" on public.activity;
+
 drop function if exists public.my_partner_id();
 drop function if exists public.is_couple_pair(uuid, uuid);
+
+drop policy if exists "relationship-media select pair" on storage.objects;
+drop policy if exists "relationship-media insert pair" on storage.objects;
+drop policy if exists "relationship-media update pair" on storage.objects;
+drop policy if exists "relationship-media delete pair" on storage.objects;
+drop function if exists storage.storage_pair_ok(text);
 
 create function public.my_partner_id()
 returns uuid
@@ -75,18 +90,11 @@ create policy "messages insert own pair" on public.messages
 create policy "messages delete own" on public.messages
   for delete using (sender_id = auth.uid());
 
-
--- ============================================================
--- STEP 1: ACTIVITY TABLE RLS
--- ============================================================
-
 alter table public.activity enable row level security;
 
-drop policy if exists "activity select own" on public.activity;
 create policy "activity select own" on public.activity
   for select using (auth.uid() = user_id);
 
-drop policy if exists "activity insert own" on public.activity;
 create policy "activity insert own" on public.activity
   for insert with check (auth.uid() = user_id);
 
@@ -191,4 +199,13 @@ end $$;
 
 grant execute on function public.delete_my_data() to authenticated;
 
-select 'ALL DONE — Recursion fixed, RLS enabled, RPC functions created' as status;
+-- ============================================================
+-- VERIFY: Show policies after fix
+-- ============================================================
+
+select tablename, policyname, cmd
+from pg_policies
+where schemaname = 'public' and tablename in ('profiles', 'messages', 'activity')
+order by tablename, policyname;
+
+select 'ALL DONE — Recursion fixed' as status;
