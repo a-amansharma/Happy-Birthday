@@ -243,12 +243,9 @@ drop policy if exists "Users can view own profile" on public.profiles;
 drop policy if exists "Users can create own profile" on public.profiles;
 drop policy if exists "Users can update own profile" on public.profiles;
 
-drop policy if exists "messages select own pair" on public.messages;
-drop policy if exists "messages insert own pair" on public.messages;
-drop policy if exists "messages delete own" on public.messages;
-
-drop policy if exists "activity select own" on public.activity;
-drop policy if exists "activity insert own" on public.activity;
+/* Old messages + activity tables are dropped in section 1, which removes
+   their policies — no explicit policy drops needed here (and DROP POLICY on
+   an already-dropped table would 42P01). */
 
 drop policy if exists "relationship-media select pair" on storage.objects;
 drop policy if exists "relationship-media insert pair" on storage.objects;
