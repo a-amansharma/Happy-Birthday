@@ -202,13 +202,15 @@
       if (res && res.error) {
         var msg = String(res.error.message || '');
         var low = msg.toLowerCase();
+        var rawCode = String(res.error.code || res.error.raw || '');
         var hint = msg.indexOf('INVALID') !== -1 ? 'That code didn\'t match — double-check it? ♡'
           : msg.indexOf('CODE_USED') !== -1 ? 'That code has already been used — ask them for a fresh one ♡'
           : msg.indexOf('SELF') !== -1 ? 'That\'s your own code, silly! 💞'
           : msg.indexOf('ALREADY') !== -1 ? 'You two are already connected! ♡'
+          : msg.indexOf('NOT_AUTHENTICATED') !== -1 ? 'Please sign in first — reload this page, then try again ♡'
           : /fetch|network|offline|timeout|connect/i.test(low) ? 'You seem to be offline — check your connection and try again.'
           : msg.indexOf('NOT_') !== -1 ? 'Please sign in first.'
-          : 'Hmm, that didn\'t work. Try again?';
+          : (rawCode ? 'Hmm, that didn\'t work (' + HB.esc(rawCode) + '). Try again?' : 'Hmm, that didn\'t work. Try again?');
         if (err) err.textContent = hint;
         return;
       }

@@ -240,54 +240,83 @@
       if (!HB.db.configured()) return Promise.resolve({ error: { message: 'NOT_CONFIGURED' } });
       if (!code || !code.trim()) return Promise.resolve({ error: { message: 'INVALID_CODE' } });
       data.busy = true;
+      var retried = false;
+
+      var doRpc = function () {
         console.log('[PAIRING] Connecting with code:', code.substring(0, 9) + '…');
         return HB.db.client().rpc('connect_with_partner', { code: code }).then(function (res) {
           console.log('[PAIRING] RPC raw response:', JSON.stringify({ data: res.data, error: res.error }));
           if (res.error) {
-          var msg = String(res.error.message || res.error);
+            var msg = String(res.error.message || res.error);
+            var errDetail = {
+              error: msg,
+              code: String(res.error.code || ''),
+              time: new Date().toISOString(),
+              operation: 'connect_with_partner',
+              file: 'js/services/relationship.js:connectWithCode',
+              input_code_prefix: code.substring(0, 9) + '…'
+            };
+            console.error('[PAIRING] RPC error:', errDetail);
+            if (/Could not find the function|PGRST202/.test(msg) && !HB._rpcNotice) {
+              HB._rpcNotice = true;
+              if (HB.toast) HB.toast('Run the pairing SQL first — supabase/run-all.sql in Supabase SQL Editor ♡', '⚠️');
+            }
+            /* Race guard: right after anonymous sign-in the session JWT can
+               take a moment to be picked up, making auth.uid() null. Force a
+               fresh session check and retry once before giving up. */
+            if (/NOT_AUTHENTICATED/.test(msg) && !retried && HB.auth && HB.auth.user()) {
+              retried = true;
+              console.warn('[PAIRING] NOT_AUTHENTICATED on first attempt — refreshing session and retrying…');
+              return HB.db.client().auth.getSession().then(function () {
+                return new Promise(function (resolve) { setTimeout(function () { resolve(doRpc()); }, 600); });
+              });
+            }
+            return { error: { message: 'RPC:' + (HB.db.rpcError(res.error) || msg), code: String(res.error.code || ''), raw: msg } };
+          }
+
+          console.log('[PAIRING] Pairing successful');
+
+          /* The RPC returns partner profile data — store it so Person 2
+             can hydrate their local profile with Person 1's info. */
+          var rpcData = res.data || {};
+          data._lastRpcPartner = {
+            id: rpcData.partner_id,
+            name: rpcData.partner_name,
+            age: rpcData.partner_age,
+            created_at: rpcData.partner_created_at,
+            pairing_code: rpcData.partner_code
+          };
+
+          /* force a fresh fetch — the RPC just changed the database */
+          return rel.init(true).then(function () {
+            return { partner_id: data.me ? data.me.partner_id : null, status: data.status, error: null };
+          });
+        }).catch(function (err) {
           var errDetail = {
-            error: msg,
-            code: String(res.error.code || ''),
+            error: String(err.message || err),
             time: new Date().toISOString(),
             operation: 'connect_with_partner',
             file: 'js/services/relationship.js:connectWithCode',
-            input_code_prefix: code.substring(0, 9) + '…'
+            likely_cause: 'Network error or Supabase unreachable'
           };
-          console.error('[PAIRING] RPC error:', errDetail);
-          if (/Could not find the function|PGRST202/.test(msg) && !HB._rpcNotice) {
-            HB._rpcNotice = true;
-            if (HB.toast) HB.toast('Run the pairing SQL first — supabase/run-all.sql in Supabase SQL Editor ♡', '⚠️');
-          }
-          return { error: { message: 'RPC:' + (HB.db.rpcError(res.error) || msg) } };
-        }
-
-        console.log('[PAIRING] Pairing successful');
-
-        /* The RPC returns partner profile data — store it so Person 2
-           can hydrate their local profile with Person 1's info. */
-        var rpcData = res.data || {};
-        data._lastRpcPartner = {
-          id: rpcData.partner_id,
-          name: rpcData.partner_name,
-          age: rpcData.partner_age,
-          created_at: rpcData.partner_created_at,
-          pairing_code: rpcData.partner_code
-        };
-
-        /* force a fresh fetch — the RPC just changed the database */
-        return rel.init(true).then(function () {
-          return { partner_id: data.me ? data.me.partner_id : null, status: data.status, error: null };
+          console.error('[PAIRING] RPC network error:', errDetail);
+          return { error: { message: 'RPC:' + String(err.message || err) } };
         });
-      }).catch(function (err) {
-        var errDetail = {
-          error: String(err.message || err),
-          time: new Date().toISOString(),
-          operation: 'connect_with_partner',
-          file: 'js/services/relationship.js:connectWithCode',
-          likely_cause: 'Network error or Supabase unreachable'
-        };
-        console.error('[PAIRING] RPC network error:', errDetail);
-        return { error: { message: 'RPC:' + String(err.message || err) } };
+      };
+
+      /* Make sure a profile row exists BEFORE the RPC. The RPC inserts a
+         minimal row itself (insert ... on conflict do nothing), but on live
+         databases where profiles.name has no default that insert fails with
+         23502 — so we upsert the row here first (id + name), which also
+         fixes pairing from the Partner page (which calls this directly). */
+      var user = HB.auth.user();
+      var ensure = (!user || data.me)
+        ? Promise.resolve({ error: null })
+        : rel.ensureProfile({ name: (HB.state.profile && HB.state.profile.name) || '' });
+
+      return ensure.then(function (eRes) {
+        if (eRes && eRes.error) return { error: eRes.error, code: String(eRes.error.code || ''), raw: String(eRes.error.message || eRes.error) };
+        return doRpc();
       }).then(function (out) { data.busy = false; return out; });
     },
 

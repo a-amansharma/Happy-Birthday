@@ -183,13 +183,15 @@
       if (out && out.error) {
         var msg = String(out.error.message || '');
         var low = msg.toLowerCase();
+        var rawCode = String(out.error.code || out.error.raw || '');
         var hint = msg.indexOf('INVALID') !== -1 ? 'That code didn\'t match — double-check it? ♡'
           : msg.indexOf('CODE_USED') !== -1 ? 'This couple is already paired 💕 — ask them for a fresh code.'
           : msg.indexOf('SELF') !== -1 ? 'That\'s your own code, silly! 💞'
           : msg.indexOf('ALREADY') !== -1 ? 'You\'re already part of a couple — you can only be in one ♡'
+          : msg.indexOf('NOT_AUTHENTICATED') !== -1 ? 'Please sign in first — reload this page, then try again ♡'
           : /fetch|network|offline|timeout|connect/i.test(low) ? 'You seem to be offline — check your connection and try again.'
           : msg.indexOf('NOT_') !== -1 ? 'Hmm, that didn\'t work. Try again?'
-          : 'Hmm, that didn\'t work. Try again?';
+          : (rawCode ? 'Hmm, that didn\'t work (' + HB.esc(rawCode) + '). Try again?' : 'Hmm, that didn\'t work. Try again?');
         err && (err.textContent = hint);
         return false;
       }
