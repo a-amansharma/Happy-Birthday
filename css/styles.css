@@ -841,31 +841,30 @@ a { color: inherit; text-decoration: none; }
 
 /* High-contrast pairing-code card: deep rich card, bright bold code */
 .code-card {
-  display: flex; flex-direction: column; align-items: center; gap: 10px;
-  margin: 6px auto; max-width: 340px; padding: 22px 26px;
-  background: linear-gradient(145deg, #3a2c24 0%, #251b15 55%, #1c1410 100%);
-  border: 1px solid rgba(255,255,255,0.14);
-  border-radius: 22px;
-  box-shadow: 0 16px 40px rgba(30, 20, 15, 0.35), inset 0 1px 0 rgba(255,255,255,0.12);
+  display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center;
+  gap: 8px 14px; margin: 6px auto; padding: 12px 18px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: none;
 }
-.code-card-label { font-size: 11.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.6); }
+.code-card-label { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); text-transform: none; letter-spacing: normal; }
 .code-card-value {
-  font-family: var(--font-display); font-size: clamp(28px, 7vw, 38px); font-weight: 700;
-  letter-spacing: 0.16em; color: #FFE9C8; text-shadow: 0 0 18px rgba(255, 214, 150, 0.4);
-  padding: 6px 10px; border-radius: 12px; background: rgba(0,0,0,0.28);
+  font-family: var(--font-body); font-size: 16px; font-weight: 600;
+  letter-spacing: 0.08em; color: var(--ink); background: var(--primary-soft);
+  padding: 4px 10px; border-radius: 8px; text-shadow: none;
+  user-select: all;
 }
 .code-card-copy {
   display: inline-flex; align-items: center; gap: 6px;
-  border: 0; cursor: pointer; font-family: var(--font-body); font-weight: 600; font-size: 13px;
-  color: #3a2c24; background: #FFE9C8; border-radius: 999px; padding: 9px 18px;
-  transition: transform 0.2s var(--ease), background 0.2s var(--ease);
+  border: 0; cursor: pointer; font-family: var(--font-body); font-weight: 600; font-size: 12.5px;
+  color: var(--primary-deep); background: var(--primary-soft); border-radius: 999px; padding: 7px 14px;
+  transition: opacity 0.2s var(--ease);
 }
-.code-card-copy:hover { transform: translateY(-1px); background: #fff3d9; }
-.code-card-copy:active { transform: scale(0.97); }
-.code-card--sm { flex-direction: row; flex-wrap: nowrap; justify-content: center; gap: 8px 14px; padding: 14px 18px; max-width: 100%; width: max-content; min-width: min(100%, 280px); box-sizing: border-box; }
-.code-card--sm .code-card-label { flex-basis: 100%; text-align: center; }
-.code-card--sm .code-card-value { font-size: 24px; letter-spacing: 0.14em; padding: 4px 10px; white-space: nowrap; }
-.code-card--sm .code-card-copy { padding: 7px 14px; font-size: 12px; }
+.code-card-copy:hover { opacity: 0.85; }
+.code-card-copy:active { transform: none; }
+.code-card--sm { flex-direction: row; flex-wrap: wrap; gap: 8px 14px; padding: 12px 18px; max-width: 100%; width: max-content; min-width: min(100%, 280px); box-sizing: border-box; }
+.code-card--sm .code-card-label { flex-basis: auto; text-align: left; }
+.code-card--sm .code-card-value { font-size: 16px; letter-spacing: 0.08em; padding: 4px 10px; white-space: nowrap; }
+.code-card--sm .code-card-copy { padding: 7px 14px; font-size: 12.5px; }
 
 /* Thin top-of-page connection bar */
 .conn-bar {
@@ -984,33 +983,34 @@ a { color: inherit; text-decoration: none; }
   max-width: 420px;
   margin: 0 auto;
   text-align: center;
-  padding: 36px 28px 32px;
+  padding: 26px 24px 24px;
   background: var(--surface);
-  border-radius: 28px;
+  border-radius: 20px;
   box-shadow: var(--shadow-soft);
   border: 1px solid var(--line);
 }
 .waiting-dudu { margin: 0 auto 16px; }
-.waiting-emoji { font-size: 36px; line-height: 1; margin-bottom: 8px; }
+.waiting-emoji { font-size: 30px; line-height: 1; margin-bottom: 8px; }
 .waiting-title {
   font-family: var(--font-hand);
-  font-size: 22px;
+  font-size: 19px;
   font-weight: 700;
   color: var(--ink);
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 .waiting-code {
-  font-family: var(--font-display);
-  font-size: 32px;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  color: var(--primary-deep);
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--ink);
   background: var(--primary-soft);
-  border: 2px dashed var(--primary);
-  border-radius: 16px;
-  padding: 14px 20px;
-  margin: 0 auto 18px;
-  max-width: 280px;
+  border: 1px solid var(--line-dark, var(--line));
+  border-radius: 10px;
+  padding: 9px 16px;
+  margin: 0 auto 16px;
+  width: max-content;
+  max-width: 90%;
   user-select: all;
   cursor: pointer;
 }

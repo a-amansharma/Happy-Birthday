@@ -1,45 +1,37 @@
 /* ============================================================
-   SERVICE: RELATIONSHIP — my profile, pairing code, connection
+   SERVICE: RELATIONSHIP — one relationship, two participants
    ------------------------------------------------------------
-   Matches the LIVE Supabase schema: profiles only
-   (id, name, age, pairing_code, partner_id, created_at,
-    last_active).
+   Canonical model:
+     relationships  — the ONE shared record (pairing code, status,
+                       creator, shared fields: type / together /
+                       vibe / chat-style / story)
+     profiles       — a participant's PERSONAL row (their name/age),
+                       each referencing relationships via
+                       profiles.relationship_id
 
-   Pairing model (profiles-only):
-     * pairing_code  — MY unique single-use code (LOVE-XXXXX).
-     * partner_id    — set on BOTH profiles once connected.
+   data.me            → my profile row (personal: name, age)
+   data.partner       → the OTHER profile row in my relationship
+   data.relationship  → the shared relationship row
+   data.status        → 'unconfigured' | 'not-connected' | 'waiting'
+                        | 'connected'
 
-   RLS lets a person read/update ONLY their own row PLUS the
-   paired partner's row (see supabase.sql). The code lookup + the
-   linking write both happen inside the security-definer RPC
-   connect_with_partner(code) — a client can never read another
-   user's pairing_code or write their partner_id directly.
+   PERSPECTIVE (currentUser / partnerUser):
+     me()       → {name, age} from MY profile row
+     partner()  → {name, age} from the OTHER profile row
+     shared()   → the relationship row (identical on both phones)
+   Never hard-coded by device — derived from my auth user id.
 
-   While "waiting" we watch our own profile row via realtime (plus a
-   few one-shot rechecks on focus/online events) until partner_id
-   appears → status flips to connected on BOTH phones. No periodic
-   polling — the UI updates live without any page refresh.
-
-   After pairing, Person 2's local profile is hydrated from
-   Person 1's profile data returned by the RPC.
+   Pairing:
+     Person 1  → createRelationship(shared)  → gets LOVE- code
+     Person 2  → connectWithCode(code)       → joins the same record
+   Both devices watch the relationship row via Realtime; when status
+   flips to 'connected' both update live. No page refresh.
    ============================================================ */
 (function () {
   'use strict';
   var HB = window.HB = window.HB || {};
 
   var CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-
-  function generateCode() {
-    var out = 'LOVE-';
-    var buf = new Uint32Array(5);
-    if (window.crypto && crypto.getRandomValues) {
-      crypto.getRandomValues(buf);
-      for (var i = 0; i < 5; i++) out += CODE_ALPHABET[buf[i] % CODE_ALPHABET.length];
-    } else {
-      for (var j = 0; j < 5; j++) out += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
-    }
-    return out;
-  }
 
   function empty() {
     return { status: 'unconfigured', me: null, partner: null, relationship: null, error: null, busy: false };
@@ -48,38 +40,40 @@
   var data = empty();
   var _lastTouch = 0;
   var _initPromise = null;
-  var _pollTimer = null;
   var _ownKey = null;
   var _partnerKey = null;
+  var _relKey = null;
   var _waitCheck = null;
+  var _relTimer = null;
 
-  /* While "waiting", watch MY OWN profile row: the connect RPC sets
-     partner_id on it. Realtime is the primary live signal (the row is
-     in the supabase_realtime publication from run-all.sql). A few light
-     one-shot rechecks — shortly after entering "waiting" and on
-     visibility/online events — guarantee the flip even if realtime
-     hiccups. No periodic polling, no page refresh. */
+  function meId() {
+    var u = HB.auth && HB.auth.user ? HB.auth.user() : null;
+    return u ? u.id : null;
+  }
+
+  /* ---- waiting watch: watch my OWN relationship row via Realtime ----
+     Person 1 created a relationship (status 'waiting'). Once Person 2
+     completes pairing, that row flips to 'connected' → we re-init here.
+     A few light one-shot rechecks (focus/online) cover any hiccup.
+     No periodic polling, no page refresh. */
   function startWaitingWatch() {
     stopWaitingWatch();
-    var user = HB.auth.user();
-    if (!user || !HB.db.configured()) return;
-    var uid = user.id;
+    var rid = data.relationship && data.relationship.id;
+    if (!rid || !HB.db.configured()) return;
     _waitCheck = function () {
-      if (rel.data.status !== 'waiting') { stopWaitingWatch(); return; }
+      if (data.status !== 'waiting') { stopWaitingWatch(); return; }
       rel.init(true).then(function () { rel.dispatch(); }).catch(function () {});
     };
-    _ownKey = 'waiting:' + uid;
-    HB.db.subscribe(_ownKey, { table: 'profiles', filter: 'id=eq.' + uid }, _waitCheck);
-    /* One recheck shortly after entering "waiting" covers a slow
-       realtime handshake; focus/online events cover resume/offline. */
-    _pollTimer = setTimeout(_waitCheck, 5000);
+    _relKey = 'waiting:' + rid;
+    HB.db.subscribe(_relKey, { table: 'relationships', filter: 'id=eq.' + rid }, _waitCheck);
+    _relTimer = setTimeout(_waitCheck, 5000);
     window.addEventListener('focus', _waitCheck);
     window.addEventListener('online', _waitCheck);
   }
 
   function stopWaitingWatch() {
-    if (_ownKey) { HB.db.unsubscribe(_ownKey); _ownKey = null; }
-    if (_pollTimer) { clearTimeout(_pollTimer); _pollTimer = null; }
+    if (_relKey) { HB.db.unsubscribe(_relKey); _relKey = null; }
+    if (_relTimer) { clearTimeout(_relTimer); _relTimer = null; }
     if (_waitCheck) {
       window.removeEventListener('focus', _waitCheck);
       window.removeEventListener('online', _waitCheck);
@@ -87,11 +81,14 @@
     }
   }
 
+  /* ---- load my profile + relationship + partner ----
+     The relationship's creator self is MY row only when I'm the
+     creator. The partner row is the OTHER member. */
   function doInit() {
     Object.assign(data, empty());
     if (!HB.db.configured()) { data.status = 'unconfigured'; return Promise.resolve(); }
-    var user = HB.auth.user();
-    if (!user) {
+    var myid = meId();
+    if (!myid) {
       stopWaitingWatch();
       data.status = 'not-connected';
       return Promise.resolve();
@@ -100,97 +97,142 @@
     try {
       var client = HB.db.client();
       if (!client) { data.status = 'unconfigured'; return Promise.resolve(); }
-      console.log('[REL] doInit — querying profiles for user:', user.id.substring(0, 8) + '…');
-      return client
-        .from('profiles').select('*').eq('id', user.id).maybeSingle()
+
+      return client.from('profiles').select('*').eq('id', myid).maybeSingle()
         .then(function (res) {
           if (res.error) throw res.error;
-          if (!res.data) {
+          data.me = (res.data && Object.keys(res.data).length) ? res.data : null;
+
+          if (!data.me || !data.me.relationship_id) {
             stopWaitingWatch();
-            data.status = 'not-connected';
+            data.partner = null;
+            data.relationship = null;
+            data.status = data.me ? 'not-connected' : 'not-connected';
+            rel.hydrate();
             return;
           }
 
-          data.me = res.data;
-          rel.touch();
-          if (data.me.partner_id) {
-            return client
-              .from('profiles').select('*').eq('id', data.me.partner_id).maybeSingle()
-              .then(function (pRes) {
-                data.partner = (pRes && !pRes.error && pRes.data) ? pRes.data : null;
-                stopWaitingWatch();
-                data.status = 'connected';
-                rel.hydrate();
-                rel.subscribeRealtime();
-              });
-          }
+          var rid = data.me.relationship_id;
 
-          data.partner = null;
-          data.status = 'waiting';
-          rel.hydrate();
-          startWaitingWatch();
+          /* Load the shared relationship row. */
+          return client.from('relationships').select('*').eq('id', rid).maybeSingle()
+            .then(function (rRes) {
+              if (rRes.error) throw rRes.error;
+              data.relationship = rRes.data || null;
+
+              if (!data.relationship) {
+                stopWaitingWatch();
+                data.partner = null;
+                data.status = 'not-connected';
+                rel.hydrate();
+                return;
+              }
+
+              if (data.relationship.status === 'connected') {
+                /* Connected — load the other participant's profile. */
+                return client.from('profiles').select('*').neq('id', myid).eq('relationship_id', rid).maybeSingle()
+                  .then(function (pRes) {
+                    if (pRes.error) throw pRes.error;
+                    data.partner = pRes.data || null;
+                    stopWaitingWatch();
+                    data.status = 'connected';
+                    rel.touch();
+                    rel.hydrate();
+                    rel.subscribeRealtime();
+                  });
+              }
+
+              /* Waiting — I'm either the creator (holds the code) or a
+                 newer member who somehow isn't connected yet. */
+              data.partner = null;
+              data.status = 'waiting';
+              rel.touch();
+              rel.hydrate();
+              startWaitingWatch();
+            });
         })
         .catch(function (err) {
           data.error = String(err.message || err);
           data.status = 'error';
-          var errDetail = {
-            error: String(err.message || err),
-            code: String(err.code || ''),
-            time: new Date().toISOString(),
-            operation: 'relationship.init',
-            file: 'js/services/relationship.js:doInit',
-            suggestion: 'Check Supabase connection, RLS policies, and profiles table schema.'
-          };
-          console.error('[SUPABASE] Relationship init error:', errDetail);
-          if (HB._schemaNotice) return;
           var msg = String(err.message || err) + ' ' + String(err.code || '');
-          if (/PGRST205|42P01|42703|Could not find|does not exist/.test(msg)) {
+          if (HB._schemaNotice) return;
+          if (/PGRST205|42P01|42703|Could not find|does not exist|relation .* does not exist/.test(msg)) {
             HB._schemaNotice = true;
             data.status = 'unconfigured';
             if (HB.toast) HB.toast('Database isn\'t ready — run supabase/run-all.sql in Supabase SQL Editor, then reload ♡', '⚠️');
           }
         });
     } catch (e) {
-      console.error('[SUPABASE] Synchronous error in doInit:', e);
       data.error = String(e.message || e);
       data.status = 'error';
       return Promise.resolve();
     }
   }
 
-  /* Hook fired by the auth service after any session change: re-check
-     the backend state and let pages re-render. */
+  /* Hook fired by the auth service after any session change. */
   window.__HB_DISPATCH_REL = function () {
     if (!HB.db || !HB.db.configured()) return;
     rel.init().then(function () { rel.dispatch(); }).catch(function () {});
   };
 
   var rel = {
-
     data: data,
 
-    /* light heartbeat → "last active" in insights (column: last_active) */
+    /* light heartbeat */
     touch: function () {
-      if (!HB.db.configured()) return;
-      var user = HB.auth.user();
-      if (!user) return;
+      if (!HB.db.configured() || !meId()) return;
       var now = Date.now();
       if (_lastTouch && now - _lastTouch < 60000) return;
       _lastTouch = now;
       HB.db.client().from('profiles')
         .update({ last_active: new Date().toISOString() })
-        .eq('id', user.id)
-        .then(function () {})
-        .catch(function () {});
+        .eq('id', meId())
+        .then(function () {}).catch(function () {});
     },
 
-    /* dispatch event so pages can re-render on relationship changes */
     dispatch: function () {
-      window.dispatchEvent(new CustomEvent('hb:relchange'));
+      try { window.dispatchEvent(new CustomEvent('hb:relchange')); } catch (e) {}
       if (HB.updateNav) HB.updateNav();
     },
 
-    /* -------------------- bootstrap -------------------- */
+    /* ---- my unique participant id (auth user id) ---- */
+    myId: meId,
+
+    /* ---- PERSPECTIVE: current user ----
+       "You": my personal profile row. */
+    me: function () {
+      var m = data.me;
+      if (!m) {
+        return { name: (HB.state && HB.state.profile && HB.state.profile.name) || 'you',
+                 age: (HB.state && HB.state.profile && HB.state.profile.age) || '' };
+      }
+      return { name: m.name || 'you', age: m.age != null ? String(m.age) : '' };
+    },
+
+    /* ---- PERSPECTIVE: partner user ----
+       "Partner": the OTHER participant's personal profile row. */
+    partner: function () {
+      var p = data.partner;
+      if (p) {
+        return { name: p.name || 'your person', age: p.age != null ? String(p.age) : '' };
+      }
+      /* Not yet connected: fall back to Person 1's hint (shared row). */
+      if (data.relationship && data.relationship.partner_hint_name) {
+        return {
+          name: data.relationship.partner_hint_name || 'your person',
+          age: data.relationship.partner_hint_age != null ? String(data.relationship.partner_hint_age) : ''
+        };
+      }
+      return { name: (HB.state && HB.state.profile && HB.state.profile.partner) || 'your person',
+               age: (HB.state && HB.state.profile && HB.state.profile.partnerAge) || '' };
+    },
+
+    /* ---- SHARED relationship row (identical on both phones) ---- */
+    shared: function () {
+      return data.relationship;
+    },
+
+    /* ---- bootstrap ---- */
     init: function (force) {
       if (!force && _initPromise) return _initPromise;
       var p = doInit();
@@ -200,146 +242,99 @@
       return wrapped;
     },
 
-    /* -------------------- creation -------------------- */
+    /* ---- upset my OWN personal profile row (name/age) ---- */
     ensureProfile: function (fields) {
-      if (!HB.db.configured()) {
-        console.error('[PROFILE] DB not configured');
-        return Promise.resolve({ error: { message: 'NOT_CONFIGURED' } });
-      }
-      var user = HB.auth.user();
-      if (!user) {
-        console.error('[PROFILE] No auth user');
-        return Promise.resolve({ error: { message: 'NOT_AUTHENTICATED' } });
-      }
-      console.log('[PROFILE] ensureProfile called for user:', user.id.substring(0, 8) + '…', 'name:', fields.name);
-
-      var keep = (data.me && data.me.pairing_code) ? data.me.pairing_code : null;
-      var attempt = function (code) {
-        try {
-          var row = { id: user.id, name: fields.name || '' };
-          if (fields.age !== undefined && fields.age !== '') row.age = Number(fields.age);
-          row.pairing_code = code;
-          var client = HB.db.client();
-          if (!client) {
-            console.error('[PROFILE] Supabase client is null');
-            return Promise.resolve({ error: { message: 'NOT_CONFIGURED' } });
-          }
-          console.log('[PROFILE] Upserting profile row…');
-          return client.from('profiles').upsert(row).then(function (res) {
-            if (res.error) {
-              console.error('[PROFILE] Upsert error:', JSON.stringify({ code: res.error.code, message: res.error.message, details: res.error.details, hint: res.error.hint }));
-              if (res.error.code === '23505') return attempt(generateCode());
-              throw res.error;
-            }
-            console.log('[PROFILE] Profile created/updated successfully, pairing_code:', code);
-            if (data.me) data.me.pairing_code = code;
-            return res;
-          }).catch(function (err) {
-            console.error('[PROFILE] Upsert network/promise error:', err);
-            throw err;
-          });
-        } catch (e) {
-          console.error('[PROFILE] Synchronous error in ensureProfile:', e);
-          return Promise.reject(e);
+      if (!HB.db.configured()) return Promise.resolve({ error: { message: 'NOT_CONFIGURED' } });
+      var id = meId();
+      if (!id) return Promise.resolve({ error: { message: 'NOT_AUTHENTICATED' } });
+      var row = { id: id, name: (fields && fields.name) || '' };
+      if (fields && fields.age !== undefined && fields.age !== '') row.age = Number(fields.age);
+      return HB.db.client().from('profiles').upsert(row).then(function (res) {
+        if (res.error) {
+          if (res.error.code === '23505') return HB.db.client().from('profiles').upsert(row);
+          return res;
         }
-      };
-      return attempt(fields.pairing_code || keep || generateCode());
+        if (data.me) Object.assign(data.me, row);
+        return res;
+      });
     },
 
-    /* -------------------- connect -------------------- */
+    /* ---- PERSON 1: create the relationship (shared fields) + code ---- */
+    createRelationship: function (shared) {
+      if (!HB.db.configured()) return Promise.resolve({ error: { message: 'NOT_CONFIGURED' } });
+      if (!meId()) return Promise.resolve({ error: { message: 'NOT_AUTHENTICATED' } });
+      data.busy = true;
+      var meProfile = (HB.state && HB.state.profile) || {};
+      return HB.db.client().rpc('create_relationship', {
+        rel_rel_type: shared.relationship_type || meProfile.relationship || '',
+        rel_together: shared.together_since || null,
+        rel_vibes: shared.vibes || meProfile.vibes || [],
+        rel_styles: shared.chat_style || meProfile.chatStyle || [],
+        rel_story: shared.story || meProfile.story || '',
+        hint_name: shared.partner_name || meProfile.partner || '',
+        hint_age: shared.partner_age != null ? Number(shared.partner_age) : null
+      }).then(function (res) {
+        data.busy = false;
+        if (res.error) return res;
+        var out = res.data || {};
+        if (out.code && data.me) data.me.pairing_code = out.code;
+        return rel.init(true).then(function () {
+          return { code: out.code, relationship_id: out.relationship_id, error: null };
+        });
+      });
+    },
+
+    /* ---- PERSON 2: enter the code to join the relationship ---- */
     connectWithCode: function (code) {
       if (!HB.db.configured()) return Promise.resolve({ error: { message: 'NOT_CONFIGURED' } });
       if (!code || !code.trim()) return Promise.resolve({ error: { message: 'INVALID_CODE' } });
       data.busy = true;
       var retried = false;
 
+      /* Make sure my personal profile row exists before the RPC. */
+      var ensure = data.me ? Promise.resolve({ error: null })
+        : rel.ensureProfile({ name: (HB.state.profile && HB.state.profile.name) || '' });
+
       var doRpc = function () {
-        console.log('[PAIRING] Connecting with code:', code.substring(0, 9) + '…');
-        return HB.db.client().rpc('connect_with_partner', { code: code }).then(function (res) {
-          console.log('[PAIRING] RPC raw response:', JSON.stringify({ data: res.data, error: res.error }));
+        return HB.db.client().rpc('complete_pairing', { code: code }).then(function (res) {
           if (res.error) {
             var msg = String(res.error.message || res.error);
-            var errDetail = {
-              error: msg,
-              code: String(res.error.code || ''),
-              time: new Date().toISOString(),
-              operation: 'connect_with_partner',
-              file: 'js/services/relationship.js:connectWithCode',
-              input_code_prefix: code.substring(0, 9) + '…'
-            };
-            console.error('[PAIRING] RPC error:', errDetail);
             if (/Could not find the function|PGRST202/.test(msg) && !HB._rpcNotice) {
               HB._rpcNotice = true;
               if (HB.toast) HB.toast('Run the pairing SQL first — supabase/run-all.sql in Supabase SQL Editor ♡', '⚠️');
             }
-            /* Race guard: right after anonymous sign-in the session JWT can
-               take a moment to be picked up, making auth.uid() null. Force a
-               fresh session check and retry once before giving up. */
-            if (/NOT_AUTHENTICATED/.test(msg) && !retried && HB.auth && HB.auth.user()) {
+            if (/NOT_AUTHENTICATED/.test(msg) && !retried && meId()) {
               retried = true;
-              console.warn('[PAIRING] NOT_AUTHENTICATED on first attempt — refreshing session and retrying…');
               return HB.db.client().auth.getSession().then(function () {
                 return new Promise(function (resolve) { setTimeout(function () { resolve(doRpc()); }, 600); });
               });
             }
             return { error: { message: 'RPC:' + (HB.db.rpcError(res.error) || msg), code: String(res.error.code || ''), raw: msg } };
           }
-
-          console.log('[PAIRING] Pairing successful');
-
-          /* The RPC returns partner profile data — store it so Person 2
-             can hydrate their local profile with Person 1's info. */
-          var rpcData = res.data || {};
-          data._lastRpcPartner = {
-            id: rpcData.partner_id,
-            name: rpcData.partner_name,
-            age: rpcData.partner_age,
-            created_at: rpcData.partner_created_at,
-            pairing_code: rpcData.partner_code
-          };
-
-          /* force a fresh fetch — the RPC just changed the database */
+          data._lastRpcRelationship = res.data || null;
           return rel.init(true).then(function () {
-            return { partner_id: data.me ? data.me.partner_id : null, status: data.status, error: null };
+            return { status: data.status, error: null };
           });
         }).catch(function (err) {
-          var errDetail = {
-            error: String(err.message || err),
-            time: new Date().toISOString(),
-            operation: 'connect_with_partner',
-            file: 'js/services/relationship.js:connectWithCode',
-            likely_cause: 'Network error or Supabase unreachable'
-          };
-          console.error('[PAIRING] RPC network error:', errDetail);
           return { error: { message: 'RPC:' + String(err.message || err) } };
         });
       };
 
-      /* Make sure a profile row exists BEFORE the RPC. The RPC inserts a
-         minimal row itself (insert ... on conflict do nothing), but on live
-         databases where profiles.name has no default that insert fails with
-         23502 — so we upsert the row here first (id + name), which also
-         fixes pairing from the Partner page (which calls this directly). */
-      var user = HB.auth.user();
-      var ensure = (!user || data.me)
-        ? Promise.resolve({ error: null })
-        : rel.ensureProfile({ name: (HB.state.profile && HB.state.profile.name) || '' });
-
       return ensure.then(function (eRes) {
-        if (eRes && eRes.error) return { error: eRes.error, code: String(eRes.error.code || ''), raw: String(eRes.error.message || eRes.error) };
+        if (eRes && eRes.error) return { error: eRes.error };
         return doRpc();
       }).then(function (out) { data.busy = false; return out; });
     },
 
-    /* -------------------- profile updates -------------------- */
+    /* ---- update MY personal name/age (only my own row) ---- */
     updateMyProfile: function (fields) {
       if (!HB.db.configured()) return Promise.resolve({ error: { message: 'NOT_CONFIGURED' } });
-      var user = HB.auth.user();
-      if (!user) return Promise.resolve({ error: { message: 'NOT_AUTHENTICATED' } });
+      var id = meId();
+      if (!id) return Promise.resolve({ error: { message: 'NOT_AUTHENTICATED' } });
       var upd = {};
       if (fields.name !== undefined) upd.name = fields.name;
       if (fields.age !== undefined) upd.age = fields.age === '' || fields.age == null ? null : Number(fields.age);
-      return HB.db.client().from('profiles').update(upd).eq('id', user.id)
+      return HB.db.client().from('profiles').update(upd).eq('id', id)
         .then(function (res) {
           if (!res.error && data.me) Object.assign(data.me, upd);
           if (!res.error) { rel.hydrate(); rel.dispatch(); }
@@ -347,102 +342,110 @@
         });
     },
 
-    /* Shared couple preferences have no column in the live profiles
-       schema, so they live locally per device (HB.state.profile) —
-       this keeps old call sites working without a DB write. */
-    updateShared: function () {
-      return Promise.resolve({ error: null });
+    /* ---- update SHARED relationship fields (either partner) ---- */
+    updateShared: function (fields) {
+      if (!HB.db.configured()) return Promise.resolve({ error: { message: 'NOT_CONFIGURED' } });
+      if (!meId()) return Promise.resolve({ error: { message: 'NOT_AUTHENTICATED' } });
+      if (!data.relationship) return Promise.resolve({ error: null });
+      return HB.db.client().rpc('update_relationship', {
+        rel_type: fields.relationship_type != null ? fields.relationship_type : null,
+        together: fields.together_since || null,
+        vbs: fields.vibes != null ? fields.vibes : null,
+        styles: fields.chat_style != null ? fields.chat_style : null,
+        stry: fields.story != null ? fields.story : null
+      }).then(function (res) {
+        if (!res.error && data.relationship) {
+          if (fields.relationship_type != null) data.relationship.relationship_type = fields.relationship_type;
+          if (fields.together_since != null) data.relationship.together_since = fields.together_since;
+          if (fields.vibes != null) data.relationship.vibes = fields.vibes;
+          if (fields.chat_style != null) data.relationship.chat_style = fields.chat_style;
+          if (fields.story != null) data.relationship.story = fields.story;
+          rel.hydrate();
+        }
+        return res;
+      });
     },
 
-    /* Leave / delete my data. Calls delete_my_data RPC which clears
-       my profile row and unlinks partner, then signs out. */
+    /* ---- leave / erase — deletes my profile + the whole relationship ---- */
     leave: function () {
-      var user = HB.auth.user();
-      if (!HB.db.configured() || !user) return Promise.resolve();
-      console.log('[RESET] Leaving/deleting user data');
+      if (!HB.db.configured() || !meId()) return Promise.resolve();
       stopWaitingWatch();
       return HB.db.client().rpc('delete_my_data')
+        .then(function () {})
+        .catch(function (err) { console.warn('[RESET] delete_my_data RPC failed:', err); })
         .then(function () {
-          console.log('[RESET] delete_my_data RPC succeeded');
-        })
-        .catch(function (err) {
-          console.warn('[RESET] delete_my_data RPC failed:', err);
-        })
-        .then(function () {
-          console.log('[RESET] Signing out');
           if (HB.auth) return HB.auth.signOut();
         });
     },
 
-    /* -------------------- live sync -------------------- */
-    /* Watch my own row (partner_id flip, name edits) + the partner's
-       row (their name/age updates show up live). */
+    /* ---- live sync: my row, partner row, relationship row ----
+       (shared-data tables are handled by their own services) */
     subscribeRealtime: function () {
-      var user = HB.auth.user();
-      if (!user || !HB.db.configured()) return;
+      var myid = meId();
+      if (!myid || !HB.db.configured()) return;
+
       if (_ownKey) { HB.db.unsubscribe(_ownKey); _ownKey = null; }
-      _ownKey = 'me:' + user.id;
-      HB.db.subscribe(_ownKey, { table: 'profiles', filter: 'id=eq.' + user.id }, function () {
-        console.log('[REALTIME] Own profile updated');
+      _ownKey = 'me:' + myid;
+      HB.db.subscribe(_ownKey, { table: 'profiles', filter: 'id=eq.' + myid }, function () {
         rel.init(true).then(function () { rel.dispatch(); }).catch(function () {});
       });
-      if (data.me && data.me.partner_id && data.me.partner_id !== _partnerKey) {
+
+      if (data.me && data.me.relationship_id) {
+        var rid = data.me.relationship_id;
+        if (rid !== _relKey) {
+          if (_relKey) { HB.db.unsubscribe(_relKey); _relKey = null; }
+          _relKey = 'rel:' + rid;
+          HB.db.subscribe(_relKey, { table: 'relationships', filter: 'id=eq.' + rid }, function () {
+            rel.init(true).then(function () { rel.dispatch(); }).catch(function () {});
+          });
+        }
+      }
+
+      if (data.partner && data.partner.id !== _partnerKey) {
         if (_partnerKey) { HB.db.unsubscribe(_partnerKey); _partnerKey = null; }
-        _partnerKey = 'partner:' + data.me.partner_id;
-        HB.db.subscribe(_partnerKey, { table: 'profiles', filter: 'id=eq.' + data.me.partner_id }, function () {
-          console.log('[REALTIME] Partner profile updated');
+        _partnerKey = 'partner:' + data.partner.id;
+        HB.db.subscribe(_partnerKey, { table: 'profiles', filter: 'id=eq.' + data.partner.id }, function () {
           rel.init(true).then(function () { rel.dispatch(); }).catch(function () {});
         });
       }
     },
 
-    /* -------------------- helpers -------------------- */
-    /* The sorted pair key used by chat + presence channels. */
     pairKey: function () {
-      var me = data.me;
-      if (!me || !me.partner_id) return null;
-      return [me.id, me.partner_id].sort().join('_');
+      var rid = data.relationship && data.relationship.id;
+      return rid ? 'rel_' + rid : null;
     },
 
-    /* -------------------- local hydration --------------------
-       Mirrors backend data into HB.state.profile so all the existing
-       local features keep working.
-
-       For Person 2 (who joined via code), the RPC returns Person 1's
-       profile data. We use it to fill in Person 2's local state so
-       they automatically have Person 1's name, age, and profile info
-       without filling the wizard.
-
-       The partner's name/age come from their actual profile row (RLS
-       allows each partner to read the other's row) — never from a
-       local-only guess. */
+    /* ---- mirror backend state into HB.state.profile so legacy pages
+       (companion chat, notes, dates) keep working with the right names
+       and shared fields ---- */
     hydrate: function () {
       if (!HB.state || !HB.state.profile) return;
       var p = HB.state.profile;
-
+      var n = rel.me();
       if (data.me) {
-        p.name = data.me.name || p.name;
-        if (data.me.age != null) p.age = String(data.me.age);
-        p.partnerCode = data.me.pairing_code || p.partnerCode;
+        p.name = n.name;
+        if (n.age !== '') p.age = n.age;
       }
-
-      if (data.partner) {
-        p.partner = data.partner.name || p.partner;
-        if (data.partner.age != null) p.partnerAge = String(data.partner.age);
-      } else if (data._lastRpcPartner) {
-        /* Person 2 just paired — use RPC data to hydrate partner info */
-        var rp = data._lastRpcPartner;
-        if (rp.name) p.partner = rp.name;
-        if (rp.age != null) p.partnerAge = String(rp.age);
+      if (data.partner || (data.relationship && data.relationship.partner_hint_name)) {
+        var pn = rel.partner();
+        p.partner = pn.name;
+        if (pn.age !== '') p.partnerAge = pn.age;
       }
-
+      if (data.relationship) {
+        var r = data.relationship;
+        if (r.relationship_type) p.relationship = r.relationship_type;
+        if (r.together_since) p.togetherSince = r.together_since;
+        if (r.vibes && r.vibes.length) p.vibes = normalizeList(r.vibes);
+        if (r.chat_style && r.chat_style.length) p.chatStyle = normalizeList(r.chat_style);
+        if (r.story) p.story = r.story;
+      }
       if (HB.save) HB.save();
     },
 
     dynamic: function () {
       var me = (data.status === 'connected' || data.status === 'waiting') && data.me
         ? { name: data.me.name || 'you', age: data.me.age != null ? String(data.me.age) : '' } : null;
-      var partner = data.partner
+      var partner = (data.status === 'connected') && data.partner
         ? { name: data.partner.name || 'your person', age: data.partner.age != null ? String(data.partner.age) : '' }
         : (HB.state && HB.state.profile
             ? { name: HB.state.profile.partner || 'your person', age: HB.state.profile.partnerAge || '' } : null);
@@ -459,6 +462,11 @@
       return d.getFullYear() + '-' + mm + '-' + dd;
     }
   };
+
+  function normalizeList(list) {
+    if (!Array.isArray(list)) return [];
+    return list.map(function (x) { return typeof x === 'string' ? { label: x, emoji: '' } : x; });
+  }
 
   HB.rel = rel;
 })();

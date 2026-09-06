@@ -37,12 +37,12 @@
       me = HB.auth.user();
       if (!me) return;
 
-      var partnerId = HB.rel.data.me && HB.rel.data.me.partner_id;
-      if (!partnerId) return;
-      myName = (HB.rel.data.me && HB.rel.data.me.name) || 'you';
+      var rid = HB.rel.data.relationship && HB.rel.data.relationship.id;
+      if (!rid) return;
+      myName = HB.rel.me ? (HB.rel.me().name || 'you') : (HB.rel.data.me && HB.rel.data.me.name) || 'you';
 
-      var pairKey = [me.id, partnerId].sort().join('_');
-      console.log('[PRESENCE] Starting presence channel for pair:', pairKey.substring(0, 12) + '…');
+      var pairKey = 'rel_' + rid;
+      console.log('[PRESENCE] Starting presence channel for relationship:', pairKey.substring(0, 18) + '…');
       channel = HB.db.client().channel('couple:' + pairKey);
 
       channel.on('presence', { event: 'sync' }, function () {

@@ -19,7 +19,7 @@
 
     /* ---- Creator waiting → show their pairing code ---- */
     if (HB.state.onboarded && HB.rel && HB.rel.data && HB.rel.data.status === 'waiting') {
-      var code = HB.rel.data.me && HB.rel.data.me.pairing_code;
+      var code = HB.rel.data.relationship && HB.rel.data.relationship.pairing_code;
       renderWaiting(main, code);
       return;
     }
@@ -221,7 +221,7 @@
         var me = HB.rel.data.me;
 
         /* Already paired? Nothing to do — open the world. */
-        if (me && me.partner_id) {
+        if (HB.rel.data.status === 'connected' || (me && me.relationship_id)) {
           if (HB.enterWorld) { HB.enterWorld(); return true; }
           HB.navigate('/home');
           return true;

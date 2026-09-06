@@ -107,10 +107,18 @@
         var card = b.closest('.mem-card');
         var id = card.dataset.id;
         HB.confirm('Remove this memory?', 'It will be taken out of your gallery.', function () {
-          HB.state.memories = HB.state.memories.filter(function (m) { return m.id !== id; });
-          HB.save();
-          renderAll();
-          HB.toast('Memory removed', '🗑️');
+          if (HB.shared && HB.shared.removeMemory) {
+            HB.shared.removeMemory(id).then(function (res) {
+              if (res && res.error) { HB.toast('Couldn\'t remove ♡', '💔'); return; }
+              renderAll();
+              HB.toast('Memory removed', '🗑️');
+            });
+          } else {
+            HB.state.memories = HB.state.memories.filter(function (m) { return m.id !== id; });
+            HB.save();
+            renderAll();
+            HB.toast('Memory removed', '🗑️');
+          }
         });
       });
     });
@@ -119,21 +127,29 @@
     container.querySelectorAll('.mem-card').forEach(function (card) {
       card.addEventListener('click', function (e) {
         if (e.target.closest('[data-del]')) return;
-        var allMems = HB.state.memories;
+        var allMems = (HB.shared && HB.shared.memories) ? HB.shared.memories() : HB.state.memories;
         var m = allMems.filter(function (x) { return x.id === card.dataset.id; })[0];
         if (m) openMemoryModal(m);
       });
     });
   }
 
-  function renderAll() {
-    var mems = HB.state.memories || [];
-    var names = HB.firstNames();
+  function meId() {
+    if (HB.auth && HB.auth.user) {
+      var u = HB.auth.user();
+      if (u) return u.id;
+    }
+    return null;
+  }
 
-    /* Determine owner for each memory — use 'me' or 'partner'
-       property if present, otherwise default to 'me' (backward compat) */
-    var myMems = mems.filter(function (m) { return !m.owner || m.owner === 'me'; });
-    var partnerMems = mems.filter(function (m) { return m.owner === 'partner'; });
+  function renderAll() {
+    var mems = (HB.shared && HB.shared.memories) ? HB.shared.memories() : (HB.state.memories || []);
+    var names = HB.firstNames();
+    var myId = meId();
+
+    /* Two columns by OWNER (auth user id) — not by which phone. */
+    var myMems = mems.filter(function (m) { return m.owner_user_id != null ? m.owner_user_id === myId : (!m.owner || m.owner === 'me'); });
+    var partnerMems = mems.filter(function (m) { return m.owner_user_id != null ? m.owner_user_id !== myId : m.owner === 'partner'; });
 
     var col1 = document.getElementById('mem-col-me');
     var col2 = document.getElementById('mem-col-partner');
@@ -158,21 +174,29 @@
           var title = ov.querySelector('#mem-title').value.trim();
           if (!title) { HB.toast('Give it a title first ♡', '✍️'); return false; }
           var m = {
-            id: HB.uid(),
             title: title,
             date: ov.querySelector('#mem-date').value,
             location: ov.querySelector('#mem-loc').value.trim(),
             description: ov.querySelector('#mem-desc').value.trim(),
             favorite: ov.querySelector('#mem-fav').checked,
-            img: ov.__memImg || '',
-            emoji: '📷',
-            time: Date.now(),
-            owner: 'me'
+            img: ov.__memImg || ''
           };
-          HB.state.memories.unshift(m);
-          HB.save();
-          HB.toast('Memory saved ♡', '📸');
-          renderAll();
+          if (HB.shared && HB.shared.addMemory) {
+            HB.shared.addMemory(m).then(function (res) {
+              if (res && res.error) { HB.toast('Couldn\'t save yet ♡', '💔'); return false; }
+              HB.toast('Memory saved ♡', '📸');
+              renderAll();
+            });
+          } else {
+            m.id = HB.uid();
+            m.owner = 'me';
+            m.emoji = '📷';
+            m.time = Date.now();
+            HB.state.memories.unshift(m);
+            HB.save();
+            HB.toast('Memory saved ♡', '📸');
+            renderAll();
+          }
         } }
       ]
     });
@@ -193,7 +217,7 @@
   HB.route('/memories', function (main) {
     if (!HB.state.onboarded) { HB.navigate('/onboarding'); return; }
 
-    var mems = HB.state.memories || [];
+    var mems = (HB.shared && HB.shared.memories) ? HB.shared.memories() : (HB.state.memories || []);
     var total = mems.length;
 
     main.innerHTML =
@@ -232,9 +256,21 @@
       main.querySelector('#mem-filter-all').classList.remove('selected');
       main.querySelectorAll('.mem-card').forEach(function (c) {
         var id = c.dataset.id;
-        var m = (HB.state.memories || []).filter(function (x) { return x.id === id; })[0];
+        var allMems = (HB.shared && HB.shared.memories) ? HB.shared.memories() : HB.state.memories;
+        var m = allMems.filter(function (x) { return x.id === id; })[0];
         c.style.display = (m && m.favorite) ? '' : 'none';
       });
+    });
+
+    /* Re-render live when the shared data changes (my writes + partner's). */
+    var onShared = function () {
+      if (HB.currentPath() !== '/memories') return;
+      if (!main || !main.isConnected) return;
+      renderAll();
+    };
+    window.addEventListener('hb:sharedchange', onShared);
+    main.addEventListener('bb:unmount', function () {
+      window.removeEventListener('hb:sharedchange', onShared);
     });
   });
 })();

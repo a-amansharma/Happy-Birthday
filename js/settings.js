@@ -74,7 +74,7 @@
       var statusText = connected ? 'You two are connected ♡'
         : HB.rel.data.status === 'waiting' ? 'Waiting for your person to join…'
         : 'Not connected yet';
-      var code = HB.rel.data.me && HB.rel.data.me.pairing_code;
+      var code = HB.rel.data.relationship && HB.rel.data.relationship.pairing_code;
       var partnerName = HB.rel.data.partner && HB.rel.data.partner.name ? HB.titleCase(HB.rel.data.partner.name) : '';
       relCard =
         '<div class="card settings-card">' +
@@ -276,7 +276,7 @@
     var copyCode = main.querySelector('[data-copy-code]');
     if (copyCode) copyCode.addEventListener('click', function () {
       var btn = this;
-      navigator.clipboard.writeText(HB.rel.data.me.pairing_code).then(function () {
+      navigator.clipboard.writeText(HB.rel.data.relationship.pairing_code).then(function () {
         btn.innerHTML = '✓ Copied 💕';
         setTimeout(function () { btn.innerHTML = HB.icon('copy') + ' Copy'; }, 1600);
         HB.toast('Code copied ♡', '💌');
@@ -388,7 +388,7 @@
         HB.rel.data.me = null;
         HB.rel.data.partner = null;
         HB.rel.data.error = null;
-        HB.rel.data._lastRpcPartner = null;
+        HB.rel.data.relationship = null;
       }
 
       if (overlay && overlay.parentNode) overlay.remove();

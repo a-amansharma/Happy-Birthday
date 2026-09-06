@@ -361,10 +361,29 @@
                 if (!card.parentNode) return;
                 celebrate();
                 setTimeout(function () { HB.navigate('/home'); }, 600);
-              } else {
+              } else if (HB.rel.data.status === 'waiting') {
+                /* Already created — just go show the waiting code. */
                 if (!card.parentNode) return;
                 celebrate();
                 setTimeout(function () { HB.navigate('/'); }, 600);
+              } else {
+                /* Person 1 (creator): create the canonical relationship.
+                   It returns a fresh LOVE- pairing code that Person 2
+                   uses to join. Shared fields ride along on this call. */
+                return HB.rel.createRelationship({
+                  relationship_type: draft.relationship,
+                  together_since: draft.togetherSince || null,
+                  vibes: draft.vibes,
+                  chat_style: draft.chatStyle,
+                  story: draft.story,
+                  partner_name: draft.partner,
+                  partner_age: draft.partnerAge != null && draft.partnerAge !== '' ? Number(draft.partnerAge) : null
+                }).then(function (out) {
+                  if (out && out.error) throw new Error(out.error.message || 'CONNECT_FAILED');
+                  if (!card.parentNode) return;
+                  celebrate();
+                  setTimeout(function () { HB.navigate('/'); }, 600);
+                });
               }
             });
           }).catch(function (err) {

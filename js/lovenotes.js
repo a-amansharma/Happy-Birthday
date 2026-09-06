@@ -54,10 +54,18 @@
         setTimeout(function () { renderNote(generate()); }, 500);
       });
       el.querySelector('[data-save]').addEventListener('click', function () {
-        HB.state.loveNotes.unshift({ id: HB.uid(), title: note.title, text: note.text, type: note.type, tone: note.tone, time: Date.now() });
-        HB.save();
-        HB.toast('Note saved to your little collection ♡', '💌');
-        renderSaved();
+        if (HB.shared && HB.shared.addNote) {
+          HB.shared.addNote({ title: note.title, text: note.text, type: note.type, tone: note.tone }).then(function (res) {
+            if (res && res.error) { HB.toast('Couldn\'t save yet ♡', '💔'); return; }
+            HB.toast('Note saved to your little collection ♡', '💌');
+            renderSaved();
+          });
+        } else {
+          HB.state.loveNotes.unshift({ id: HB.uid(), title: note.title, text: note.text, type: note.type, tone: note.tone, time: Date.now() });
+          HB.save();
+          HB.toast('Note saved to your little collection ♡', '💌');
+          renderSaved();
+        }
       });
       el.querySelector('[data-share]').addEventListener('click', function () {
         if (navigator.share) {
@@ -89,7 +97,7 @@
 
     function renderSaved() {
       var box = main.querySelector('#saved-notes');
-      var notes = HB.state.loveNotes;
+      var notes = HB.shared && HB.shared.loveNotes ? HB.shared.loveNotes() : HB.state.loveNotes;
       if (!notes.length) {
         box.innerHTML = '<div class="empty-state"><div class="es-emoji">' + HB.chars.stageHtml({ which: 'bubu', action: 'love', size: 'empty', alt: 'Bubu ♡ Dudu' }) + '</div><h4>No saved notes yet</h4><p>Generate a note and hit "Save" to keep your little words here.</p></div>';
         return;
@@ -98,7 +106,7 @@
         return '<div class="note-card" style="animation-delay:' + (i * 0.06) + 's">' +
           '<div class="note-title">' + HB.esc(nt.title) + '</div>' +
           '<div class="note-text">' + HB.esc(nt.text).replace(/\n/g, '<br>') + '</div>' +
-          '<div class="note-meta"><span class="tag">' + HB.esc(nt.type) + '</span><span class="tag">' + new Date(nt.time).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + '</span></div>' +
+          '<div class="note-meta"><span class="tag">' + HB.esc(nt.type) + '</span><span class="tag">' + new Date(nt.time || nt.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + '</span></div>' +
           '<div class="row mt-16">' +
             '<button class="btn btn-soft btn-sm" data-copy>Copy</button>' +
             '<button class="btn btn-ghost btn-sm" data-del>Remove</button>' +
@@ -116,10 +124,18 @@
           var card = b.closest('.note-card');
           var idx = Array.prototype.indexOf.call(card.parentElement.children, card);
           HB.confirm('Remove this note?', 'It will be gone from your saved collection.', function () {
-            HB.state.loveNotes.splice(idx, 1);
-            HB.save();
-            renderSaved();
-            HB.toast('Note removed', '🗑️');
+            if (HB.shared && HB.shared.removeNote) {
+              HB.shared.removeNote(notes[idx].id).then(function (res) {
+                if (res && res.error) { HB.toast('Couldn\'t remove ♡', '💔'); return; }
+                renderSaved();
+                HB.toast('Note removed', '🗑️');
+              });
+            } else {
+              HB.state.loveNotes.splice(idx, 1);
+              HB.save();
+              renderSaved();
+              HB.toast('Note removed', '🗑️');
+            }
           });
         });
       });
@@ -166,5 +182,16 @@
     });
 
     renderSaved();
+
+    /* Re-render saved notes live when the partner adds/removes one. */
+    var onShared = function () {
+      if (HB.currentPath() !== '/notes') return;
+      if (!main || !main.isConnected) return;
+      renderSaved();
+    };
+    window.addEventListener('hb:sharedchange', onShared);
+    main.addEventListener('bb:unmount', function () {
+      window.removeEventListener('hb:sharedchange', onShared);
+    });
   });
 })();

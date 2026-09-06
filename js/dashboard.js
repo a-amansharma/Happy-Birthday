@@ -31,7 +31,7 @@
     /* When waiting — show the waiting screen with pairing code instead
        of the normal dashboard. This is the "home" view while waiting. */
     if (waiting && !connected) {
-      var code = HB.rel.data.me && HB.rel.data.me.pairing_code || 'LOVE-?????';
+      var code = (HB.rel.data.relationship && HB.rel.data.relationship.pairing_code) || 'LOVE-?????';
       main.innerHTML =
         '<div class="page">' +
         '<div class="dash-hello">' +

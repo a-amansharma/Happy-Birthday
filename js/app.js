@@ -26,6 +26,9 @@
       HB.chat.subscribe();
     }
     if (HB.presence) HB.presence.start();
+    if (HB.shared && HB.shared.subscribe) {
+      HB.shared.load().then(function () { HB.shared.subscribe(); });
+    }
   }
 
   function initBackend() {

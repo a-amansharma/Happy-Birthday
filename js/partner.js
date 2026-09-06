@@ -46,7 +46,7 @@
 
     var connected = relData.status === 'connected';
     var waiting = relData.status === 'waiting';
-    var code = relData.me && relData.me.pairing_code;
+    var code = relData.relationship && relData.relationship.pairing_code;
 
     var body = '';
 

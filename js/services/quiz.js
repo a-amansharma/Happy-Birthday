@@ -1,16 +1,23 @@
 /* ============================================================
-   SERVICE: QUIZ — the Daily Bond Quiz
-   Same quiz on both phones (relationship_id + quiz_date),
-   independent answers, match result computed in the database
+   SERVICE: QUIZ — the Daily Bond Quiz (shared + realtime)
+   ------------------------------------------------------------
+   One quiz per relationship per day. Questions are built
+   deterministically on BOTH phones from the same seed
+   (relationship_id + quiz_date), so both see the same 5 questions.
+
+   Each partner submits their own answers (quiz_answers row).
+   The match result is computed in the database (finalize_quiz)
    and streamed back in real time to both devices.
    ============================================================ */
 (function () {
   'use strict';
   var HB = window.HB = window.HB || {};
 
-  var current = null;          // quiz row
+  var current = null;          // quiz row (quiz_day + derived questions)
   var myAnswers = null;        // my submitted answers (map idx->opt)
   var quizChange = null;       // callback(quiz)
+  var _subKey = null;          // answers realtime key
+  var _dayKey = null;          // quiz day realtime key
 
   var BOND_CATEGORIES = [
     [90, 100, '💖 Deeply Connected', 'Basically one heart, two bodies. It\u2019s honestly adorable.'],
@@ -101,6 +108,21 @@
     };
   }
 
+  function meId() {
+    var u = HB.auth.user();
+    return u ? u.id : null;
+  }
+
+  function relId() {
+    if (!HB.rel || !HB.rel.data) return null;
+    var r = HB.rel.data.relationship;
+    return (r && r.id) || null;
+  }
+
+  function notify() {
+    if (quizChange) { try { quizChange(current); } catch (e) {} }
+  }
+
   var quiz = {
 
     current: function () { return current; },
@@ -119,51 +141,137 @@
       return { emoji: '🌱 Still Discovering Each Other', desc: '' };
     },
 
-    /* fetch (or create) today's quiz for the relationship.
-       The live project schema (profiles/messages only) has no
-       daily_quizzes / quiz_answers tables or quiz RPCs, so the quiz
-       is generated fully client-side and deterministically — both
-       phones build the SAME questions from the same (id + date) seed,
-       and match on the (0-4) answer index per question. */
+    /* fetch (or create) today's quiz for the relationship. */
     today: function () {
-      var me = HB.rel.data.me;
-      if (!me) return Promise.resolve(null);
-      var relId = me.id;                      /* each profile IS the relationship context */
-      var dateKey = HB.rel.todayKey();
-      var questions = buildQuestions(relId, dateKey);
-      current = {
-        id: relId + '_' + dateKey,
-        questions: questions,
-        date: dateKey,
-        result: null
-      };
-      myAnswers = null;   /* fresh start every visit */
-      return Promise.resolve(current);
+      var rid = relId();
+      if (!rid) return Promise.resolve(null);
+      var me = meId();
+      var dateKey = quiz.todayKey();
+
+      return HB.db.client().from('quiz_days').select('*')
+        .eq('relationship_id', rid).eq('quiz_date', dateKey).maybeSingle()
+        .then(function (res) {
+          if (res.error) throw res.error;
+          if (res.data) return res.data;
+          /* Race-safe: upsert with ignore so both phones creating today's
+             quiz_day the same instant can't collide. */
+          return HB.db.client().from('quiz_days').upsert({
+            relationship_id: rid, quiz_date: dateKey
+          }, { onConflict: 'relationship_id,quiz_date', ignoreDuplicates: true })
+            .then(function () {
+              return HB.db.client().from('quiz_days').select('*')
+                .eq('relationship_id', rid).eq('quiz_date', dateKey).maybeSingle()
+                .then(function (r2) {
+                  if (r2.error) throw r2.error;
+                  if (r2.data) return r2.data;
+                  throw new Error('QUIZ_NO_DAY');
+                });
+            });
+        })
+        .then(function (day) {
+          var questions = buildQuestions(rid, dateKey);
+          current = {
+            id: day.id,
+            day: day,
+            questions: questions,
+            date: dateKey,
+            result: day.completed ? {
+              pct: day.result_pct,
+              matches: day.result_matches,
+              total: day.result_total
+            } : null
+          };
+          /* Load my own submitted answers for today. */
+          return HB.db.client().from('quiz_answers').select('answers')
+            .eq('quiz_day_id', day.id).eq('user_id', me).maybeSingle()
+            .then(function (aRes) {
+              if (!aRes.error && aRes.data) myAnswers = aRes.data.answers || null;
+              else myAnswers = null;
+              quiz.subscribe(day);
+              return current;
+            });
+        });
     },
 
     submit: function (answers) {
       if (!current) return Promise.resolve({ error: { message: 'NO_QUIZ' } });
+      var day = current.day;
+      if (!day) return Promise.resolve({ error: { message: 'NO_QUIZ' } });
       myAnswers = answers;
-      /* Store the answers locally in this session so the result can be
-         computed once the partner answers too. */
-      try {
-        HB.state.dailyAnswers = HB.state.dailyAnswers || {};
-        HB.state.dailyAnswers[current.date] = answers;
-        if (HB.save) HB.save();
-      } catch (e) {}
-      return Promise.resolve({ data: { day: current.date, count: Object.keys(answers).length } });
+      var me = meId();
+      return HB.db.client().from('quiz_answers').upsert({
+        quiz_day_id: day.id,
+        user_id: me,
+        answers: answers
+      }, { onConflict: 'quiz_day_id,user_id' }).select().single()
+        .then(function (res) {
+          if (res.error) return res;
+          return HB.db.client().rpc('finalize_quiz', { p_quiz_day: day.id })
+            .then(function (fRes) {
+              if (fRes.error) return { error: fRes.error };
+              if (current && current.day) {
+                var r = fRes.data || {};
+                current.day.completed = true;
+                current.day.result_pct = r.result_pct;
+                current.day.result_matches = r.matches;
+                current.day.result_total = r.total;
+                current.result = { pct: r.result_pct, matches: r.matches, total: r.total };
+              }
+              notify();
+              return { data: { day: day.id, count: Object.keys(answers).length } };
+            });
+        });
     },
 
-    /* realtime: with no quiz tables in this schema, there's nothing to
-       subscribe to — the couple chat's presence is the live signal. */
-    subscribe: function () {},
+    /* realtime: watch the quiz day (result flips) and the partner's
+       answers arriving (so I can re-submit/finalize when they do). */
+    subscribe: function (day) {
+      if (!day) return;
+      var rid = relId();
+      if (!rid) return;
+
+      if (_dayKey) { HB.db.unsubscribe(_dayKey); _dayKey = null; }
+      _dayKey = 'quizday:' + day.id;
+      HB.db.subscribe(_dayKey, { table: 'quiz_days', filter: 'id=eq.' + day.id }, function (payload) {
+        if (!payload.new) return;
+        if (current && current.day) {
+          current.day.completed = payload.new.completed;
+          current.day.result_pct = payload.new.result_pct;
+          current.day.result_matches = payload.new.result_matches;
+          current.day.result_total = payload.new.result_total;
+          current.result = payload.new.completed
+            ? { pct: payload.new.result_pct, matches: payload.new.result_matches, total: payload.new.result_total } : null;
+        }
+        notify();
+      });
+
+      if (_subKey) { HB.db.unsubscribe(_subKey); _subKey = null; }
+      _subKey = 'quizans:' + rid + ':' + quiz.todayKey();
+      HB.db.subscribe(_subKey, { table: 'quiz_answers', filter: 'quiz_day_id=eq.' + day.id }, function (payload) {
+        /* If the partner just answered and I've answered too, finalize. */
+        if (payload.new && payload.new.user_id !== meId() && current && !current.result && myAnswers) {
+          HB.db.client().rpc('finalize_quiz', { p_quiz_day: day.id }).then(function (fRes) {
+            if (!fRes.error) {
+              if (current.day) {
+                current.day.completed = true;
+                current.day.result_pct = fRes.data.result_pct;
+                current.day.result_matches = fRes.data.matches;
+                current.day.result_total = fRes.data.total;
+                current.result = { pct: fRes.data.result_pct, matches: fRes.data.matches, total: fRes.data.total };
+              }
+              notify();
+            }
+          });
+        }
+      });
+    },
 
     onChange: function (fn) { quizChange = fn; },
 
     /* helpers for render */
     fillNames: fillNames,
     buildQuestions: buildQuestions,
-    todayKey: HB.rel && HB.rel.todayKey ? HB.rel.todayKey : function () {
+    todayKey: function () {
       var d = new Date();
       return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     }
