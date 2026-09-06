@@ -278,6 +278,35 @@ alter table public.memories     enable row level security;
 alter table public.quiz_days    enable row level security;
 alter table public.quiz_answers enable row level security;
 
+-- ---- DROP EXISTING POLICIES FIRST (idempotent re-runs) ----
+-- Tables are created with "if not exists", so on a re-run their policies
+-- persist. Drop the pair-policy names we create below before re-creating.
+drop policy if exists "rel insert own wait" on public.relationships;
+drop policy if exists "rel select member" on public.relationships;
+drop policy if exists "rel update member" on public.relationships;
+drop policy if exists "rel delete creator" on public.relationships;
+drop policy if exists "prof select self" on public.profiles;
+drop policy if exists "prof insert self" on public.profiles;
+drop policy if exists "prof update self" on public.profiles;
+drop policy if exists "prof delete self" on public.profiles;
+drop policy if exists "msg select member" on public.messages;
+drop policy if exists "msg insert member" on public.messages;
+drop policy if exists "msg delete own" on public.messages;
+drop policy if exists "ln select member" on public.love_notes;
+drop policy if exists "ln insert member" on public.love_notes;
+drop policy if exists "ln delete own" on public.love_notes;
+drop policy if exists "mem select member" on public.memories;
+drop policy if exists "mem insert member" on public.memories;
+drop policy if exists "mem update own" on public.memories;
+drop policy if exists "mem delete own" on public.memories;
+drop policy if exists "quiz select member" on public.quiz_days;
+drop policy if exists "quiz insert member" on public.quiz_days;
+drop policy if exists "quiz update member" on public.quiz_days;
+drop policy if exists "qa select member" on public.quiz_answers;
+drop policy if exists "qa insert own" on public.quiz_answers;
+drop policy if exists "qa update own" on public.quiz_answers;
+drop policy if exists "qa delete own" on public.quiz_answers;
+
 -- ---- RELATIONSHIPS ----
 -- A creator can INSERT a relationship (it just created it). Members can
 -- read/update it. Only the creator can delete it (also allowed to erase).

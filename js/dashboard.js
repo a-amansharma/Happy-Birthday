@@ -135,8 +135,12 @@
   if (!_dashRelWired) {
     _dashRelWired = true;
     window.addEventListener('hb:relchange', function () {
-      var cp = HB.currentPath();
-      if (cp === '/home' || cp === '/') {
+      /* Only the /home route should be re-rendered on a relchange.
+         The landing page at '/' has its own relchange handling and must
+         not be hijacked here — otherwise a fresh visitor on the landing
+         page gets bounced to /onboarding the moment rel.init() dispatch
+         fires, hiding the pairing modal. */
+      if (HB.currentPath() === '/home') {
         var main = document.getElementById('main');
         if (main) renderHome(main);
       }
