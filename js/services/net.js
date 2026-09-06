@@ -202,13 +202,31 @@
         }
       }, 1000);
 
-      /* Periodic ping every 30s to detect silent disconnects */
+      /* Periodic ping to detect silent disconnects (DB request is a
+         single tiny select — kept light at one per minute). */
       if (pingTimer) clearInterval(pingTimer);
       pingTimer = setInterval(function () {
         if (HB.db && HB.db.configured()) {
           ping();
         }
-      }, 30000);
+      }, 60000);
+    },
+
+    /* Called by the account reset / leave flows: stop all timers,
+       hide the banner, and re-establish connectivity status without
+       a page reload. */
+    reset: function () {
+      if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
+      if (hideOnlineTimer) { clearTimeout(hideOnlineTimer); hideOnlineTimer = null; }
+      online = null;
+      if (el) {
+        el.classList.remove('on', 'off', 'fade-out');
+        el.innerHTML = '';
+        el.removeAttribute('data-online');
+      }
+      setTimeout(function () {
+        if (HB.db && HB.db.configured()) ping();
+      }, 1500);
     }
   };
 })();

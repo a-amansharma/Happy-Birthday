@@ -440,12 +440,15 @@
 
   HB.burst = function (x, y, n) { spawnParticles(x, y, n || 18); };
 
-  /* Heart trail on click */
-  document.addEventListener('click', function (e) {
-    if (e.target.closest('.btn, .nav-item, .bn-item, .dash-tile, .chip')) {
-      HB.burst(e.clientX, e.clientY, 8);
-    }
-  });
+  /* ---------------- Loading placeholder ---------------- */
+  HB.loading = function (main, msg) {
+    if (!main) return;
+    main.innerHTML =
+      '<div class="page"><div class="connect-center" style="padding-top:10vh">' +
+      '<div class="typing"><i></i><i></i><i></i></div>' +
+      '<p class="wizard-step-hint" style="margin-top:10px">' + HB.esc(msg || 'Loading your little world…') + '</p>' +
+      '</div></div>';
+  };
 
   /* ---------------- Smooth romantic background music (Web Audio) ----------------
      A soft, dreamy I–vi–IV–V loop: warm bass, pad, gentle arpeggio + melody.
@@ -543,37 +546,28 @@
       if (btn) btn.classList.toggle('playing', musicOn);
       HB.toast(musicOn ? 'Soft romantic music is playing ♡' : 'Music paused — sweet silence ♡', musicOn ? '🎵' : '🌙');
     },
-    isOn: function () { return musicOn; }
+    isOn: function () { return musicOn; },
+    /* Silent stop used by the account-reset flows — no toast, no save. */
+    stop: function () {
+      if (!musicOn) return;
+      musicOn = false;
+      clearInterval(musicTimer);
+      musicTimer = null;
+      var btn = document.getElementById('music-btn');
+      if (btn) btn.classList.remove('playing');
+    }
   };
 
-  /* ---------------- Ambient background ---------------- */
+  /* ---------------- Ambient background ----------------
+     Kept as a static visual only: the background beauty comes from
+     CSS gradients/blobs. We deliberately create NO animated floating
+     elements here — 40+ continuously-animated DOM nodes (stars,
+     floaters) were a real performance cost on low-end phones. */
   HB.buildAmbient = function () {
     var starsBox = document.getElementById('bg-stars');
     var floatBox = document.getElementById('bg-floating');
-    starsBox.innerHTML = '';
-    floatBox.innerHTML = '';
-    for (var i = 0; i < 26; i++) {
-      var s = document.createElement('span');
-      s.className = 'star';
-      s.style.left = Math.random() * 100 + '%';
-      s.style.top = Math.random() * 100 + '%';
-      s.style.animationDelay = (Math.random() * 4) + 's';
-      s.style.animationDuration = (3 + Math.random() * 4) + 's';
-      s.style.width = s.style.height = (3 + Math.random() * 4) + 'px';
-      starsBox.appendChild(s);
-    }
-    var icons = ['♥', '☆', '🌷', '❁', '♡', '✧', '☁', '🌸'];
-    for (var j = 0; j < 16; j++) {
-      var f = document.createElement('span');
-      f.className = 'floater';
-      f.textContent = icons[j % icons.length];
-      f.style.left = Math.random() * 96 + '%';
-      f.style.fontSize = (12 + Math.random() * 18) + 'px';
-      f.style.animationDuration = (14 + Math.random() * 20) + 's';
-      f.style.animationDelay = (Math.random() * 14) + 's';
-      f.style.setProperty('--fo', (0.25 + Math.random() * 0.4).toFixed(2));
-      floatBox.appendChild(f);
-    }
+    if (starsBox) starsBox.innerHTML = '';
+    if (floatBox) floatBox.innerHTML = '';
   };
 
   /* ---------------- Icons ---------------- */

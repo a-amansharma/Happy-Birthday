@@ -209,6 +209,7 @@
           : msg.indexOf('ALREADY') !== -1 ? 'You two are already connected! ♡'
           : msg.indexOf('NOT_AUTHENTICATED') !== -1 ? 'Please sign in first — reload this page, then try again ♡'
           : /fetch|network|offline|timeout|connect/i.test(low) ? 'You seem to be offline — check your connection and try again.'
+          : msg.indexOf('MISSING_PROFILE') !== -1 || /23502|not-null/i.test(msg) ? 'Re-run supabase/run-all.sql in Supabase SQL Editor, then reload ♡'
           : msg.indexOf('NOT_') !== -1 ? 'Please sign in first.'
           : (rawCode ? 'Hmm, that didn\'t work (' + HB.esc(rawCode) + '). Try again?' : 'Hmm, that didn\'t work. Try again?');
         if (err) err.textContent = hint;

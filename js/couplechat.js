@@ -149,6 +149,7 @@
        (messages, photos) don't exist yet. Probe once, then show a
        friendly notice instead of a broken, empty chat. */
     if (chatReady === null) {
+      HB.loading(main, 'Opening your chat…');
       HB.chat.available().then(function (ok) {
         chatReady = ok;
         if (HB.currentPath() === '/chat') render(main);

@@ -15,9 +15,10 @@
    connect_with_partner(code) — a client can never read another
    user's pairing_code or write their partner_id directly.
 
-   While "waiting" we poll our own profile every 5s (and watch it
-   via realtime when the table is published) until partner_id
-   appears → status flips to connected on BOTH phones.
+   While "waiting" we watch our own profile row via realtime (plus a
+   few one-shot rechecks on focus/online events) until partner_id
+   appears → status flips to connected on BOTH phones. No periodic
+   polling — the UI updates live without any page refresh.
 
    After pairing, Person 2's local profile is hydrated from
    Person 1's profile data returned by the RPC.
@@ -27,7 +28,6 @@
   var HB = window.HB = window.HB || {};
 
   var CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  var WAIT_POLL_MS = 3000;
 
   function generateCode() {
     var out = 'LOVE-';
@@ -51,29 +51,40 @@
   var _pollTimer = null;
   var _ownKey = null;
   var _partnerKey = null;
+  var _waitCheck = null;
 
   /* While "waiting", watch MY OWN profile row: the connect RPC sets
-     partner_id on it. Realtime is used when the table is published;
-     a light poll (5s) guarantees the flip even when it isn't. */
+     partner_id on it. Realtime is the primary live signal (the row is
+     in the supabase_realtime publication from run-all.sql). A few light
+     one-shot rechecks — shortly after entering "waiting" and on
+     visibility/online events — guarantee the flip even if realtime
+     hiccups. No periodic polling, no page refresh. */
   function startWaitingWatch() {
     stopWaitingWatch();
     var user = HB.auth.user();
     if (!user || !HB.db.configured()) return;
     var uid = user.id;
-    _ownKey = 'waiting:' + uid;
-    HB.db.subscribe(_ownKey, { table: 'profiles', filter: 'id=eq.' + uid }, function () {
-      console.log('[REALTIME] Own profile changed — rechecking pairing status');
-      rel.init(true).then(function () { rel.dispatch(); }).catch(function () {});
-    });
-    _pollTimer = setInterval(function () {
+    _waitCheck = function () {
       if (rel.data.status !== 'waiting') { stopWaitingWatch(); return; }
       rel.init(true).then(function () { rel.dispatch(); }).catch(function () {});
-    }, WAIT_POLL_MS);
+    };
+    _ownKey = 'waiting:' + uid;
+    HB.db.subscribe(_ownKey, { table: 'profiles', filter: 'id=eq.' + uid }, _waitCheck);
+    /* One recheck shortly after entering "waiting" covers a slow
+       realtime handshake; focus/online events cover resume/offline. */
+    _pollTimer = setTimeout(_waitCheck, 5000);
+    window.addEventListener('focus', _waitCheck);
+    window.addEventListener('online', _waitCheck);
   }
 
   function stopWaitingWatch() {
     if (_ownKey) { HB.db.unsubscribe(_ownKey); _ownKey = null; }
-    if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+    if (_pollTimer) { clearTimeout(_pollTimer); _pollTimer = null; }
+    if (_waitCheck) {
+      window.removeEventListener('focus', _waitCheck);
+      window.removeEventListener('online', _waitCheck);
+      _waitCheck = null;
+    }
   }
 
   function doInit() {

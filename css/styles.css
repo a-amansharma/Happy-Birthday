@@ -188,53 +188,25 @@ a { color: inherit; text-decoration: none; }
 ::-webkit-scrollbar-thumb { background: var(--primary-soft); border-radius: 20px; border: 2px solid var(--bg); }
 ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
 
-/* ---------- Ambient background ---------- */
+/* ---------- Ambient background ----------
+   Static only — no blurred full-screen blobs, no drifting clouds,
+   no animated stars/floaters. Cheap pastel gradient circles give the
+   same cozy mood without constant repaints on low-end phones. */
 .bg-layer { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-.bg-layer .blob { position: absolute; border-radius: 50%; filter: blur(70px); opacity: 0.5; animation: blobDrift 26s ease-in-out infinite alternate; }
+.bg-layer .blob { position: absolute; border-radius: 50%; opacity: 0.38; }
 .blob-1 { width: 46vmax; height: 46vmax; background: var(--primary-soft); top: -12vmax; left: -10vmax; }
-.blob-2 { width: 40vmax; height: 40vmax; background: var(--accent-soft); bottom: -14vmax; right: -8vmax; animation-delay: -8s; }
-.blob-3 { width: 24vmax; height: 24vmax; background: var(--primary-soft); bottom: 6vmax; left: 12vmax; opacity: 0.35; animation-delay: -16s; }
-@keyframes blobDrift {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(4vmax, -3vmax) scale(1.12); }
-}
+.blob-2 { width: 40vmax; height: 40vmax; background: var(--accent-soft); bottom: -14vmax; right: -8vmax; }
+.blob-3 { width: 24vmax; height: 24vmax; background: var(--primary-soft); bottom: 6vmax; left: 12vmax; opacity: 0.28; }
 
-.bg-clouds { position: absolute; inset: 0; opacity: 0.5; }
-.bg-clouds::before, .bg-clouds::after {
-  content: ''; position: absolute; width: 200px; height: 60px; border-radius: 100px;
-  background: var(--surface); opacity: 0.5; filter: blur(2px);
-  animation: cloudMove 60s linear infinite;
-}
-.bg-clouds::before { top: 12%; left: -220px; }
-.bg-clouds::after { top: 34%; left: -300px; width: 300px; height: 80px; animation-duration: 90s; animation-delay: -20s; }
-@keyframes cloudMove { from { transform: translateX(-300px); } to { transform: translateX(calc(100vw + 400px)); } }
-
-.bg-stars { position: absolute; inset: 0; }
-.bg-stars .star {
-  position: absolute; width: 5px; height: 5px; border-radius: 50%;
-  background: var(--primary); opacity: 0.35; animation: twinkle 4s ease-in-out infinite;
-}
-@keyframes twinkle { 0%, 100% { opacity: 0.15; transform: scale(0.7); } 50% { opacity: 0.7; transform: scale(1.2); } }
-
-.bg-floating { position: absolute; inset: 0; }
-.bg-floating .floater { position: absolute; animation: floatUp linear infinite; user-select: none; will-change: transform, opacity; }
-
-@keyframes floatUp {
-  0% { transform: translateY(0) rotate(-6deg); opacity: 0; }
-  12% { opacity: var(--fo, 0.5); }
-  88% { opacity: var(--fo, 0.5); }
-  100% { transform: translateY(-110vh) rotate(8deg); opacity: 0; }
-}
+.bg-clouds { display: none; }
+.bg-stars { display: none; }
+.bg-floating { display: none; }
 
 /* ---------- App layout ---------- */
 .app { position: relative; z-index: 1; display: flex; min-height: 100vh; }
 .main { flex: 1; margin-left: 264px; width: calc(100% - 264px); transition: margin 0.45s var(--ease); }
 
-.page { padding: 38px 44px 90px; max-width: 1240px; margin: 0 auto; animation: pageIn 0.55s var(--ease); }
-@keyframes pageIn {
-  from { opacity: 0; transform: translateY(16px) scale(0.99); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
+.page { padding: 38px 44px 90px; max-width: 1240px; margin: 0 auto; }
 
 .page-full { max-width: none; }
 
@@ -833,7 +805,7 @@ a { color: inherit; text-decoration: none; }
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
-  .bg-clouds, .bg-floating, .landing-bears .bear-wave { animation: none !important; }
+  .landing-bears .bear-wave { animation: none !important; }
 }
 
 /* ============================================================

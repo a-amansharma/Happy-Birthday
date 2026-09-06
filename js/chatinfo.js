@@ -75,6 +75,7 @@
     }
 
     if (HB.chat.messages.length) { render(main); return; }
+    HB.loading(main, 'Loading your photos & links…');
     HB.chat.load().then(function () { render(main); });
   });
 

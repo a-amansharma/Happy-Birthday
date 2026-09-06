@@ -29,6 +29,7 @@
       for (var i = 0; i < known.length; i++) {
         if (msg.indexOf(known[i]) !== -1) return known[i];
       }
+      if (/23502|violates not-null constraint/.test(msg)) return 'MISSING_PROFILE';
       return 'UNKNOWN';
     },
 
