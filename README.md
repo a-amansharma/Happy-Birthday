@@ -18,7 +18,7 @@ Built with vanilla JavaScript (no build step, no frameworks) + [Supabase](https:
 
 ```
 index.html              ← Entry point (single HTML page)
-supabase.sql            ← DATABASE SETUP — run in Supabase SQL Editor
+supabase/run-all.sql     ← DATABASE SETUP — run in Supabase SQL Editor
 js/
   config.js             ← Supabase URL + anon key (public) + APP_VERSION
   supabase.js           ← Boots Supabase client, restores session
@@ -46,7 +46,7 @@ admin/                  ← PRIVATE owner insights page (not linked in UI)
 
 1. **Create a Supabase project** at https://supabase.com (free tier is plenty).
 
-2. **Run the schema.** In the Supabase dashboard → SQL Editor, paste the entire contents of `supabase.sql` and run it. It creates:
+2. **Run the schema.** In the Supabase dashboard → SQL Editor, paste the entire contents of `supabase/run-all.sql` and run it. It creates:
    - Tables: `profiles`, `messages`
    - RLS policies (strict two-person access)
    - RPC functions: `connect_with_partner`, `delete_my_data`, `is_couple_pair`, `my_partner_id`, `admin_get_insights`

@@ -14,6 +14,7 @@
   var HB = window.HB = window.HB || {};
 
   var channel = null;
+  var joined = false;   /* true once the channel reports SUBSCRIBED (not a private API) */
   var me = null;
   var myName = 'you';
   var onlineCb = null;
@@ -66,7 +67,10 @@
       channel.subscribe(function (status) {
         if (status === 'SUBSCRIBED') {
           console.log('[PRESENCE] Channel subscribed');
+          joined = true;
           track();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          joined = false;
         }
       });
 
@@ -75,7 +79,7 @@
         if (!channel) return;
         if (document.visibilityState === 'hidden') {
           try { channel.untrack(); } catch (e) {}
-        } else if (channel._joined) {
+        } else if (joined) {
           track();
         }
       };
@@ -95,6 +99,7 @@
         try { HB.db.client().removeChannel(channel); } catch (e) {}
         channel = null;
       }
+      joined = false;
       presence.online = false;
       presence.partnerTyping = false;
     },

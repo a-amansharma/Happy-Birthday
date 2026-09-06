@@ -43,8 +43,8 @@
     if (/NOT_CONFIGURED/.test(all)) return 'Cloud connection isn\'t set up yet — open js/config.js first.';
     if (/NOT_AUTHENTICATED|sign in/i.test(all)) return 'Please sign in first, then try again ♡';
     if (/23505|unique|duplicate/.test(all)) return 'That code is already in use — we made you a fresh one, try again ♡';
-    if (/PGRST205|42P01|42703|Could not find|does not exist|schema|relation.*does not exist/i.test(all)) return 'The database isn\'t ready yet — run supabase.sql in Supabase SQL Editor, then reload ♡';
-    if (/permission denied|42501|row-level security|RLS/i.test(all)) return 'We couldn\'t save that — permission issue. Run supabase.sql in Supabase SQL Editor, then reload ♡';
+    if (/PGRST205|42P01|42703|Could not find|does not exist|schema|relation.*does not exist/i.test(all)) return 'The database isn\'t ready yet — run supabase/run-all.sql in Supabase SQL Editor, then reload ♡';
+    if (/permission denied|42501|row-level security|RLS/i.test(all)) return 'We couldn\'t save that — permission issue. Run supabase/run-all.sql in Supabase SQL Editor, then reload ♡';
     if (/network|fetch|failed|offline|NetworkError|ERR_NETWORK|timeout/i.test(all)) return 'You seem to be offline — check your connection and try again ♡';
     if (/Cannot read prop|null|undefined|TypeError|ReferenceError/i.test(all)) return 'Something went wrong on our end — please reload the page and try again ♡';
     if (/auth\/|token|session|forbidden|401|403/i.test(all)) return 'Your session expired — please reload and try again ♡';
@@ -406,7 +406,7 @@
           clearTimeout(safetyTimer);
           console.error('[ONBOARDING] signInAnonymously returned error:', res.error);
           if (card && card.parentNode) {
-            card.innerHTML = '<div class="connect-center"><p>We couldn\'t create your little identity: ' + HB.esc(String(res.error.message || res.error)) + '</p>' +
+            card.innerHTML = '<div class="connect-center"><p>We couldn\'t create your little identity: ' + friendly(res.error) + '</p>' +
               '<button class="btn btn-soft" data-retry>Try again</button></div>';
             card.querySelector('[data-retry]').addEventListener('click', function () { HB.navigate('/onboarding'); });
           }

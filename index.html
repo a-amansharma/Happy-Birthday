@@ -14,12 +14,15 @@
   <link rel="stylesheet" href="css/dudu.css" />
   <link rel="stylesheet" href="css/characters.css" />
   <script>
-    // Resolves once the Supabase client is ready (js/supabase.js) — or 4s timeout
-    // so the app still boots offline / unconfigured.
-    window.__sbReady = Promise.race([
-      new Promise(function (r) { window.__resolveSb = r; }),
-      new Promise(function (r) { setTimeout(r, 2000); })
-    ]);
+    // Resolves once the Supabase client is ready (js/supabase.js) — or after a
+    // generous timeout so the app still boots offline / unconfigured without
+    // leaving the user stuck (this used to be 2s, too aggressive on slow nets).
+    window.__sbReady = new Promise(function (r) {
+      window.__resolveSb = r;
+      // Fallback safety net: if the Supabase module never resolves (vendored
+      // build missing AND CDN blocked/slow), boot in offline mode.
+      setTimeout(function () { r(null); }, 8000);
+    });
   </script>
 </head>
 <body>

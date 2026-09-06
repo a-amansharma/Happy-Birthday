@@ -1,0 +1,21 @@
+name: Keep Supabase Awake
+
+on:
+  schedule:
+    # every 3 days at 06:15 UTC — free-tier projects pause after 7 days of no requests
+    - cron: '15 6 */3 * *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the profiles table (counts as API activity)
+        run: |
+          # --fail makes the job red if the project is paused (521/4xx),
+          # so GitHub emails you instead of silently succeeding.
+          curl -f -sS -o /tmp/sb_ping.json -w "HTTP %{http_code}\n" \
+            "https://zbnbuhpmctxocupunbdo.supabase.co/rest/v1/profiles?select=id&limit=1" \
+            -H "apikey: sb_publishable_4oofZDsULDJNbb8ChWXJvA_ptd98GFM" \
+            -H "Authorization: Bearer sb_publishable_4oofZDsULDJNbb8ChWXJvA_ptd98GFM"
+          head -c 200 /tmp/sb_ping.json; echo

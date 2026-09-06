@@ -136,7 +136,7 @@
           if (/PGRST205|42P01|42703|Could not find|does not exist/.test(msg)) {
             HB._schemaNotice = true;
             data.status = 'unconfigured';
-            if (HB.toast) HB.toast('Database isn\'t ready — run supabase.sql in Supabase SQL Editor, then reload ♡', '⚠️');
+            if (HB.toast) HB.toast('Database isn\'t ready — run supabase/run-all.sql in Supabase SQL Editor, then reload ♡', '⚠️');
           }
         });
     } catch (e) {
@@ -256,7 +256,7 @@
           console.error('[PAIRING] RPC error:', errDetail);
           if (/Could not find the function|PGRST202/.test(msg) && !HB._rpcNotice) {
             HB._rpcNotice = true;
-            if (HB.toast) HB.toast('Run the pairing SQL first — supabase.sql in Supabase SQL Editor ♡', '⚠️');
+            if (HB.toast) HB.toast('Run the pairing SQL first — supabase/run-all.sql in Supabase SQL Editor ♡', '⚠️');
           }
           return { error: { message: 'RPC:' + (HB.db.rpcError(res.error) || msg) } };
         }

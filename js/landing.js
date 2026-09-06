@@ -182,12 +182,13 @@
       console.log('[PAIRING] connectWithCode result:', JSON.stringify(out));
       if (out && out.error) {
         var msg = String(out.error.message || '');
+        var low = msg.toLowerCase();
         var hint = msg.indexOf('INVALID') !== -1 ? 'That code didn\'t match — double-check it? ♡'
           : msg.indexOf('CODE_USED') !== -1 ? 'This couple is already paired 💕 — ask them for a fresh code.'
           : msg.indexOf('SELF') !== -1 ? 'That\'s your own code, silly! 💞'
           : msg.indexOf('ALREADY') !== -1 ? 'You\'re already part of a couple — you can only be in one ♡'
+          : /fetch|network|offline|timeout|connect/i.test(low) ? 'You seem to be offline — check your connection and try again.'
           : msg.indexOf('NOT_') !== -1 ? 'Hmm, that didn\'t work. Try again?'
-          : msg.indexOf('NETWORK') !== -1 ? 'You seem to be offline — check your connection and try again.'
           : 'Hmm, that didn\'t work. Try again?';
         err && (err.textContent = hint);
         return false;
@@ -205,8 +206,12 @@
     HB.auth.signInAnonymously().then(function (res) {
       if (res && res.error) {
         console.error('[PAIRING] Anonymous sign-in failed:', res.error);
-        err && (err.textContent = 'Couldn\'t create your little identity. Try again? ♡');
-        return;
+        var raw = String((res.error && (res.error.message || res.error)) || '');
+        var hint = /network|fetch|failed|offline|NetworkError|ERR_NETWORK|timeout/i.test(raw)
+          ? 'You seem to be offline — check your connection and try again ♡'
+          : 'Couldn\'t create your little identity. Try again? ♡';
+        err && (err.textContent = hint);
+        return false;
       }
       console.log('[PAIRING] Anonymous sign-in successful, user:', res.user ? res.user.id.substring(0, 8) + '...' : 'none');
       return HB.rel.init().then(function () {

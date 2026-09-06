@@ -201,10 +201,12 @@
     HB.rel.connectWithCode(code).then(function (res) {
       if (res && res.error) {
         var msg = String(res.error.message || '');
+        var low = msg.toLowerCase();
         var hint = msg.indexOf('INVALID') !== -1 ? 'That code didn\'t match — double-check it? ♡'
           : msg.indexOf('CODE_USED') !== -1 ? 'That code has already been used — ask them for a fresh one ♡'
           : msg.indexOf('SELF') !== -1 ? 'That\'s your own code, silly! 💞'
           : msg.indexOf('ALREADY') !== -1 ? 'You two are already connected! ♡'
+          : /fetch|network|offline|timeout|connect/i.test(low) ? 'You seem to be offline — check your connection and try again.'
           : msg.indexOf('NOT_') !== -1 ? 'Please sign in first.'
           : 'Hmm, that didn\'t work. Try again?';
         if (err) err.textContent = hint;

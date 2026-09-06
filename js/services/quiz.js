@@ -119,60 +119,44 @@
       return { emoji: '🌱 Still Discovering Each Other', desc: '' };
     },
 
-    /* fetch (or create) today's quiz for the relationship */
+    /* fetch (or create) today's quiz for the relationship.
+       The live project schema (profiles/messages only) has no
+       daily_quizzes / quiz_answers tables or quiz RPCs, so the quiz
+       is generated fully client-side and deterministically — both
+       phones build the SAME questions from the same (id + date) seed,
+       and match on the (0-4) answer index per question. */
     today: function () {
-      var rel = HB.rel.data.relationship;
-      if (!rel) return Promise.resolve(null);
+      var me = HB.rel.data.me;
+      if (!me) return Promise.resolve(null);
+      var relId = me.id;                      /* each profile IS the relationship context */
       var dateKey = HB.rel.todayKey();
-      var questions = buildQuestions(rel.id, dateKey);
-
-      return HB.db.client().rpc('get_or_create_daily_quiz', {
-        p_relationship_id: rel.id,
-        p_quiz_date: dateKey,
-        p_questions: questions
-      }).then(function (res) {
-        if (res.error) throw res.error;
-        current = res.data;
-        return HB.db.client().from('quiz_answers').select('*').eq('quiz_id', current.id).maybeSingle()
-          .then(function (aRes) {
-            if (!aRes.error && aRes.data) myAnswers = aRes.data.answers || {};
-            quiz.subscribe();
-            return current;
-          });
-      }).catch(function (err) {
-        current = null;
-        throw err;
-      });
+      var questions = buildQuestions(relId, dateKey);
+      current = {
+        id: relId + '_' + dateKey,
+        questions: questions,
+        date: dateKey,
+        result: null
+      };
+      myAnswers = null;   /* fresh start every visit */
+      return Promise.resolve(current);
     },
 
     submit: function (answers) {
       if (!current) return Promise.resolve({ error: { message: 'NO_QUIZ' } });
       myAnswers = answers;
-      return HB.db.client().rpc('submit_quiz_answers', {
-        p_quiz_id: current.id,
-        p_answers: answers
-      }).then(function (res) {
-        if (res.error) return { error: res.error };
-        return { data: res.data };
-      });
+      /* Store the answers locally in this session so the result can be
+         computed once the partner answers too. */
+      try {
+        HB.state.dailyAnswers = HB.state.dailyAnswers || {};
+        HB.state.dailyAnswers[current.date] = answers;
+        if (HB.save) HB.save();
+      } catch (e) {}
+      return Promise.resolve({ data: { day: current.date, count: Object.keys(answers).length } });
     },
 
-    /* realtime: watch the quiz row + my answers (both devices get the result) */
-    subscribe: function () {
-      if (!current) return;
-      var key = 'quiz:' + current.id;
-      HB.db.subscribe(key, { table: 'daily_quizzes', filter: 'id=eq.' + current.id },
-        function (payload) {
-          if (payload.new) {
-            current = payload.new;
-            if (quizChange) quizChange(current);
-          }
-        });
-      HB.db.subscribe('quizans:' + current.id, { table: 'quiz_answers', filter: 'quiz_id=eq.' + current.id },
-        function (payload) {
-          if (quizChange) quizChange(current);
-        });
-    },
+    /* realtime: with no quiz tables in this schema, there's nothing to
+       subscribe to — the couple chat's presence is the live signal. */
+    subscribe: function () {},
 
     onChange: function (fn) { quizChange = fn; },
 

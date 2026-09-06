@@ -163,7 +163,7 @@ HB.presence.onTyping(function () { calls++; order.push('a'); });
 HB.presence.onTyping(function () { calls++; order.push('b'); });
 
 // ---- services: net (thin connection bar) ----
-t('net service loads', !!HB.net && typeof HB.net.init === 'function' && typeof HB.net.setOnline === 'function');
+t('net service loads', !!HB.net && typeof HB.net.init === 'function' && typeof HB.net.getErrorReport === 'function');
 t('net.init runs on the shim DOM', (HB.net.init(), true));
 
 // async assertions

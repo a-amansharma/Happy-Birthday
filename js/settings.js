@@ -398,8 +398,13 @@
 
       /* 7) Redirect to landing page (fresh start) */
       history.replaceState(null, '', HB.base + '/');
-      /* Force full reload to clear all JS state completely */
-      location.reload();
+      /* Give the auth library a beat to fully drop its in-memory session
+         before the hard reload, so getSession() can't restore a stale one. */
+      setTimeout(function () {
+        try { localStorage.clear(); } catch (e) {}
+        try { sessionStorage.clear(); } catch (e) {}
+        location.reload();
+      }, 150);
     });
 
     /* Safety: force-reload after 5s no matter what */

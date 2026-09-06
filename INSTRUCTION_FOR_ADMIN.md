@@ -11,10 +11,10 @@
 | **Website URL** | `https://YOUR-DOMAIN/` (hosted as static site) |
 | **Admin panel** | `https://YOUR-DOMAIN/admin/` (private, not linked anywhere) |
 | **Supabase project** | `zbnbuhpmctxocupunbdo.supabase.co` |
-| **Supabase SQL Editor** | Dashboard → SQL Editor (paste + run `supabase.sql`) |
+| **Supabase SQL Editor** | Dashboard → SQL Editor (paste + run `supabase/run-all.sql`) |
 | **Main DB tables** | `profiles`, `messages` |
 | **Main config file** | `js/config.js` (Supabase URL + anon key) |
-| **SQL setup file** | `supabase.sql` (root of project) |
+| **SQL setup file** | `supabase/run-all.sql` (in the `supabase/` folder) |
 | **Local dev** | Open `index.html` in browser or use any static server |
 | **Deployment** | Push to GitHub → GitHub Pages auto-deploys |
 
@@ -98,7 +98,7 @@ User on Phone A          User on Phone B
 ```
 Happy-Birthday/
 ├── index.html              ← Entry point (single HTML page)
-├── supabase.sql            ← DATABASE SETUP — run in Supabase SQL Editor
+├── supabase/run-all.sql            ← DATABASE SETUP — run in Supabase SQL Editor
 ├── README.md               ← Project description
 ├── INSTRUCTION_FOR_ADMIN.md← THIS FILE
 ├── .nojekyll               ← Prevents GitHub Pages from processing with Jekyll
@@ -163,7 +163,7 @@ Happy-Birthday/
 ### Files to modify carefully
 
 - `js/config.js` — Supabase connection (wrong values = app breaks)
-- `supabase.sql` — database schema (wrong SQL = app breaks + data loss risk)
+- `supabase/run-all.sql` — database schema (wrong SQL = app breaks + data loss risk)
 - `js/core.js` — router and state (breaking changes = all pages break)
 - `js/services/*.js` — backend services (wrong code = data corruption risk)
 - `js/supabase.js` — client bootstrap (wrong code = auth breaks)
@@ -288,7 +288,7 @@ This website uses **Supabase Anonymous Authentication**. There are no email/pass
 
 ---
 
-## 7. The SQL File — `supabase.sql`
+## 7. The SQL File — `supabase/run-all.sql`
 
 ### What it does
 
@@ -317,9 +317,9 @@ This single file sets up the **entire database** for the app. It creates:
 
 ### How to run it
 
-1. Open `supabase.sql` in a text editor (or copy its contents)
+1. Open `supabase/run-all.sql` in a text editor (or copy its contents)
 2. Open Supabase Dashboard → SQL Editor
-3. Paste the **entire contents** of `supabase.sql`
+3. Paste the **entire contents** of `supabase/run-all.sql`
 4. Click "Run"
 5. You should see: `DATABASE SETUP COMPLETED SUCCESSFULLY`
 6. If you see errors → read them carefully → they tell you exactly what's wrong
@@ -543,7 +543,7 @@ In `js/onboarding.js`, the `setupAccount()` function called `signInAnonymously()
 
 ### What Was Changed
 
-#### File: `supabase.sql` (created — replaces old `supabase/schema.sql`)
+#### File: `supabase/run-all.sql` (created — replaces old `supabase/schema.sql`)
 
 - **Completely rewritten** with zero references to the `storage` schema
 - All SQL statements are idempotent (`CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`)
@@ -573,7 +573,7 @@ In `js/onboarding.js`, the `setupAccount()` function called `signInAnonymously()
 
 ### How to Verify the Fix
 
-1. **Run the new SQL**: Open Supabase SQL Editor → paste contents of `supabase.sql` → Run → should see "DATABASE SETUP COMPLETED SUCCESSFULLY"
+1. **Run the new SQL**: Open Supabase SQL Editor → paste contents of `supabase/run-all.sql` → Run → should see "DATABASE SETUP COMPLETED SUCCESSFULLY"
 2. **Clear browser storage**: Open DevTools → Application → Clear site data (start fresh)
 3. **Test the full flow**: Open the website → click "Create Our Space" → go through all 9 steps → click "Create Our World ♡" → should see "Setting up your little world…" → should redirect to landing page showing pairing code
 4. **Test Step 9 specifically**: The theme cards should load, be selectable, and "Create Our World ♡" should work without error
@@ -590,12 +590,12 @@ In `js/onboarding.js`, the `setupAccount()` function called `signInAnonymously()
    - `[ONBOARDING] Setup account failed:` — the caught error with full details
    - `[ONBOARDING] Full error object:` — JSON of the complete error
 3. **Common causes:**
-   - If "relation does not exist" → SQL hasn't been run → run `supabase.sql`
+   - If "relation does not exist" → SQL hasn't been run → run `supabase/run-all.sql`
    - If "permission denied" → RLS issue → check policies in Supabase Dashboard
-   - If "infinite recursion detected in policy" → old SQL without `my_partner_id()` function → run the latest `supabase.sql` (the `select member` policy used to read from `profiles` within itself, causing infinite recursion — now fixed with a `security definer` function)
+   - If "infinite recursion detected in policy" → old SQL without `my_partner_id()` function → run the latest `supabase/run-all.sql` (the `select member` policy used to read from `profiles` within itself, causing infinite recursion — now fixed with a `security definer` function)
    - If "Anonymous sign-ins are disabled" → enable in Authentication → Providers
    - If network error → check internet connection
-   - If "Could not find the function" → SQL functions haven't been created → run `supabase.sql`
+   - If "Could not find the function" → SQL functions haven't been created → run `supabase/run-all.sql`
    - If "NOT_CONFIGURED" → `js/config.js` has wrong values
    - If "NOT_AUTHENTICATED" → anonymous auth not working → check Supabase auth settings
 4. **The error message now shows a hint of the actual error** (e.g., "Hmm, something went wrong — new row violates row-level security policy. Please try again") — report this exact text when asking for help
@@ -747,32 +747,32 @@ There's no build step — the production files ARE the source files. To test:
 
 | Problem | Cause | Solution | Verification |
 |---|---|---|---|
-| `42501: permission denied` | SQL tried to access `storage` schema (requires superuser) | Run the new `supabase.sql` (no storage references) | SQL should execute without errors |
-| RLS blocks profile creation | RLS policy missing or incorrect | Re-run `supabase.sql` to recreate policies | Can create profile during onboarding |
+| `42501: permission denied` | SQL tried to access `storage` schema (requires superuser) | Run the new `supabase/run-all.sql` (no storage references) | SQL should execute without errors |
+| RLS blocks profile creation | RLS policy missing or incorrect | Re-run `supabase/run-all.sql` to recreate policies | Can create profile during onboarding |
 | Can't see partner's data | Partner not linked (`partner_id` is null) | Re-pair using a fresh code | Both phones show as connected |
 
 ### SQL Errors
 
 | Problem | Cause | Solution | Verification |
 |---|---|---|---|
-| `42501: permission denied for schema storage` | Old SQL tried to create storage functions | Run the new `supabase.sql` (no storage references) | SQL executes without errors |
-| `42P01: relation "profiles" does not exist` | SQL never ran or failed mid-execution | Run `supabase.sql` in full | Table appears in Table Editor |
+| `42501: permission denied for schema storage` | Old SQL tried to create storage functions | Run the new `supabase/run-all.sql` (no storage references) | SQL executes without errors |
+| `42P01: relation "profiles" does not exist` | SQL never ran or failed mid-execution | Run `supabase/run-all.sql` in full | Table appears in Table Editor |
 | `23505: duplicate key value` | Pairing code collision | This is auto-retried with a new code; shouldn't happen to users | Onboarding completes normally |
-| `PGRST205: Could not find the table` | Table doesn't exist | Run `supabase.sql` | Table appears in Table Editor |
+| `PGRST205: Could not find the table` | Table doesn't exist | Run `supabase/run-all.sql` | Table appears in Table Editor |
 
 ### Data Not Appearing
 
 | Problem | Cause | Solution | Verification |
 |---|---|---|---|
 | Profile not in Supabase | `ensureProfile()` failed during onboarding | Check browser console for errors; re-run onboarding | Profile row appears in Table Editor |
-| Chat messages missing | `messages` table doesn't exist | Run `supabase.sql` (creates messages table) | Send a test message, verify it persists |
+| Chat messages missing | `messages` table doesn't exist | Run `supabase/run-all.sql` (creates messages table) | Send a test message, verify it persists |
 | Memories not saving | localStorage full or cleared | Check browser storage settings | Memories appear after page refresh |
 
 ### Step 9 Vibe-Theme Error
 
 | Problem | Cause | Solution | Verification |
 |---|---|---|---|
-| "Hmm, something went wrong" on Step 9 | SQL never created `profiles` table OR anonymous auth not enabled | 1. Run `supabase.sql` 2. Enable anonymous auth 3. Clear browser storage 4. Retry onboarding | Complete onboarding Step 1→9 without error |
+| "Hmm, something went wrong" on Step 9 | SQL never created `profiles` table OR anonymous auth not enabled | 1. Run `supabase/run-all.sql` 2. Enable anonymous auth 3. Clear browser storage 4. Retry onboarding | Complete onboarding Step 1→9 without error |
 | Theme cards not showing | JavaScript error in `data.js` | Check browser console; verify `HB.THEMES` exists | Theme cards appear on Step 9 |
 | Theme selection not saving | `finalize()` failed before save | Check console for auth/DB errors; ensure backend is configured | Theme applies after onboarding |
 
@@ -838,7 +838,7 @@ There's no build step — the production files ARE the source files. To test:
 ### If a table is accidentally modified
 
 1. Don't panic — the SQL file has the complete schema
-2. Re-run `supabase.sql` to recreate tables and policies
+2. Re-run `supabase/run-all.sql` to recreate tables and policies
 3. If data was deleted and you have a backup → re-insert the data
 4. If no backup → the data is lost (there's no undo in SQL)
 
@@ -893,7 +893,7 @@ END $$;
 
 | Date | Change | Files Affected | Database Changes | Reason |
 |---|---|---|---|---|
-| 17 Aug 2026 | Rewrote `supabase.sql` — removed all `storage` schema references, made all statements idempotent, switched chat images to base64 data URLs | `supabase.sql` (new), deleted `supabase/schema.sql` | New `supabase.sql` must be run in SQL Editor | Old SQL failed with `42501: permission denied for schema storage`, preventing all database tables from being created |
+| 17 Aug 2026 | Rewrote `supabase/run-all.sql` — removed all `storage` schema references, made all statements idempotent, switched chat images to base64 data URLs | `supabase/run-all.sql` (new), deleted `supabase/schema.sql` | New `supabase/run-all.sql` must be run in SQL Editor | Old SQL failed with `42501: permission denied for schema storage`, preventing all database tables from being created |
 | 17 Aug 2026 | Fixed Step 9 onboarding error — added `.catch()` to `signInAnonymously()`, improved error messages | `js/onboarding.js` | None | Missing error handler caused unhandled promise rejection |
 | 17 Aug 2026 | Added comprehensive diagnostic logging to `setupAccount()`, `ensureProfile()`, and `signInAnonymously()` — shows actual Supabase error in browser console | `js/onboarding.js`, `js/services/relationship.js`, `js/services/auth.js` | None | Generic "Hmm, something went wrong" made debugging impossible; now the actual error is logged with full details |
 | 17 Aug 2026 | Added 15-second safety timeout in `setupAccount()` — prevents loading state from hanging forever | `js/onboarding.js` | None | If backend setup hangs, user now gets a retryable error instead of infinite loading |
@@ -905,7 +905,7 @@ END $$;
 | 17 Aug 2026 | Rewrote memories page — two-column layout (one per person), sticky notes, polaroid cards, responsive modal | `js/memories.js`, `css/styles.css` | None | Better UX for two-person memories |
 | 17 Aug 2026 | Rewrote settings erase — full state reset, localStorage purge, Supabase signout, reload | `js/settings.js` | `delete_my_data` RPC clears profile + unlinks partner | "Erase Everything" now properly resets all state |
 | 17 Aug 2026 | Created `INSTRUCTION_FOR_ADMIN.md` | `INSTRUCTION_FOR_ADMIN.md` (new) | None | Complete admin documentation |
-| 17 Aug 2026 | Fixed infinite recursion in profiles RLS — created `my_partner_id()` security definer function, updated `select member` policy to use it instead of inline subquery | `supabase.sql` | New function `my_partner_id()` added; `profiles select member` policy rewritten | "infinite recursion detected in policy for relation profiles" error — the old policy's subquery read from `profiles` (the same table), causing PostgreSQL to evaluate the policy recursively forever |
+| 17 Aug 2026 | Fixed infinite recursion in profiles RLS — created `my_partner_id()` security definer function, updated `select member` policy to use it instead of inline subquery | `supabase/run-all.sql` | New function `my_partner_id()` added; `profiles select member` policy rewritten | "infinite recursion detected in policy for relation profiles" error — the old policy's subquery read from `profiles` (the same table), causing PostgreSQL to evaluate the policy recursively forever |
 | 17 Aug 2026 | Added comprehensive diagnostic logging to `setupAccount()`, `ensureProfile()`, and `signInAnonymously()` | `js/onboarding.js`, `js/services/relationship.js`, `js/services/auth.js` | None | Shows actual Supabase error in browser console for debugging |
 | 17 Aug 2026 | Added 15-second safety timeout in `setupAccount()` | `js/onboarding.js` | None | Prevents infinite loading if backend hangs |
 | 17 Aug 2026 | Improved `friendly()` error handler — shows hint of actual error | `js/onboarding.js` | None | Users can now report the actual problem |
