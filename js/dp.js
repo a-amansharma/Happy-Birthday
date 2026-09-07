@@ -68,12 +68,15 @@
         var img = new Image();
         img.onload = function () {
           try {
-            var scale = Math.min(1, max / Math.max(img.width || 1, img.height || 1));
-            var w = Math.max(1, Math.round((img.width || 1) * scale));
-            var h = Math.max(1, Math.round((img.height || 1) * scale));
+            /* Center-crop the photo to a perfect SQUARE so it always fills
+               the circle completely — never stretched into an oval. */
+            var size = Math.min(img.width || 1, img.height || 1);
+            var out = Math.max(1, Math.min(size, max));
+            var sx = Math.round(((img.width || 1) - size) / 2);
+            var sy = Math.round(((img.height || 1) - size) / 2);
             var c = document.createElement('canvas');
-            c.width = w; c.height = h;
-            c.getContext('2d').drawImage(img, 0, 0, w, h);
+            c.width = out; c.height = out;
+            c.getContext('2d').drawImage(img, sx, sy, size, size, 0, 0, out, out);
             resolve({ dataUrl: c.toDataURL('image/jpeg', 0.85) });
           } catch (err) {
             resolve({ dataUrl: orig });

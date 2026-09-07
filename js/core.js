@@ -269,7 +269,7 @@
 
     var duoInner = (HB.dp && HB.dp.duo)
       ? HB.dp.duo()
-      : '<span class="duo-cluster"><span class="duo-ring duo-top"><span class="duo-let">♥</span></span><span class="duo-heart" aria-hidden="true">♥</span><span class="duo-ring duo-bot"><span class="duo-let">♥</span></span></span>';
+      : '<span class="duo-cluster"><span class="duo-ring duo-top"><span class="duo-let">♥</span></span><span class="duo-ring duo-bot"><span class="duo-let">♥</span></span></span>';
     var logo = '<div class="sidebar-logo"><div class="duo-dp" data-duo-dp title="' +
       'You two — change either of your little pictures">' + duoInner +
       '</div><div><div class="logo-text">Our Little World</div><div class="logo-sub">' + HB.esc(HB.couple()) + '</div></div></div>';
@@ -419,22 +419,25 @@
       '<div class="modal-actions"></div>' +
       '</div>';
     var actions = overlay.querySelector('.modal-actions');
+    function close() {
+      if (overlay.parentNode) overlay.remove();
+    }
     (opts.actions || []).forEach(function (a) {
       var b = document.createElement('button');
       b.className = 'btn ' + (a.kind || 'btn-soft') + ' btn-sm';
       b.textContent = a.label;
-      b.addEventListener('click', function () {
+      b.addEventListener('click', function (e) {
+        if (e && e.stopPropagation) e.stopPropagation();
+        /* Run the action, then auto-close the box. Only an explicit
+           `return false` keeps it open (e.g. a validatable form that
+           wants the user to fix input before closing). */
         var res = a.onClick ? a.onClick(overlay) : true;
         if (res !== false) close();
       });
       actions.appendChild(b);
     });
-    function close() {
-      overlay.style.animation = 'fadeUp 0.25s reverse var(--ease)';
-      setTimeout(function () { overlay.remove(); }, 250);
-    }
     overlay.addEventListener('click', function (e) {
-      if (e.target === overlay || e.target.closest('[data-close]')) close();
+      if (e.target === overlay || (e.target && e.target.closest && e.target.closest('[data-close]'))) close();
     });
     document.body.appendChild(overlay);
     return overlay;
@@ -447,9 +450,8 @@
       actions: [
         { label: 'Cancel', kind: 'btn-ghost' },
         { label: yesLabel || 'Yes, do it', kind: 'btn-danger', onClick: function (ov) {
-          /* Run the action, then auto-close the box unless the action
-             explicitly returns false (meaning it wants to stay open,
-             e.g. a flow that keeps going on the same dialog). */
+          /* Run the action, then ALWAYS auto-close immediately unless the
+             action explicitly returns false to keep the dialog open. */
           var keep = onYes ? onYes(ov) : true;
           return keep;
         } }
