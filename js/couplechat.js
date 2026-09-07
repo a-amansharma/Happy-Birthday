@@ -430,6 +430,19 @@
     });
     send.addEventListener('click', doSend);
 
+    /* Android closes the keyboard when you tap any non-input element
+       (like the send button). Bring the keys straight back so sending
+       a message never dismisses them — they only close when the user
+       touches the feed or leaves the chat. */
+    function keepKeyboard() {
+      setTimeout(function () {
+        if (!input || !input.isConnected) return;
+        if (document.activeElement !== input) {
+          try { input.focus({ preventScroll: true }); } catch (e) { input.focus(); }
+        }
+      }, 70);
+    }
+
     function doSend() {
       var text = input.value.trim();
       if (!text) return;
@@ -443,6 +456,7 @@
           input.value = text;
         }
       });
+      keepKeyboard();
     }
 
     attachBtn.addEventListener('click', function () { attachInput.click(); });

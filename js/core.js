@@ -661,16 +661,19 @@
     return I[name] || '';
   };
 
-  /* ---------------- Mobile keyboard ----------------
-     When the on-screen keyboard covers the bottom of a phone screen we:
-       * hide the fixed bottom nav (it would otherwise float above the
-         keys and push the typing box upward), and
-       * expand the chat page to the keyboard-reduced available height so
-         the typing box sits exactly on top of the keyboard.
-     Driven by the visualViewport API where available; falls back to "a
-     text field is focused" on older engines. Only active on phones. */
+  /* ---------------- Mobile viewport + keyboard ----------------
+     * `--vv-h` is ALWAYS kept in sync with the real visible viewport
+       height (visualViewport px). Some phone browsers don't support
+       `dvh`, so CSS falls back to this pixel value — this keeps the
+       bottom nav + chat typing box visible even when the address bar
+       hides or the on-screen keyboard opens.
+     * When the keyboard is up (visualViewport shrinks), `kb-open` is
+       set on <body>: the fixed bottom nav is hidden so it never floats
+       above the keys, and the chat page fills the keyboard-reduced
+       height so the typing box rests exactly on top of the keyboard. */
   (function () {
     var vv = window.visualViewport;
+    var root = document.documentElement;
     var mq = window.matchMedia ? window.matchMedia('(max-width: 860px)') : null;
 
     function focusedField() {
@@ -678,20 +681,24 @@
       return !!(el && el.tagName && /^(INPUT|TEXTAREA)$/i.test(el.tagName));
     }
 
+    function setVh() {
+      var h = (vv && vv.height) ? Math.round(vv.height) : (window.innerHeight || 0);
+      if (h) root.style.setProperty('--vv-h', h + 'px');
+    }
+
     function sync() {
+      setVh();
       var on = false;
       if (mq && mq.matches) {
+        /* Keyboard is (or should be treated as) open when the visual
+           viewport shrank, or while a text field is focused on a phone.
+           Keeping focus = keyboard open matches how users expect the
+           chat box to behave (keys stay up until they touch the feed). */
         var ih = window.innerHeight || 0;
-        if (vv && vv.height) {
-          on = vv.height < ih - 160;
-        } else {
-          on = focusedField();
-        }
+        var reduced = !!(vv && vv.height && vv.height < ih - 160);
+        on = reduced || focusedField();
       }
       document.body.classList.toggle('kb-open', on);
-      var root = document.documentElement;
-      if (on && vv && vv.height) root.style.setProperty('--kb-h', vv.height + 'px');
-      else root.style.removeProperty('--kb-h');
     }
 
     if (vv) { vv.addEventListener('resize', sync); vv.addEventListener('scroll', sync); }

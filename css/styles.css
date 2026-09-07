@@ -17,9 +17,10 @@
   --shadow-float: 0 18px 44px rgba(178, 132, 92, 0.22);
   --glass: rgba(255, 255, 255, 0.55);
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
-  /* mobile bottom nav height (incl. home-indicator safe area) — used by
-     the chat page + toasts so nothing hides behind the fixed nav */
-  --bnav: calc(56px + env(safe-area-inset-bottom));
+  /* mobile bottom nav height (incl. its bottom margin + home-indicator
+     safe area) — used by the chat page + toasts so nothing hides behind
+     the floating nav */
+  --bnav: calc(62px + env(safe-area-inset-bottom));
 }
 
 /* Milk & Mocha (default) */
@@ -169,7 +170,8 @@ body {
   background: var(--bg);
   color: var(--ink);
   min-height: 100vh;
-  min-height: 100dvh;
+  min-height: var(--vv-h, 100vh);
+  min-height: var(--vv-h, 100dvh);
   overflow-x: hidden;
   line-height: 1.6;
   transition: background 0.6s var(--ease), color 0.6s var(--ease);
@@ -204,7 +206,7 @@ a { color: inherit; text-decoration: none; }
 .bg-floating { display: none; }
 
 /* ---------- App layout ---------- */
-.app { position: relative; z-index: 1; display: flex; min-height: 100vh; min-height: 100dvh; }
+.app { position: relative; z-index: 1; display: flex; min-height: 100vh; min-height: var(--vv-h, 100vh); min-height: var(--vv-h, 100dvh); }
 .main { flex: 1; margin-left: 264px; width: calc(100% - 264px); transition: margin 0.45s var(--ease); }
 
 .page { padding: 38px 44px 90px; max-width: 1240px; margin: 0 auto; }
@@ -250,22 +252,26 @@ a { color: inherit; text-decoration: none; }
 .sidebar-footer .sf-name { font-family: var(--font-hand); font-size: 20px; font-weight: 700; color: var(--primary-deep); }
 .sidebar-footer .sf-sub { font-size: 12px; color: var(--ink-soft); }
 
-/* ---------- Bottom nav (mobile) ---------- */
+/* ---------- Bottom nav (mobile) — floating pill with breathing room
+   so it is never cut off by the screen edge or home indicator ---------- */
 .bottom-nav {
-  display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+  display: none; position: fixed; left: 10px; right: 10px;
+  bottom: 0;
+  bottom: calc(8px + env(safe-area-inset-bottom));
+  z-index: 60;
   background: var(--glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid var(--line); height: var(--bnav);
+  border: 1px solid var(--line); height: 54px; border-radius: 22px;
   box-shadow: 0 -8px 30px rgba(0,0,0,0.06); padding: 0;
 }
 .bn-inner {
   display: flex; justify-content: space-around; align-items: flex-end;
   height: 100%; max-width: 540px; margin: 0 auto;
-  padding: 2px 6px calc(2px + env(safe-area-inset-bottom));
+  padding: 0 4px 3px;
 }
 .bn-item {
   position: relative; flex: 1; min-width: 0; height: 100%;
   display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-  gap: 2px; padding: 3px 3px 6px; border-radius: var(--radius-sm);
+  gap: 2px; padding: 3px 3px 5px; border-radius: var(--radius-sm);
   font-size: 10px; font-weight: 800; color: var(--ink-soft); line-height: 1.15;
   transition: color 0.25s var(--ease);
 }
@@ -360,7 +366,7 @@ a { color: inherit; text-decoration: none; }
 .input-lg { font-size: 17px; padding: 17px 20px; }
 
 /* ---------- Landing page ---------- */
-.landing { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 24px 70px; position: relative; }
+.landing { min-height: 100vh; min-height: var(--vv-h, 100vh); min-height: var(--vv-h, 100dvh); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 24px 70px; position: relative; }
 .landing-badge {
   display: inline-flex; align-items: center; gap: 8px; padding: 9px 18px; border-radius: 50px;
   background: var(--surface); box-shadow: var(--shadow-card); border: 1px solid var(--line);
@@ -526,7 +532,7 @@ a { color: inherit; text-decoration: none; }
 .section-title .hand { font-size: 20px; }
 
 /* ---------- Chat ---------- */
-.chat-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; width: 100%; animation: pageIn 0.4s var(--ease); }
+.chat-page { display: flex; flex-direction: column; height: 100vh; height: var(--vv-h, 100vh); height: var(--vv-h, 100dvh); width: 100%; animation: pageIn 0.4s var(--ease); }
 .chat-head {
   display: flex; align-items: center; gap: 14px; padding: 16px 26px;
   background: var(--glass); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
@@ -929,7 +935,7 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 860px) {
   .sidebar { display: none; }
   .main { margin-left: 0; width: 100%; }
-  .chat-page { height: calc(100vh - var(--bnav)); height: calc(100dvh - var(--bnav)); }
+  .chat-page { height: calc(100vh - var(--bnav)); height: calc(var(--vv-h, 100vh) - var(--bnav)); height: calc(var(--vv-h, 100dvh) - var(--bnav)); }
   .bottom-nav { display: flex; }
   .page { padding: 26px 18px calc(90px + env(safe-area-inset-bottom)); }
   .toasts { bottom: calc(var(--bnav) + 14px); }
@@ -1568,153 +1574,168 @@ a { color: inherit; text-decoration: none; }
    keyboard-aware chat (no bottom nav while typing)
    ============================================================ */
 
-/* While the on-screen keyboard is up: hide the fixed bottom nav so it
-   never floats above the keys, and let the chat page fill the full
+/* While the on-screen keyboard is up: hide the floating bottom nav so
+   it never sits above the keys, and let the chat page fill the full
    (keyboard-reduced) viewport so the typing box rests exactly on top
-   of the keyboard. `--kb-h` is set by JS from the visualViewport. */
+   of the keyboard. `--vv-h` is kept in sync by JS (visualViewport). */
 body.kb-open .bottom-nav { display: none !important; }
-body.kb-open .toasts { bottom: 14px; }
+body.kb-open .toasts { bottom: 18px; }
 body.kb-open .chat-page {
   height: 100vh;
-  height: var(--kb-h, 100dvh);
+  height: var(--vv-h, 100vh);
+  height: var(--vv-h, 100dvh);
 }
 
-@media (max-width: 480px) {
-  /* Page shell — more breathing room so nothing hides behind the nav */
-  .page { padding: 18px 13px calc(82px + env(safe-area-inset-bottom)); }
+/* Phones & phablets — everything clearly smaller so it fits snugly */
+@media (max-width: 600px) {
+  .page { padding: 14px 12px calc(76px + env(safe-area-inset-bottom)); }
 
-  /* Buttons, chips, forms — one notch smaller for phones */
-  .btn { padding: 10px 16px; font-size: 13px; }
-  .btn-sm { padding: 8px 14px; font-size: 12.5px; }
-  .btn-lg { padding: 13px 24px; font-size: 14.5px; }
-  .btn-icon { width: 36px; height: 36px; }
-  .btn-icon svg { width: 16px; height: 16px; }
-  .chip { padding: 6px 11px; font-size: 12px; gap: 5px; }
-  .chip-grid { gap: 8px; }
+  /* Buttons, chips, forms — compact */
+  .btn { padding: 9px 14px; font-size: 12.5px; gap: 7px; }
+  .btn-sm { padding: 7px 12px; font-size: 12px; }
+  .btn-lg { padding: 12px 22px; font-size: 13.5px; }
+  .btn-icon { width: 34px; height: 34px; }
+  .btn-icon svg { width: 15px; height: 15px; }
+  .chip { padding: 5px 10px; font-size: 11.5px; gap: 4px; }
+  .chip-grid { gap: 7px; }
+  .eyebrow { font-size: 10.5px; gap: 6px; }
 
   /* Typography */
-  .dash-hello { margin-bottom: 16px; }
-  .dash-hello h1 { font-size: 24px; }
-  .dash-hello p { font-size: 13px; }
-  .section-title { margin: 20px 0 10px; }
-  .section-title h3 { font-size: 18px; }
-  .section-title .hand { font-size: 17px; }
-  .eyebrow { font-size: 11px; }
+  .dash-hello { margin-bottom: 14px; }
+  .dash-hello h1 { font-size: 22px; }
+  .dash-hello p { font-size: 12.5px; }
+  .section-title { margin: 18px 0 9px; gap: 8px; }
+  .section-title h3 { font-size: 17px; }
+  .section-title .hand { font-size: 16px; }
 
   /* Cards & dashboard */
-  .card { padding: 18px 16px; border-radius: 20px; }
-  .dash-grid { gap: 10px; }
-  .dash-tile { padding: 14px 12px; gap: 8px; border-radius: 18px; }
-  .dash-tile .dt-icon { width: 38px; height: 38px; font-size: 18px; border-radius: 12px; }
-  .dash-tile .dt-title { font-size: 13.5px; }
-  .dash-tile .dt-sub { font-size: 12px; }
-  .dash-tile .dt-go { font-size: 12px; }
-  .relation-hero { padding: 18px 14px; gap: 12px; border-radius: 20px; margin-bottom: 16px; }
-  .relation-hero h2 { font-size: 20px; }
-  .relation-hero .rh-tag { font-size: 11px; padding: 4px 10px; }
-  .relation-hero .rh-ages { font-size: 12.5px; }
-  .relation-hero .rh-bears { width: 100px; }
+  .card { padding: 16px 14px; border-radius: 18px; }
+  .dash-grid { gap: 9px; }
+  .dash-tile { padding: 12px 10px; gap: 7px; border-radius: 16px; }
+  .dash-tile .dt-icon { width: 36px; height: 36px; font-size: 17px; border-radius: 11px; }
+  .dash-tile .dt-title { font-size: 13px; }
+  .dash-tile .dt-sub { font-size: 11.5px; }
+  .dash-tile .dt-go { font-size: 11.5px; }
+  .relation-hero { padding: 16px 13px; gap: 11px; border-radius: 18px; margin-bottom: 14px; }
+  .relation-hero h2 { font-size: 19px; }
+  .relation-hero .rh-tag { font-size: 10.5px; padding: 3px 9px; }
+  .relation-hero .rh-ages { font-size: 12px; }
+  .relation-hero .rh-bears { width: 92px; }
 
   /* Landing */
-  .landing { padding: 26px 16px 56px; }
-  .landing h1 { font-size: 31px; margin-bottom: 10px; }
-  .landing .sub { font-size: 14px; margin-bottom: 22px; }
-  .landing-badge { padding: 7px 14px; font-size: 12px; margin-bottom: 18px; }
-  .landing-cards { gap: 12px; }
-  .landing-card { padding: 22px 18px 20px; min-height: 0; border-radius: 20px; }
-  .lc-icon { width: 56px; height: 56px; font-size: 26px; margin-bottom: 12px; }
-  .lc-title { font-size: 18px; }
-  .lc-sub { font-size: 12.5px; margin-bottom: 12px; }
+  .landing { padding: 22px 14px 50px; }
+  .landing h1 { font-size: 28px; margin-bottom: 8px; }
+  .landing .sub { font-size: 13px; margin-bottom: 18px; }
+  .landing-badge { padding: 6px 12px; font-size: 11.5px; margin-bottom: 14px; }
+  .landing-cards { gap: 10px; }
+  .landing-card { padding: 18px 15px 17px; min-height: 0; border-radius: 18px; }
+  .lc-icon { width: 50px; height: 50px; font-size: 24px; margin-bottom: 10px; }
+  .lc-title { font-size: 17px; }
+  .lc-sub { font-size: 12px; margin-bottom: 10px; }
 
   /* Wizard */
-  .wizard { padding: 18px 14px 70px; }
-  .wizard-card { padding: 20px 16px; }
-  .wizard-step-q { font-size: 20px; }
-  .wizard-step-hint { font-size: 13.5px; margin-bottom: 18px; }
-  .option-cards { gap: 8px; }
-  .option-card { padding: 14px 14px; font-size: 13.5px; border-radius: 14px; }
-  .option-card .opt-emoji { font-size: 20px; }
-  .theme-card { padding: 10px; }
-  .theme-swatch { height: 46px; }
-  .wizard-head .hand { font-size: 26px; }
-  .progress { margin-bottom: 26px; }
+  .wizard { padding: 16px 12px 60px; }
+  .wizard-card { padding: 18px 15px; }
+  .wizard-step-q { font-size: 19px; }
+  .wizard-step-hint { font-size: 13px; margin-bottom: 16px; }
+  .option-cards { gap: 7px; }
+  .option-card { padding: 12px 12px; font-size: 13px; border-radius: 13px; }
+  .option-card .opt-emoji { font-size: 19px; }
+  .theme-card { padding: 9px; }
+  .theme-swatch { height: 42px; }
+  .wizard-head { margin-bottom: 22px; }
+  .wizard-head .hand { font-size: 24px; }
+  .progress { margin-bottom: 22px; }
 
   /* Forms */
-  .label { font-size: 13px; margin-bottom: 6px; }
-  .field { margin-bottom: 14px; }
-  .input, .textarea, .select { padding: 11px 14px; font-size: 14px; border-radius: 14px; }
-  .input-lg { font-size: 15px; padding: 13px 15px; }
-  .textarea { min-height: 110px; }
+  .label { font-size: 12.5px; margin-bottom: 5px; }
+  .field { margin-bottom: 12px; }
+  .input, .textarea, .select { padding: 10px 13px; font-size: 13px; border-radius: 13px; }
+  .input-lg { font-size: 14px; padding: 12px 14px; }
+  .textarea { min-height: 100px; }
 
   /* Chat — general + couple */
-  .chat-head { padding: 10px 12px; gap: 10px; }
-  .chat-head h2 { font-size: 15px; }
-  .chat-head p { font-size: 11px; }
-  .chat-head .avatar { width: 40px; height: 40px; }
-  .msg { gap: 7px; margin: 6px 0; max-width: 92%; }
-  .msg .msg-avatar { width: 28px; height: 28px; }
-  .msg .bubble { font-size: 13.5px; padding: 9px 12px; border-radius: 17px; }
-  .msg .msg-time { font-size: 10px; }
-  .chat-input-wrap { padding: 8px 10px 12px; }
-  .chat-input-box { border-radius: 30px; padding: 5px 5px 5px 15px; gap: 8px; }
-  .chat-input-box textarea { font-size: 14px; max-height: 84px; padding: 6px 0; }
-  .chat-input-box .send-btn { width: 38px; height: 38px; }
-  .chat-input-box .send-btn svg { width: 16px; height: 16px; }
-  .attach-btn { width: 38px; height: 38px; font-size: 17px; }
-  .chat-suggestions { padding: 2px 14px 8px; gap: 6px; }
-  .chat-suggestions .chip { font-size: 11.5px; padding: 6px 10px; }
-  .couple-chat .chat-head { padding: 10px 12px; }
-  .couple-chat .chat-head .avatar { width: 40px; height: 40px; }
-  .couple-chat .chat-head-meta h2 { font-size: 15.5px; }
+  .chat-head { padding: 9px 10px; gap: 9px; }
+  .chat-head h2 { font-size: 14px; }
+  .chat-head p { font-size: 10.5px; }
+  .chat-head .avatar { width: 36px; height: 36px; }
+  .msg { gap: 6px; margin: 5px 0; max-width: 92%; }
+  .msg .msg-avatar { width: 26px; height: 26px; }
+  .msg .bubble { font-size: 13px; padding: 8px 11px; border-radius: 16px; }
+  .msg .msg-time { font-size: 9.5px; }
+  .chat-input-wrap { padding: 7px 8px 10px; }
+  .chat-input-box { border-radius: 28px; padding: 4px 4px 4px 13px; gap: 7px; }
+  .chat-input-box textarea { font-size: 13.5px; max-height: 76px; padding: 5px 0; }
+  .chat-input-box .send-btn { width: 36px; height: 36px; }
+  .chat-input-box .send-btn svg { width: 15px; height: 15px; }
+  .attach-btn { width: 36px; height: 36px; font-size: 16px; }
+  .chat-suggestions { padding: 2px 12px 7px; gap: 6px; }
+  .chat-suggestions .chip { font-size: 11px; padding: 5px 9px; }
+  .couple-chat .chat-head { padding: 9px 10px; }
+  .couple-chat .chat-head .avatar { width: 36px; height: 36px; }
+  .couple-chat .chat-head-meta h2 { font-size: 14.5px; }
   .couple-chat .msg { max-width: 90%; }
-  .couple-chat .msg .bubble { font-size: 13.5px; padding: 8px 10px 6px; border-radius: 15px; }
-  .couple-chat .msg .msg-avatar { width: 28px; height: 28px; font-size: 12px; }
-  .couple-chat .chat-input-wrap { padding: 6px 8px 10px; }
-  .chat-empty { min-height: 55vh; padding: 0 14px; }
-  .chat-empty h3 { font-size: 22px; }
-  .chat-empty p { font-size: 13.5px; }
+  .couple-chat .msg .bubble { font-size: 13px; padding: 7px 9px 5px; border-radius: 14px; }
+  .couple-chat .msg .msg-avatar { width: 26px; height: 26px; font-size: 11px; }
+  .couple-chat .chat-input-wrap { padding: 5px 7px 8px; }
+  .chat-empty { min-height: 52vh; padding: 0 12px; }
+  .chat-empty h3 { font-size: 21px; }
+  .chat-empty p { font-size: 13px; }
 
   /* Love notes */
-  .note-card { padding: 18px 16px; border-radius: 20px; }
-  .note-card .note-title { font-size: 18px; }
-  .note-card .note-text { font-size: 14px; }
-  .note-card .note-meta .tag { font-size: 11px; padding: 3px 10px; }
+  .note-card { padding: 16px 14px; border-radius: 18px; }
+  .note-card .note-title { font-size: 17px; }
+  .note-card .note-text { font-size: 13.5px; }
+  .note-card .note-meta .tag { font-size: 10.5px; padding: 3px 9px; }
 
   /* Daily question / quiz */
-  .daily-card { padding: 24px 16px; }
-  .daily-card .big-q { font-size: 30px; }
-  .daily-card h2 { font-size: 18px; }
-  .daily-answers { gap: 10px; }
-  .answer-card { padding: 14px 14px; gap: 10px; }
-  .quiz-cat { padding: 16px; }
-  .quiz-opt { padding: 12px 14px; font-size: 14px; gap: 10px; }
-  .quiz-q { font-size: 19px; margin-bottom: 18px; }
-  .score-num { font-size: 40px; }
-  .score-message { font-size: 17px; }
+  .daily-card { padding: 22px 14px; }
+  .daily-card .big-q { font-size: 28px; }
+  .daily-card h2 { font-size: 17px; }
+  .daily-answers { gap: 9px; }
+  .answer-card { padding: 12px 12px; gap: 9px; }
+  .quiz-cat { padding: 14px; }
+  .quiz-opt { padding: 11px 12px; font-size: 13.5px; gap: 9px; }
+  .quiz-q { font-size: 18px; margin-bottom: 16px; }
+  .score-num { font-size: 38px; }
+  .score-message { font-size: 16px; }
 
   /* Memories */
-  .mem-col-name { font-size: 19px; }
-  .polaroid-grid { gap: 14px; }
-  .media-grid { gap: 8px; }
+  .mem-col-name { font-size: 18px; }
+  .polaroid-grid { gap: 12px; }
+  .media-grid { gap: 7px; }
 
   /* Dates / settings / partner */
-  .stat-card { padding: 18px 10px; }
-  .stat-card .st-num { font-size: 26px; }
-  .stat-card .st-label { font-size: 11px; }
-  .date-event { padding: 16px 14px; }
-  .date-idea { padding: 18px 16px; gap: 8px; }
-  .date-idea h3 { font-size: 16px; }
-  .date-idea .di-emoji { font-size: 28px; }
-  .setting-row { padding: 11px 0; }
-  .settings-card h3 { font-size: 15px; }
-  .mini-stat .ms-val { font-size: 22px; }
-  .waiting-card { padding: 20px 16px; }
-  .connect-card { padding: 12px 12px; gap: 10px; }
-  .connect-card .cc-scene { width: 64px; }
+  .stats-row { gap: 10px; }
+  .stat-card { padding: 16px 8px; }
+  .stat-card .st-num { font-size: 24px; }
+  .stat-card .st-label { font-size: 10.5px; }
+  .date-event { padding: 14px 12px; }
+  .date-idea { padding: 16px 14px; gap: 7px; }
+  .date-idea h3 { font-size: 15px; }
+  .date-idea .di-emoji { font-size: 26px; }
+  .setting-row { padding: 10px 0; }
+  .settings-card h3 { font-size: 14.5px; }
+  .mini-stat { padding: 12px; }
+  .mini-stat .ms-val { font-size: 20px; }
+  .waiting-card { padding: 18px 14px; }
+  .connect-card { padding: 11px 11px; gap: 9px; }
+  .connect-card .cc-scene { width: 58px; }
 
   /* Modal / toasts */
-  .modal { padding: 20px 16px; }
-  .modal .modal-title { font-size: 18px; }
-  .modal .modal-text { font-size: 14px; margin-bottom: 18px; }
-  .toast { font-size: 13px; padding: 11px 16px; }
+  .modal { padding: 18px 14px; }
+  .modal .modal-title { font-size: 17px; }
+  .modal .modal-text { font-size: 13.5px; margin-bottom: 16px; }
+  .toast { font-size: 12.5px; padding: 10px 15px; gap: 8px; }
+
+  /* Bottom nav labels stay legible but compact */
+  .bn-label { font-size: 9.5px; }
+  .bn-item svg { width: 19px; height: 19px; }
+}
+
+@media (max-width: 380px) {
+  .landing h1 { font-size: 25px; }
+  .dash-grid { grid-template-columns: 1fr 1fr; }
+  .msg { max-width: 94%; }
+  .couple-chat .msg { max-width: 92%; }
 }

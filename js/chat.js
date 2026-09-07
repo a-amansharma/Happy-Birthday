@@ -145,6 +145,19 @@
       input.value = '';
       autoGrow();
       simulateUserMessage(text);
+      keepKeyboard();
+    }
+
+    /* Android closes the keyboard when you tap a button — bring it right
+       back after sending so the keys stay up until the user touches the
+       feed or leaves the chat. */
+    function keepKeyboard() {
+      setTimeout(function () {
+        if (!input || !input.isConnected) return;
+        if (document.activeElement !== input) {
+          try { input.focus({ preventScroll: true }); } catch (e) { input.focus(); }
+        }
+      }, 70);
     }
 
     main.querySelectorAll('#suggestions .chip').forEach(function (chip) {
