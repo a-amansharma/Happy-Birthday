@@ -137,6 +137,8 @@
             '<button class="btn btn-soft btn-sm" id="export-data">Export</button></div>' +
             '<div class="setting-row"><div><div class="sr-title">Erase only me & start fresh</div><div class="sr-sub">Removes your profile from this couple. Your partner keeps everything — their world stays as it was, ready for someone new.</div></div>' +
             '<button class="btn btn-danger btn-sm" id="reset-all">Erase me</button></div>' +
+            '<div class="setting-row"><div><div class="sr-title">Factory reset this couple</div><div class="sr-sub">Wipes EVERYTHING for BOTH phones — chats, memories, notes, photos, quiz history, feeds, and your couple. There is no going back.</div></div>' +
+            '<button class="btn btn-danger btn-sm" id="factory-reset">Reset all</button></div>' +
           '</div>' +
 
           (HB.creator ? HB.creator.html() : '') +
@@ -257,10 +259,19 @@
     main.querySelector('#reset-all').addEventListener('click', function () {
       HB.confirm('Erase only you & start fresh?', 'This removes your profile from your couple — your chats, memories, notes and everything you two shared stay behind with your partner, ready for someone new. This can\'t be undone.', function () {
         var overlay = showEraseOverlay();
-        resetToFreshStart(overlay).then(function () {
+        resetToFreshStart(overlay, (HB.rel && HB.rel.leave ? HB.rel.leave.bind(HB.rel) : null)).then(function () {
           HB.toast('A fresh start for you — your partner\'s world is untouched ♡', '🌷');
         });
       }, 'Erase me');
+    });
+
+    main.querySelector('#factory-reset').addEventListener('click', function () {
+      HB.confirm('Factory reset — wipe everything for you two?', 'This erases ALL data for BOTH phones, forever: your chats, memories, love notes, photos, the couple activity feed, quiz history, and your couple itself. There is no undo — you will both start completely fresh from pairing codes.', function () {
+        var overlay = showEraseOverlay();
+        resetToFreshStart(overlay, (HB.rel && HB.rel.factoryReset ? HB.rel.factoryReset.bind(HB.rel) : null)).then(function () {
+          HB.toast('Everything is gone — a brand-new little world starts now ♡', '🌱');
+        });
+      }, 'Reset everything');
     });
 
     /* relationship card actions */
@@ -340,14 +351,15 @@
     try { sessionStorage.clear(); } catch (e) {}
   }
 
-  function resetToFreshStart(overlay) {
+  function resetToFreshStart(overlay, wipeFn) {
     stopLiveServices();
 
 /* Delete MY profile on the cloud (leave() keeps the partner's
            world + data intact and issues them a fresh pairing code),
-           then sign out locally. leave() swallows backend errors so a
-           wipe can never get stuck. */
-    var wipe = (HB.rel && HB.rel.leave) ? HB.rel.leave() : Promise.resolve();
+           or wipe the whole couple for both phones (factoryReset()).
+           Both swallow backend errors so a wipe can never get stuck.
+           Then sign out locally. */
+    var wipe = wipeFn ? wipeFn() : ((HB.rel && HB.rel.leave) ? HB.rel.leave() : Promise.resolve());
 
     /* Safety: never hold the user hostage on a slow network. */
     var guard = new Promise(function (r) { setTimeout(r, 4000); });

@@ -211,7 +211,7 @@
     var ui = (HB.journal && HB.journal.kindUi) ? HB.journal.kindUi(it.kind) : { emoji: '✨', label: 'Little things' };
     var when = (HB.journal && HB.journal.timeAgo) ? HB.journal.timeAgo(it.created_at) : '';
     var left = it.img
-      ? '<span class="j-emoji j-emoji-img"><img class="j-img" src="' + HB.esc(it.img) + '" alt=""/></span>'
+      ? '<span class="j-emoji j-emoji-img"><img class="j-img" src="' + HB.esc(it.img) + '" alt="" loading="lazy" decoding="async"/></span>'
       : '<span class="j-emoji">' + HB.esc(ui.emoji) + '</span>';
     return '<li class="j-item">' +
       left +
@@ -265,7 +265,7 @@
       var chip = row.querySelector('.mng-chip');
       if (!chip) continue;
       chip.innerHTML = photo
-        ? '<img class="mng-img" src="' + HB.esc(photo) + '" alt=""/>'
+        ? '<img class="mng-img" src="' + HB.esc(photo) + '" alt="" decoding="async"/>'
         : '<span class="mng-inits">' + HB.esc(String(letter || '♥').toUpperCase()) + '</span>';
       var sub = row.querySelector('.mng-label i');
       if (sub) sub.textContent = photo

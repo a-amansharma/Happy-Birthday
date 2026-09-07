@@ -146,6 +146,25 @@ t('__HB_DISPATCH_REL hook defined', typeof global.__HB_DISPATCH_REL === 'functio
 t('rel.dynamic helper', typeof HB.rel.dynamic === 'function');
 t('rel has waiting subscription helper wired', typeof HB.rel.init === 'function');
 t('rel pairKey unconfigured → null', HB.rel.pairKey() === null);
+t('rel.leave exists (erase me path)', typeof HB.rel.leave === 'function');
+t('rel.factoryReset exists (wipe both phones path)', typeof HB.rel.factoryReset === 'function');
+t('rel.factoryReset unconfigured resolves safely', (HB.rel.factoryReset() instanceof Promise, true));
+
+// ---- services: quiz + match breakdown ----
+t('quiz service loads', !!HB.quiz && typeof HB.quiz.today === 'function' && typeof HB.quiz.buildDetail === 'function');
+const qQ = [
+  { q: 'What is {p}\u2019s favorite?', opts: ['Pizza', 'Ice cream', 'Chocolate'] },
+  { q: "What does {p} check first?", opts: ['Phone', 'Water'] }
+];
+const qM = { '0': 1, '1': 0 };
+const qT = { '0': 1, '1': 1 };
+const qD = HB.quiz.buildDetail(qQ, qM, qT);
+t('quiz buildDetail same+swapped split', !!qD && qD.length === 2 && qD[0].same === true && qD[1].same === false);
+t('quiz buildDetail fills live names', qD[0].question.indexOf('Her') !== -1);
+t('quiz buildDetail exposes both picks', qD[1].mine === 'Phone' && qD[1].theirs === 'Water');
+t('quiz buildDetail null without both answers', HB.quiz.buildDetail(qQ, qM, null) === null);
+t('quiz detail() null before any quiz', HB.quiz.detail() === null);
+t('quiz ensureDetail on no quiz resolves null', (HB.quiz.ensureDetail().then(function (d) { return d; }), true));
 
 // ---- services: chat (pair-scoped, unconfigured-safe) ----
 t('chat service loads', !!HB.chat && typeof HB.chat.sendText === 'function' && typeof HB.chat.sendImage === 'function');

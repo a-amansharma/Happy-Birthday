@@ -53,7 +53,20 @@
     var my = HB.quiz.myAnswers();
     var result = quiz.result;
 
-    if (result) { renderResult(main, quiz, result); return; }
+    if (result) {
+      renderResult(main, quiz, result);
+      /* The breakdown needs the partner's answers — surface it the moment
+         it arrives instead of making the user wait (and never twice). */
+      if (!quiz.detail) {
+        HB.quiz.ensureDetail().then(function (d) {
+          if (!d || !main.isConnected) return;
+          if (quiz.detail) return;
+          quiz.detail = d;
+          renderResult(main, quiz, result);
+        });
+      }
+      return;
+    }
 
     var questions = quiz.questions || [];
     if (!questions.length) {
@@ -141,6 +154,31 @@
     var ringLen = 565;
     var dash = (pct / 100) * ringLen;
     var names = HB.firstNames();
+    var partnerName = names.partner;
+    var detail = quiz.detail || null;
+
+    /* Per-question "what did we each pick" — highlights the matched vs
+       swapped answers so both phones learn how the other side reads them. */
+    var detailHtml = '';
+    if (detail && detail.length) {
+      detailHtml =
+        '<div class="quiz-detail-title">Where you two matched & where you swapped 💞</div>' +
+        '<div class="quiz-detail">' +
+        detail.map(function (row) {
+          return '<div class="qd-row' + (row.same ? ' qd-same' : ' qd-diff') + '">' +
+            '<div class="qd-q">' + HB.esc(row.question) + '</div>' +
+            '<div class="qd-answers">' +
+              '<span class="qd-tag qd-you">You: <b>' + HB.esc(row.mine || '—') + '</b></span>' +
+              '<span class="qd-vs">' + (row.same ? '✓' : 'vs') + '</span>' +
+              '<span class="qd-tag qd-them">' + HB.esc(partnerName) + ': <b>' + HB.esc(row.theirs || '—') + '</b></span>' +
+            '</div>' +
+            '<div class="qd-badge">' + (row.same
+              ? '<span class="qd-badge-ok">✓ You two agree</span>'
+              : '<span class="qd-badge-swap">✗ Swapped — you each picked something different</span>') + '</div>' +
+          '</div>';
+        }).join('') +
+        '</div>';
+    }
 
     main.innerHTML =
       '<div class="page" style="max-width:680px">' +
@@ -156,6 +194,7 @@
         '<div class="dudu-small-stage" data-du style="max-width:180px;margin:6px auto 0"></div>' +
         '<p class="muted" style="font-size:12.5px;margin-top:12px">A fresh quiz appears tomorrow — see you then, love. ♡</p>' +
       '</div>' +
+      (detailHtml ? '<div class="card" style="margin-top:16px;text-align:left">' + detailHtml + '</div>' : '') +
       '</div>';
 
     var du = main.querySelector('[data-du]');

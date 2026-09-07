@@ -51,6 +51,20 @@
     return u ? u.id : null;
   }
 
+  var _reloadTimer = null;
+
+  /* Debounced re-init: realtime can fire several events in a burst
+     (partner updated their profile, the relationship flipped, activity
+     arrived...). Collapsing them into ONE refresh keeps the app fast and
+     smooth instead of stacking overlapping fetches. */
+  function scheduleReload() {
+    if (_reloadTimer) clearTimeout(_reloadTimer);
+    _reloadTimer = setTimeout(function () {
+      _reloadTimer = null;
+      rel.init(true).then(function () { rel.dispatch(); }).catch(function () {});
+    }, 120);
+  }
+
   /* ---- waiting watch: watch my OWN relationship row via Realtime ----
      Person 1 created a relationship (status 'waiting'). Once Person 2
      completes pairing, that row flips to 'connected' → we re-init here.
@@ -62,7 +76,7 @@
     if (!rid || !HB.db.configured()) return;
     _waitCheck = function () {
       if (data.status !== 'waiting') { stopWaitingWatch(); return; }
-      rel.init(true).then(function () { rel.dispatch(); }).catch(function () {});
+      scheduleReload();
     };
     _relKey = 'waiting:' + rid;
     HB.db.subscribe(_relKey, { table: 'relationships', filter: 'id=eq.' + rid }, _waitCheck);
@@ -463,6 +477,32 @@
         });
     },
 
+    /* ---- factory reset — wipes EVERYTHING for BOTH phones forever ----
+       Deletes both profiles + the whole relationship + every shared row
+       (chats, memories, notes, the activity feed incl. photos, quiz days
+       and answers). Falls back to leave() on old schemas so the button
+       never gets stuck. After this the caller should also wipe local
+       storage and reset in-memory state. */
+    factoryReset: function () {
+      if (!HB.db.configured() || !meId()) return Promise.resolve();
+      stopWaitingWatch();
+      var run = function () {
+        return HB.db.client().rpc('factory_reset_couple')
+          .then(function (res) {
+            if (res && res.error && /PGRST202|42883|Could not find the function/.test(
+              String((res.error && (res.error.message || res.error.code)) || ''))) {
+              console.log('[RESET] factory_reset_couple missing — falling back to delete_my_data');
+              return HB.db.client().rpc('delete_my_data');
+            }
+            return res;
+          })
+          .catch(function (err) { console.warn('[RESET] factory reset RPC failed:', err); });
+      };
+      return run().then(function () {
+        if (HB.auth) return HB.auth.signOut();
+      });
+    },
+
     /* ---- live sync: my row, partner row, relationship row ----
        (shared-data tables are handled by their own services) */
     subscribeRealtime: function () {
@@ -472,7 +512,7 @@
       if (_ownKey) { HB.db.unsubscribe(_ownKey); _ownKey = null; }
       _ownKey = 'me:' + myid;
       HB.db.subscribe(_ownKey, { table: 'profiles', filter: 'id=eq.' + myid }, function () {
-        rel.init(true).then(function () { rel.dispatch(); }).catch(function () {});
+        scheduleReload();
       });
 
       if (data.me && data.me.relationship_id) {
@@ -481,7 +521,7 @@
           if (_relKey) { HB.db.unsubscribe(_relKey); _relKey = null; }
           _relKey = 'rel:' + rid;
           HB.db.subscribe(_relKey, { table: 'relationships', filter: 'id=eq.' + rid }, function () {
-            rel.init(true).then(function () { rel.dispatch(); }).catch(function () {});
+            scheduleReload();
           });
         }
       }
@@ -490,7 +530,7 @@
         if (_partnerKey) { HB.db.unsubscribe(_partnerKey); _partnerKey = null; }
         _partnerKey = 'partner:' + data.partner.id;
         HB.db.subscribe(_partnerKey, { table: 'profiles', filter: 'id=eq.' + data.partner.id }, function () {
-          rel.init(true).then(function () { rel.dispatch(); }).catch(function () {});
+          scheduleReload();
         });
       }
     },

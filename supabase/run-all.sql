@@ -733,6 +733,42 @@ end $$;
 grant execute on function public.delete_my_data() to authenticated;
 
 
+-- ---- 7d.2 FACTORY RESET — wipe EVERYTHING for BOTH phones ----
+-- The total "start over from zero" button. Unlike delete_my_data (which
+-- keeps the partner's world intact and just re-issues a fresh pairing
+-- code), this wipes the whole couple: both participant profiles, the
+-- shared relationship row, and — via its ON DELETE CASCADE — every
+-- message, love note, memory, the couple activity feed (including all
+-- embedded photo data), and every quiz day/answer. Nothing survives,
+-- on either device.
+create or replace function public.factory_reset_couple()
+returns void
+language plpgsql security definer set search_path = public
+as $$
+declare
+  me  uuid := auth.uid();
+  rid uuid;
+begin
+  if me is null then raise exception 'NOT_AUTHENTICATED'; end if;
+
+  select relationship_id into rid from public.profiles where id = me;
+
+  -- Wipe both participants (mine and my partner's rows share rid)…
+  if rid is not null then
+    delete from public.profiles where relationship_id = rid;
+    -- …then the shared relationship itself — every shared table
+    -- (messages, love_notes, memories, couple_activity, quiz_days →
+    -- quiz_answers) cascades away with it.
+    delete from public.relationships where id = rid;
+  end if;
+
+  -- No relationship yet? Just make sure my own row is gone.
+  delete from public.profiles where id = me;
+end $$;
+
+grant execute on function public.factory_reset_couple() to authenticated;
+
+
 -- ---- 7e.1 CHAT RECEIPTS — delivered / seen (real-time ✓✓ ticks) ----
 -- Called by the RECIPIENT's device. "Delivered" = their site is open but
 -- they are not viewing the Chat section; "Seen" = they opened the Chat

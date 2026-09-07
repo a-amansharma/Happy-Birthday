@@ -15,6 +15,7 @@
 
   var current = null;          // quiz row (quiz_day + derived questions)
   var myAnswers = null;        // my submitted answers (map idx->opt)
+  var partnerAnswers = null;   // partner's submitted answers (map idx->opt)
   var quizChange = null;       // callback(quiz)
   var _subKey = null;          // answers realtime key
   var _dayKey = null;          // quiz day realtime key
@@ -123,10 +124,71 @@
     if (quizChange) { try { quizChange(current); } catch (e) {} }
   }
 
+  /* Pure per-question breakdown of the day's match, used by the results
+     card: for every question, what I picked vs what my partner picked and
+     whether we agreed. Reads from the same shuffled question list on both
+     phones, so each side sees the exactly same breakdown. */
+  function buildDetail(questions, mine, theirs) {
+    if (!questions || !mine || !theirs) return null;
+    var rows = [];
+    var keys = Object.keys(mine);
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i];
+      var q = questions[i];
+      if (!q) continue;
+      var mi = mine[k];
+      var ti = theirs[k];
+      if (mi === undefined || mi === null || ti === undefined || ti === null) continue;
+      rows.push({
+        question: fillNames(q).q,
+        mine: (q.opts[mi] != null) ? q.opts[mi] : '',
+        theirs: (q.opts[ti] != null) ? q.opts[ti] : '',
+        same: mi === ti
+      });
+    }
+    return rows;
+  }
+
+  /* Fetch the partner's submitted answers for today's quiz (if they have
+     answered). Needed to show the "what did we each pick" breakdown. */
+  function loadPartnerAnswers() {
+    var day = current && current.day;
+    var me = meId();
+    if (!day || !me) return Promise.resolve(null);
+    return HB.db.client().from('quiz_answers').select('answers')
+      .eq('quiz_day_id', day.id).neq('user_id', me).maybeSingle()
+      .then(function (res) {
+        if (!res.error && res.data) partnerAnswers = res.data.answers || null;
+        else partnerAnswers = null;
+        return partnerAnswers;
+      });
+  }
+
   var quiz = {
 
     current: function () { return current; },
     myAnswers: function () { return myAnswers; },
+    partnerAnswers: function () { return partnerAnswers; },
+
+    /* Per-question breakdown (both answers). Null until the partner has
+       answered and their row has been fetched. */
+    detail: function () {
+      if (!current) return null;
+      if (current.detail) return current.detail;
+      var rows = buildDetail(current.questions, myAnswers, partnerAnswers);
+      if (rows) current.detail = rows;
+      return rows;
+    },
+
+    /* Make sure the breakdown is loaded (fetch the partner's answers if
+       needed), then resolve with the rows. */
+    ensureDetail: function () {
+      var d = quiz.detail();
+      if (d) return Promise.resolve(d);
+      return loadPartnerAnswers().then(function () {
+        return quiz.detail();
+      });
+    },
 
     result: function () {
       return current ? (current.result || null) : null;
@@ -188,7 +250,7 @@
               if (!aRes.error && aRes.data) myAnswers = aRes.data.answers || null;
               else myAnswers = null;
               quiz.subscribe(day);
-              return current;
+              return loadPartnerAnswers().then(function () { return current; });
             });
         });
     },
@@ -209,16 +271,24 @@
           return HB.db.client().rpc('finalize_quiz', { p_quiz_day: day.id })
             .then(function (fRes) {
               if (fRes.error) return { error: fRes.error };
-              if (current && current.day) {
-                var r = fRes.data || {};
+              /* The RPC reports 'waiting' until BOTH phones have answered —
+                 only then does it produce a real score. */
+              var r = fRes.data || {};
+              if (current && current.day && r.result_pct != null) {
                 current.day.completed = true;
                 current.day.result_pct = r.result_pct;
                 current.day.result_matches = r.matches;
                 current.day.result_total = r.total;
                 current.result = { pct: r.result_pct, matches: r.matches, total: r.total };
+              } else if (current && current.day) {
+                current.day.completed = false;
+                current.result = null;
               }
-              notify();
-              return { data: { day: day.id, count: Object.keys(answers).length } };
+              return loadPartnerAnswers().then(function () {
+                if (current) current.detail = null;
+                notify();
+                return { data: { day: day.id, count: Object.keys(answers).length } };
+              });
             });
         });
     },
@@ -242,7 +312,12 @@
           current.result = payload.new.completed
             ? { pct: payload.new.result_pct, matches: payload.new.result_matches, total: payload.new.result_total } : null;
         }
-        notify();
+        /* The partner's device may have been the one that finalized —
+           grab their answers so the breakdown is ready to be shown. */
+        loadPartnerAnswers().then(function () {
+          if (current) current.detail = null;
+          notify();
+        });
       });
 
       if (_subKey) { HB.db.unsubscribe(_subKey); _subKey = null; }
@@ -259,7 +334,10 @@
                 current.day.result_total = fRes.data.total;
                 current.result = { pct: fRes.data.result_pct, matches: fRes.data.matches, total: fRes.data.total };
               }
-              notify();
+              loadPartnerAnswers().then(function () {
+                if (current) current.detail = null;
+                notify();
+              });
             }
           });
         }
@@ -271,6 +349,7 @@
     /* helpers for render */
     fillNames: fillNames,
     buildQuestions: buildQuestions,
+    buildDetail: buildDetail,
     todayKey: function () {
       var d = new Date();
       return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');

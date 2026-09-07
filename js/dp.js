@@ -89,6 +89,34 @@
     });
   }
 
+  /* Downscale an already-generated photo data URL into a tiny square
+     thumbnail. Used for the "What's new" feed so we don't store and
+     repaint the full-size picture on every row. Falls back to the
+     original URL if the canvas path fails. */
+  function thumb(url, max) {
+    return new Promise(function (resolve) {
+      if (!url || url.indexOf('data:') !== 0) return resolve(url);
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var size = Math.min(img.width || 1, img.height || 1);
+          var out = Math.max(1, Math.min(size, max));
+          var c = document.createElement('canvas');
+          c.width = out; c.height = out;
+          c.getContext('2d').drawImage(
+            img,
+            Math.round(((img.width || 1) - size) / 2),
+            Math.round(((img.height || 1) - size) / 2),
+            size, size, 0, 0, out, out
+          );
+          resolve(c.toDataURL('image/jpeg', 0.78));
+        } catch (err) { resolve(url); }
+      };
+      img.onerror = function () { resolve(url); };
+      img.src = url;
+    });
+  }
+
   /* Open the phone's gallery; resolve with a compressed data URL. */
   function pick() {
     return new Promise(function (resolve) {
@@ -209,11 +237,19 @@
   }
 
   /* Best-effort journal entry for DP changes (feeds the Partner page's
-     "What's new" list). Fire-and-forget: never blocks the photo sync. */
+     "What's new" list). Fire-and-forget: never blocks the photo sync.
+     Photo entries are downscaled to a tiny thumbnail first so the feed
+     stays fast and light even after many photo changes. */
   function journal(entry) {
     if (!HB.journal || !HB.journal.log) return;
     if (!HB.rel || !HB.rel.data || HB.rel.data.status !== 'connected') return;
-    HB.journal.log(entry.kind, entry.msg, entry.img || '').catch(function () {});
+    if (entry.img) {
+      thumb(entry.img, 88).then(function (tiny) {
+        HB.journal.log(entry.kind, entry.msg, tiny || '').catch(function () {});
+      });
+      return;
+    }
+    HB.journal.log(entry.kind, entry.msg, '').catch(function () {});
   }
 
   /* MY personal photo (chat bubbles): applies instantly, then syncs to
