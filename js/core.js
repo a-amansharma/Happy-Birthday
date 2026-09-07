@@ -246,14 +246,14 @@
     var navItems = [
       { path: '/', icon: HB.icon('home'), label: 'Home' },
       { path: '/chat', icon: HB.icon('chat'), label: 'Chat', badge: '/chat' },
-      { path: '/notes', icon: HB.icon('note'), label: 'Love Notes' },
-      { path: '/daily', icon: HB.icon('sun'), label: 'Daily Question' },
-      { path: '/memories', icon: HB.icon('camera'), label: 'Memories' },
-      { path: '/quiz', icon: HB.icon('dice'), label: 'Couple Quiz' },
-      { path: '/dates', icon: HB.icon('calendar'), label: 'Date Ideas' },
-      { path: '/special', icon: HB.icon('heart'), label: 'Special Dates' },
-      { path: '/partner', icon: HB.icon('sparkle'), label: 'Partner' },
-      { path: '/settings', icon: HB.icon('gear'), label: 'Settings' }
+      { path: '/notes', icon: HB.icon('note'), label: 'Love Notes', short: 'Notes' },
+      { path: '/daily', icon: HB.icon('sun'), label: 'Daily Question', short: 'Daily' },
+      { path: '/memories', icon: HB.icon('camera'), label: 'Memories', short: 'Memories' },
+      { path: '/quiz', icon: HB.icon('dice'), label: 'Couple Quiz', short: 'Quiz' },
+      { path: '/dates', icon: HB.icon('calendar'), label: 'Date Ideas', short: 'Ideas' },
+      { path: '/special', icon: HB.icon('heart'), label: 'Special Dates', short: 'Special' },
+      { path: '/partner', icon: HB.icon('sparkle'), label: 'Partner', short: 'Partner' },
+      { path: '/settings', icon: HB.icon('gear'), label: 'Settings', short: 'Settings' }
     ];
 
     /* Determine which nav path is active. We match the current route
@@ -332,18 +332,18 @@
       });
     })();
 
-    function bnItemHtml(n, path) {
+    function bnItemHtml(n, path, label) {
       var active = activePath === path ? ' active' : '';
       var badge = n.badge
         ? '<i class="nav-badge' + ((HB.unreadCounts[n.badge] || 0) > 0 ? ' show' : '') + '" data-badge="' + n.badge + '">' + HB.badgeText(n.badge) + '</i>'
         : '';
       return '<button class="bn-item' + active + '" data-path="' + path + '">' +
         '<span class="bn-icon-wrap"><span class="bn-icon">' + n.icon + badge + '</span></span>' +
-        '<span class="bn-label">' + n.label + '</span></button>';
+        '<span class="bn-label">' + (label || n.label) + '</span></button>';
     }
 
-    var bnItems = navItems.slice(0, 5).map(function (n) { return bnItemHtml(n, n.path); }).join('') +
-      bnItemHtml({ icon: HB.icon('more'), label: 'More' }, '/more');
+    var bnItems = navItems.slice(0, 5).map(function (n) { return bnItemHtml(n, n.path, n.short || n.label); }).join('') +
+      bnItemHtml({ icon: HB.icon('more'), label: 'More' }, '/more', 'More');
     bn.innerHTML = '<nav class="bn-inner">' + bnItems + '</nav>';
 
     sb.querySelectorAll('.nav-item').forEach(function (el) {
