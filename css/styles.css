@@ -1419,17 +1419,19 @@ a { color: inherit; text-decoration: none; }
 /* ============================================================
    DP — duo circles (sidebar), chat bubble photos, photo preview
    ============================================================ */
-/* Two overlapping circles — my picture top-left, my partner's
-   bottom-right. Each floats; initials until a synced chat photo
-   replaces the circle. No border, no heart — just two circles. */
+/* Two circles stacked TOP-to-BOTTOM — my picture on top, my partner's
+   just under it (up & down). Each ring is a perfectly square, round
+   button, and the photo inside is clipped to a strict circle with
+   object-fit: cover — so no uploaded shape can ever render as an oval.
+   Initials show until a synced chat photo replaces the circle. */
 .sidebar-logo .duo-dp {
-  width: 68px; height: 68px; flex-shrink: 0; border: 0; padding: 0;
-  background: none; cursor: pointer; border-radius: 50%;
+  width: 52px; height: 98px; flex-shrink: 0; border: 0; padding: 0;
+  background: none; cursor: pointer;
   display: block; position: relative;
 }
 .duo-dp .duo-cluster { position: absolute; inset: 0; display: block; }
 .duo-ring {
-  position: absolute; width: 42px; height: 42px; border-radius: 50%;
+  position: absolute; width: 52px; height: 52px; border-radius: 50%;
   display: grid; place-items: center; overflow: hidden; cursor: pointer; padding: 0; font: inherit;
   background: var(--grad); color: #fff; box-shadow: var(--shadow-card);
   border: none;
@@ -1437,11 +1439,11 @@ a { color: inherit; text-decoration: none; }
 .duo-ring:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .duo-ring img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
 .duo-ring .duo-let {
-  font-family: var(--font-hand); font-size: 21px; font-weight: 800;
+  font-family: var(--font-hand); font-size: 24px; font-weight: 800;
   color: #fff; line-height: 1;
 }
 .duo-top { top: 0; left: 0; z-index: 2; animation: duoFloatA 3.8s ease-in-out infinite; }
-.duo-bot { bottom: 0; right: 0; z-index: 1; animation: duoFloatB 4.2s ease-in-out infinite; }
+.duo-bot { top: 46px; left: 0; z-index: 1; animation: duoFloatB 4.2s ease-in-out infinite; }
 @keyframes duoFloatA { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 @keyframes duoFloatB { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(3px); } }
 
@@ -1474,9 +1476,10 @@ a { color: inherit; text-decoration: none; }
 .dp-preview-del { background: rgba(200,40,40,0.35); right: 24px; }
 .dp-preview-del:active { background: rgba(200,40,40,0.55); }
 @media (max-width: 400px) {
-  .sidebar-logo .duo-dp { width: 60px; height: 60px; }
-  .duo-ring { width: 37px; height: 37px; }
-  .duo-ring .duo-let { font-size: 18px; }
+  .sidebar-logo .duo-dp { width: 44px; height: 83px; }
+  .duo-ring { width: 44px; height: 44px; }
+  .duo-bot { top: 39px; }
+  .duo-ring .duo-let { font-size: 20px; }
 }
 
 /* Partner page: Our photos manager (also the mobile way to set the DP) —
