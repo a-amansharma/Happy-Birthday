@@ -89,8 +89,10 @@
     },
 
     /* Record a change by me. Returns a promise; resolves without error
-       even when the backend isn't reachable (journal is best-effort). */
-    log: function (kind, msg) {
+       even when the backend isn't reachable (journal is best-effort).
+       Pass img (a photo data URL) for photo changes so the feed can
+       show a little thumbnail of the new picture. */
+    log: function (kind, msg, img) {
       var rid = relId();
       if (!rid) return Promise.resolve({ error: { message: 'NOT_CONNECTED' } });
       if (!HB.db || !HB.db.configured()) return Promise.resolve({ error: { message: 'NOT_CONFIGURED' } });
@@ -99,19 +101,37 @@
         created_by: meId(),
         actor: myName(),
         kind: kind || '',
-        msg: msg || ''
+        msg: msg || '',
+        img: img || ''
       };
-      return HB.db.client().from('couple_activity').insert(entry)
-        .select().single()
-        .then(function (res) {
-          if (!res.error && res.data) {
-            items.unshift(res.data);
-            emit();
-          }
-          return res;
-        })
+      var apply = function (row) {
+        if (!row.error && row.data) {
+          items.unshift(row.data);
+          emit();
+        }
+        return row;
+      };
+      var withoutImg = function () {
+        var base = {
+          relationship_id: entry.relationship_id,
+          created_by: entry.created_by,
+          actor: entry.actor,
+          kind: entry.kind,
+          msg: entry.msg
+        };
+        return HB.db.client().from('couple_activity').insert(base).select().single().then(apply);
+      };
+      return HB.db.client().from('couple_activity').insert(entry).select().single()
+        .then(apply)
         .catch(function (err) {
-          return { error: { message: String(err && err.message || err) } };
+          /* The img column may not exist on an old schema yet — fall back
+             to a photo-less entry so the change is still recorded. */
+          if (entry.img && /column.*img|Could not find.*column|42703/i.test(String((err && (err.message || err)) || ''))) {
+            return withoutImg().catch(function (e2) {
+              return { error: { message: String((e2 && (e2.message || e2)) || e2) } };
+            });
+          }
+          return { error: { message: String((err && (err.message || err)) || err) } };
         });
     },
 

@@ -210,8 +210,11 @@
   function journalRow(it) {
     var ui = (HB.journal && HB.journal.kindUi) ? HB.journal.kindUi(it.kind) : { emoji: '✨', label: 'Little things' };
     var when = (HB.journal && HB.journal.timeAgo) ? HB.journal.timeAgo(it.created_at) : '';
+    var left = it.img
+      ? '<span class="j-emoji j-emoji-img"><img class="j-img" src="' + HB.esc(it.img) + '" alt=""/></span>'
+      : '<span class="j-emoji">' + HB.esc(ui.emoji) + '</span>';
     return '<li class="j-item">' +
-      '<span class="j-emoji">' + HB.esc(ui.emoji) + '</span>' +
+      left +
       '<span class="j-body">' +
         '<span class="j-msg">' + HB.esc(it.msg || '') + '</span>' +
         '<span class="j-meta"><b>' + HB.esc(it.actor || 'someone') + '</b> · ' + HB.esc(ui.label) + (when ? ' · <span class="j-when">' + HB.esc(when) + '</span>' : '') + '</span>' +

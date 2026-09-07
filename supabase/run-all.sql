@@ -164,11 +164,15 @@ create table if not exists public.couple_activity (
   actor            text not null default '',      -- their name, snapshot at change time
   kind             text not null default '',      -- theme | name | age | photo | photo_off | connect | relationship
   msg              text not null default '',      -- the sweet message
+  img              text not null default '',      -- the photo itself (for photo changes)
   created_at       timestamptz not null default now()
 );
 
 create index if not exists couple_activity_rel_idx
   on public.couple_activity (relationship_id, created_at);
+
+-- Old databases: bring the photo column (and the whole table) up to date.
+alter table public.couple_activity add column if not exists img text not null default '';
 
 
 -- ---- 2g. QUIZ DAYS — one shared quiz per relationship per day ----

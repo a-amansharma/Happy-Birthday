@@ -213,7 +213,7 @@
   function journal(entry) {
     if (!HB.journal || !HB.journal.log) return;
     if (!HB.rel || !HB.rel.data || HB.rel.data.status !== 'connected') return;
-    HB.journal.log(entry.kind, entry.msg).catch(function () {});
+    HB.journal.log(entry.kind, entry.msg, entry.img || '').catch(function () {});
   }
 
   /* MY personal photo (chat bubbles): applies instantly, then syncs to
@@ -230,7 +230,7 @@
       try { window.dispatchEvent(new window.CustomEvent('hb:relchange')); } catch (e) {}
     }
     journal(dataUrl
-      ? { kind: 'photo', msg: had ? 'came back with a fresh profile photo ♡' : 'put up their very first profile photo ♡' }
+      ? { kind: 'photo', msg: had ? 'came back with a fresh profile photo ♡' : 'put up their very first profile photo ♡', img: dataUrl }
       : { kind: 'photo_off', msg: 'took down their profile photo — the initial is back ♡' });
     if (!HB.db || !HB.db.configured() || !HB.auth || !HB.auth.user()) return Promise.resolve({ error: null });
     var uid = HB.auth.user().id;
@@ -271,7 +271,7 @@
       try { window.dispatchEvent(new window.CustomEvent('hb:relchange')); } catch (e) {}
     }
     journal(dataUrl
-      ? { kind: 'photo', msg: had ? 'gave you a fresh profile photo ♡' : 'set a profile photo for you ♡' }
+      ? { kind: 'photo', msg: had ? 'gave you a fresh profile photo ♡' : 'set a profile photo for you ♡', img: dataUrl }
       : { kind: 'photo_off', msg: 'cleared your profile photo — a letter will do for now ♡' });
     if (!HB.db || !HB.db.configured() || !HB.auth || !HB.auth.user() || !HB.rel || !HB.rel.data) {
       return Promise.resolve({ error: null });
@@ -310,7 +310,7 @@
       try { window.dispatchEvent(new window.CustomEvent('hb:relchange')); } catch (e) {}
     }
     journal(dataUrl
-      ? { kind: 'photo', msg: had ? 'swapped the couple photo ♡' : 'put up a couple photo for you two ♡' }
+      ? { kind: 'photo', msg: had ? 'swapped the couple photo ♡' : 'put up a couple photo for you two ♡', img: dataUrl }
       : { kind: 'photo_off', msg: 'removed the couple photo — the letters are back ♡' });
     if (!HB.db || !HB.db.configured() || !HB.rel || !HB.rel.data || !HB.rel.data.relationship) {
       return Promise.resolve({ error: null });
