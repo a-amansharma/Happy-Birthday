@@ -152,6 +152,9 @@ t('chat service loads', !!HB.chat && typeof HB.chat.sendText === 'function' && t
 t('chat requireRel unconfigured → null', HB.chat.requireRel() === null);
 t('chat readKey unconfigured → null', HB.chat.readKey() === null);
 t('chat load unconfigured resolves []', (HB.chat.load().then(function (m) { return m; }), true));
+t('chat statusOf seen/delivered/sent', HB.chat.statusOf({ seen_at: 'x' }) === 'seen' && HB.chat.statusOf({ delivered_at: 'x' }) === 'delivered' && HB.chat.statusOf({}) === 'sent');
+t('chat receipt helpers exist', typeof HB.chat.delivered === 'function' && typeof HB.chat.seen === 'function' && typeof HB.chat.startHeartbeat === 'function');
+t('receiptFor no-op without auth', (HB.chat.receiptFor({ sender_user_id: 'x' }), true));
 
 // ---- services: presence (online + live typing, replaceable handlers) ----
 t('presence service loads', typeof HB.presence.setTyping === 'function' && typeof HB.presence.onTyping === 'function');

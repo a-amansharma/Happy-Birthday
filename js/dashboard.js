@@ -103,6 +103,7 @@
       '<div class="dash-hello">' +
         '<h1>' + timeOfDay + ', <span class="hand">' + HB.esc(n.me) + '</span> ♡</h1>' +
         '<p>Welcome back to your little world with <span class="hand" style="font-size:1.2em">' + HB.esc(n.partner) + '</span>.</p>' +
+        '<div class="presence-chip" id="home-presence"><i></i><span class="presence-text">checking…</span></div>' +
       '</div>' +
 
       '<div class="relation-hero">' +
@@ -124,6 +125,19 @@
 
     var hero = main.querySelector('[data-hero]');
     if (hero && HB.chars) HB.chars.hero(hero, { which: 'both', size: 'hero', alt: 'Bubu ♡ Dudu' });
+
+    /* live online-status chip for my partner (replaceable single handler) */
+    var hp = main.querySelector('#home-presence');
+    if (hp && HB.presence) {
+      function setHomePresence(on) {
+        if (!hp || !hp.isConnected) return;
+        hp.classList.toggle('on', on);
+        var txt = hp.querySelector('.presence-text');
+        if (txt) txt.textContent = on ? (n.partner + ' is here ♡') : ('waiting for ' + n.partner + '…');
+      }
+      setHomePresence(HB.presence.online);
+      HB.presence.onChange(setHomePresence);
+    }
   }
 
   HB.renderHome = renderHome;

@@ -3,12 +3,16 @@
    ------------------------------------------------------------
    Message shape (live schema):
      { id, relationship_id, sender_user_id, type: 'text'|'image',
-       message, media_path, created_at }
+       message, media_path, created_at,
+       delivered_at,          -- recipient's site was open (chat not viewed)
+       seen_at }              -- recipient opened the chat
    Messages are keyed by relationship_id — the ONE shared record —
    so both participants read and write the same thread.
 
    RLS keeps the channel between the two relationship members.
    Delivery is realtime (postgres_changes) — no page refresh.
+   Receipts (delivered ✓✓ / seen ✓✓) flip in real time via the
+   mark_messages_delivered / mark_messages_seen RPC helpers.
    ============================================================ */
 (function () {
   'use strict';
@@ -16,6 +20,8 @@
 
   var messages = [];
   var loadedKey = null;
+  var _receiptTimer = null;
+  var _pendingReceipt = null;
 
   function meId() {
     var u = HB.auth.user();
@@ -44,8 +50,9 @@
     messages: messages,
     lastLoadedAt: 0,
 
-    onNew: null,          /* callback(message) */
+    onNew: null,          /* callback(message) — new bubble */
     onChange: null,       /* callback() — unread badge */
+    onUpdate: null,       /* callback(message) — receipt/status change */
 
     requireRel: function () {
       return relId() ? { id: relId() } : null;
@@ -164,10 +171,28 @@
         table: 'messages',
         filter: 'relationship_id=eq.' + rid
       }, function (payload) {
-        if (payload.eventType === 'INSERT' && payload.new) chat.pushLocal(payload.new);
+        if (payload.eventType === 'INSERT' && payload.new) {
+          chat.pushLocal(payload.new);
+          chat.receiptFor(payload.new);
+        }
         if (payload.eventType === 'DELETE') {
           messages = messages.filter(function (m) { return m.id !== payload.old.id; });
           chat.messages = messages;
+          if (chat.onChange) chat.onChange();
+        }
+        if (payload.eventType === 'UPDATE' && payload.new) {
+          var up = payload.new;
+          var idx = -1;
+          for (var i = 0; i < messages.length; i++) {
+            if (messages[i].id === up.id) { idx = i; break; }
+          }
+          if (idx === -1) {
+            messages.push(up);
+            chat.messages = messages;
+          } else {
+            messages[idx] = up;
+          }
+          if (chat.onUpdate) { try { chat.onUpdate(up); } catch (e) {} }
           if (chat.onChange) chat.onChange();
         }
       });
@@ -205,6 +230,93 @@
       try { localStorage.setItem(k, String(Date.now())); } catch (e) {}
       if (chat.onChange) chat.onChange();
       return Promise.resolve();
+    },
+
+    /* -------------------- receipts (delivered / seen) -------------------- */
+    /* Auto-marked on the RECIPIENT's device:
+         - site open, not on /chat            → delivered
+         - viewing /chat (or opens it later)  → seen
+       Both flip the sender's ✓✓ ticks in real time via postgres_changes
+       UPDATE events. RPC batches — "seen" always wins a pending call. */
+    callReceipt: function (fnName) {
+      if (!HB.db.configured()) return;
+      if (fnName === 'mark_messages_seen') _pendingReceipt = fnName;
+      else if (!_pendingReceipt) _pendingReceipt = fnName;
+      if (_receiptTimer) return;
+      _receiptTimer = setTimeout(function () {
+        _receiptTimer = null;
+        var fn = _pendingReceipt;
+        _pendingReceipt = null;
+        if (!fn) return;
+        try {
+          HB.db.client().rpc(fn).then(function () {}).catch(function () {});
+        } catch (e) {}
+      }, 150);
+    },
+
+    delivered: function () { chat.callReceipt('mark_messages_delivered'); },
+    seen: function () { chat.callReceipt('mark_messages_seen'); },
+
+    /* Am I really "on the site" right now? (visible tab + online) */
+    active: function () {
+      return document.visibilityState !== 'hidden' && navigator.onLine !== false;
+    },
+
+    /* Called for every inbound message. Marks receipts per my current
+       screen — a closed/backgrounded site deliberately stays "sent". */
+    receiptFor: function (m) {
+      var me = meId();
+      if (!me || !m || m.sender_user_id === me) return;
+      if (!chat.active()) return;
+      if (HB.currentPath && HB.currentPath() === '/chat') chat.seen();
+      else chat.delivered();
+    },
+
+    /* Delivery state of ONE of MY sent messages (sender-side ticks). */
+    statusOf: function (m) {
+      if (m && m.seen_at) return 'seen';
+      if (m && m.delivered_at) return 'delivered';
+      return 'sent';
+    },
+
+    /* -------------------- last seen (heartbeat-backed) -------------------- */
+    /* While the site is open, a light heartbeat keeps my own profile's
+       last_active ticking; the partner reads that value for "last seen". */
+    startHeartbeat: function () {
+      if (chat._heartbeat) return;
+      chat._heartbeat = setInterval(function () {
+        try {
+          if (HB.rel && HB.rel.touch) HB.rel.touch();
+        } catch (e) {}
+      }, 30000);
+    },
+
+    /* Partner's last-active timestamp (ms). Start from the profile row the
+       relationship service already loaded, then poll it lighter here. */
+    partnerLastSeenAt: function () {
+      if (HB.rel && HB.rel.data && HB.rel.data.partner && HB.rel.data.partner.last_active) {
+        return new Date(HB.rel.data.partner.last_active).getTime();
+      }
+      return chat._partnerActive || 0;
+    },
+
+    refreshPartnerActive: function () {
+      if (!HB.db.configured() || !meId()) return Promise.resolve();
+      var p = HB.rel && HB.rel.data && HB.rel.data.partner;
+      if (!p || !p.id) return Promise.resolve();
+      var now = Date.now();
+      if (chat._partnerActiveFetched && now - chat._partnerActiveFetched < 12000) {
+        return Promise.resolve();
+      }
+      chat._partnerActiveFetched = now;
+      return HB.db.client().from('profiles').select('last_active').eq('id', p.id).maybeSingle()
+        .then(function (res) {
+          if (!res.error && res.data && res.data.last_active) {
+            chat._partnerActive = new Date(res.data.last_active).getTime();
+            if (chat.onChange) chat.onChange();
+          }
+        })
+        .catch(function () {});
     },
 
     /* -------------------- shared content helpers -------------------- */

@@ -30,14 +30,16 @@
 -- ============================================================
 -- 1. DROP OLD SHAPES (idempotent, safe)
 -- ============================================================
--- Old messages were keyed by (user_a, user_b). New chat is keyed by
--- relationship_id. Recreate to get the clean, correct shape.
+-- Old quiz/notes/memory/activity tables are recreated for a clean,
+-- idempotent shape.
+-- NOTE: public.messages is deliberately NOT dropped — it holds the LIVE
+-- couple chat. It is migrated in place (new receipt columns added
+-- idempotently in section 2c below).
 drop table if exists public.quiz_answers;
 drop table if exists public.quiz_days;
 drop table if exists public.memories;
 drop table if exists public.love_notes;
 drop table if exists public.activity;
-drop table if exists public.messages;
 
 -- Remove obsolete profile columns cleanly (their data moves elsewhere).
 alter table public.profiles drop column if exists partner_id;
@@ -98,8 +100,14 @@ create table if not exists public.messages (
   type             text not null default 'text' check (type in ('text', 'image')),
   message          text not null default '',
   media_path       text not null default '',
-  created_at       timestamptz not null default now()
+  created_at       timestamptz not null default now(),
+  delivered_at     timestamptz,             -- recipient's site was open (chat not viewed)
+  seen_at          timestamptz              -- recipient opened the chat
 );
+
+-- In-place migration for an already-existing messages table (idempotent).
+alter table public.messages add column if not exists delivered_at timestamptz;
+alter table public.messages add column if not exists seen_at      timestamptz;
 
 create index if not exists messages_rel_idx
   on public.messages (relationship_id, created_at);
@@ -642,6 +650,51 @@ begin
 end $$;
 
 grant execute on function public.delete_my_data() to authenticated;
+
+
+-- ---- 7e.1 CHAT RECEIPTS — delivered / seen (real-time ✓✓ ticks) ----
+-- Called by the RECIPIENT's device. "Delivered" = their site is open but
+-- they are not viewing the Chat section; "Seen" = they opened the Chat
+-- section (which also implies delivered). Only partner-sent messages are
+-- ever touched, and only the receipt columns are written.
+create or replace function public.mark_messages_delivered()
+returns void
+language plpgsql security definer set search_path = public
+as $$
+declare
+  rid uuid;
+begin
+  select relationship_id into rid from public.profiles where id = auth.uid();
+  if rid is null then return; end if;
+
+  update public.messages
+     set delivered_at = now()
+   where relationship_id = rid
+     and sender_user_id <> auth.uid()
+     and delivered_at is null;
+end $$;
+
+grant execute on function public.mark_messages_delivered() to authenticated;
+
+create or replace function public.mark_messages_seen()
+returns void
+language plpgsql security definer set search_path = public
+as $$
+declare
+  rid uuid;
+begin
+  select relationship_id into rid from public.profiles where id = auth.uid();
+  if rid is null then return; end if;
+
+  update public.messages
+     set seen_at      = now(),
+         delivered_at = coalesce(delivered_at, now())
+   where relationship_id = rid
+     and sender_user_id <> auth.uid()
+     and seen_at is null;
+end $$;
+
+grant execute on function public.mark_messages_seen() to authenticated;
 
 
 -- ---- 7f. QUIZ — finalize the day's result once both have answered ----

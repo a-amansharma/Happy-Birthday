@@ -73,7 +73,8 @@
           '<div class="card mini-stat"><div class="ms-label">Your person</div><div class="ms-val">' + HB.esc(partnerName) + '</div></div>' +
         '</div>' +
         '<p class="muted" style="text-align:center;margin-top:14px;font-size:13px">They\'re ' + HB.esc(partnerAge) + ' and they\'re all yours ♡</p>' +
-        (sinceStr ? '<p class="muted" style="text-align:center;margin-top:4px;font-size:12px">Connected since ' + HB.esc(sinceStr) + '</p>' : '');
+        (sinceStr ? '<p class="muted" style="text-align:center;margin-top:4px;font-size:12px">Connected since ' + HB.esc(sinceStr) + '</p>' : '') +
+        '<div class="presence-chip" style="justify-content:center" id="partner-presence"><i></i><span class="presence-text">checking…</span></div>';
 
       /* Identity prompt for Person 2 who joined without filling wizard */
       if (HB.rel.data.me && !(HB.rel.data.me.name || '').trim()) {
@@ -129,6 +130,19 @@
 
     var du = main.querySelector('[data-du]');
     if (du && HB.chars) HB.chars.hero(du, { which: 'both', actions: connected ? ['hug', 'kiss', 'love', 'romantic', 'dance', 'cuddle'] : ['happy', 'love', 'wait'], alt: 'Bubu ♡ Dudu' });
+
+    /* live online-status chip on the connected view (replaceable single handler) */
+    var pp = main.querySelector('#partner-presence');
+    if (pp && HB.presence) {
+      function setPartnerPresence(on) {
+        if (!pp || !pp.isConnected) return;
+        pp.classList.toggle('on', on);
+        var txt = pp.querySelector('.presence-text');
+        if (txt) txt.textContent = on ? (HB.firstNames().partner + ' is here ♡') : ('waiting for ' + HB.firstNames().partner + '…');
+      }
+      setPartnerPresence(HB.presence.online);
+      HB.presence.onChange(setPartnerPresence);
+    }
 
     var copy = main.querySelector('[data-copy]');
     if (copy && code) copy.addEventListener('click', function () {

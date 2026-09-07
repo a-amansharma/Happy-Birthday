@@ -313,6 +313,10 @@
           }
           data._lastRpcRelationship = res.data || null;
           return rel.init(true).then(function () {
+            /* Tell the app we connected so chat + presence wire up on this
+               device too (the joiner doesn't receive the creator's realtime
+               echo to dispatch this for us). */
+            rel.dispatch();
             return { status: data.status, error: null };
           });
         }).catch(function (err) {

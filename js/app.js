@@ -24,6 +24,7 @@
         HB.setUnread('/chat', HB.chat.unreadCount());
       });
       HB.chat.subscribe();
+      HB.chat.startHeartbeat();
     }
     if (HB.presence) HB.presence.start();
     if (HB.shared && HB.shared.subscribe) {

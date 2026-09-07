@@ -1,7 +1,12 @@
 /* ============================================================
-   COUPLE CHAT — real-time chat for two ♡
-   Text + photos (private signed URLs), live presence dot,
-   unread badges. Shared photos & links live in /chatinfo.
+   COUPLE CHAT — real-time two-person messenger ♡
+   A modern, instant-messaging feel (inspired by WhatsApp/IG):
+     * header = partner's first-letter avatar + name + live status
+       (Online / Last seen at [time] / Waiting)
+     * rectangles: mine right with my initial, partner left with theirs
+     * ✓ / ✓✓ / ✓✓ tints update in REAL TIME as the other side
+       receives (Delivered) and views (Seen) each message
+     * live typing bubble, day chips, photo bubbles
    ============================================================ */
 (function () {
   'use strict';
@@ -12,6 +17,9 @@
   var myId = null;
   var pendingImages = 0;
   var chatReady = null;
+  var myName = 'you';
+  var partnerName = 'your person';
+  var statusTimer = null;
 
   function timeStr(t) {
     return new Date(t).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
@@ -27,19 +35,71 @@
     return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
   }
 
+  /* First-letter "DP" avatar: the initial of the sender's name in a
+     little round chip — Rishi → R, Stuti → S. */
+  function dpLetter(name) {
+    var c = String(name || '?').trim().charAt(0) || '?';
+    return HB.esc(c.toUpperCase());
+  }
+
+  function dpHtml(mine) {
+    var name = mine ? myName : partnerName;
+    return '<span class="msg-avatar dp ' + (mine ? 'dp-me' : 'dp-them') + '">' + dpLetter(name) + '</span>';
+  }
+
+  /* The little receipt ticks on MY bubbles.
+     sent ✓ · delivered ✓✓ · seen ✓✓ (highlighted) */
+  var TICK_META = {
+    sent:      { glyph: '✓',   title: 'Sent' },
+    delivered: { glyph: '✓✓',  title: 'Delivered' },
+    seen:      { glyph: '✓✓',  title: 'Seen' }
+  };
+
+  function statusTickHtml(m) {
+    var s = HB.chat ? HB.chat.statusOf(m) : 'sent';
+    var t = TICK_META[s] || TICK_META.sent;
+    return '<span class="msg-tick tick-' + s + '" title="' + t.title + '">' + t.glyph + '</span>';
+  }
+
+  function bubbleMeta(m, mine) {
+    var tick = mine ? statusTickHtml(m) : '';
+    return '<span class="bubble-meta">' +
+             '<span class="msg-time">' + timeStr(m.created_at) + '</span>' + tick +
+           '</span>';
+  }
+
   function bubbleHtml(m) {
-    var mine = m.sender_id === myId;
+    var mine = (m.sender_user_id || m.sender_id) === myId;
     var cls = mine ? 'user' : 'ai';
-    var avatar = '<span class="msg-avatar">' + (mine ? HB.chars.avatarImg('dudu', 'cute') : HB.chars.avatarImg('bubu', 'cute')) + '</span>';
+    var avatar = dpHtml(mine);
+    var meta = bubbleMeta(m, mine);
     if (m.type === 'image') {
       var src = (m.media_path && m.media_path.indexOf('data:') === 0) ? m.media_path : '';
-      return '<div class="msg ' + cls + '">' + avatar +
-        '<div class="bubble bubble-img"><img class="msg-img' + (src ? ' loaded' : '') + '" data-mid="' + HB.esc(m.id) + '" src="' + HB.esc(src) + '" alt="photo" loading="lazy"/></div>' +
-        '<span class="msg-time">' + timeStr(m.created_at) + '</span></div>';
+      return '<div class="msg ' + cls + '" data-mid="' + HB.esc(m.id) + '">' + avatar +
+        '<div class="bubble bubble-img"><img class="msg-img' + (src ? ' loaded' : '') + '" data-mid="' + HB.esc(m.id) + '" src="' + HB.esc(src) + '" alt="photo" loading="lazy"/>' + meta + '</div></div>';
     }
-    return '<div class="msg ' + cls + '">' + avatar +
-      '<div class="bubble">' + HB.esc(m.message || '').replace(/\n/g, '<br>') + '</div>' +
-      '<span class="msg-time">' + timeStr(m.created_at) + '</span></div>';
+    return '<div class="msg ' + cls + '" data-mid="' + HB.esc(m.id) + '">' + avatar +
+      '<div class="bubble"><span class="bubble-text">' + HB.esc(m.message || '').replace(/\n/g, '<br>') + '</span>' + meta + '</div></div>';
+  }
+
+  /* A receipt UPDATE arrived for one message — refresh just that bubble,
+     keeping the scroll position exactly where the user is. */
+  function patchBubble(m) {
+    if (!inner || !inner.isConnected || !m) return;
+    var wraps = inner.querySelectorAll('.msg[data-mid]');
+    for (var i = 0; i < wraps.length; i++) {
+      var el = wraps[i];
+      if (el.getAttribute('data-mid') === m.id) {
+        var metaEl = el.querySelector('.bubble-meta');
+        var mine = (m.sender_user_id || m.sender_id) === myId;
+        if (metaEl) {
+          var tmp = document.createElement('div');
+          tmp.innerHTML = bubbleMeta(m, mine);
+          metaEl.parentNode.replaceChild(tmp.firstChild, metaEl);
+        }
+        break;
+      }
+    }
   }
 
   function renderAll() {
@@ -78,7 +138,7 @@
     if (m.media_path && m.media_path.indexOf('data:') === 0) {
       pendingImages--;
       if (!inner || !inner.isConnected) return;
-      var img = inner.querySelector('[data-mid="' + m.id + '"]');
+      var img = inner.querySelector('img[data-mid="' + m.id + '"]');
       if (img) {
         img.src = m.media_path;
         img.classList.add('loaded');
@@ -90,7 +150,7 @@
     HB.chat.signedUrl(m).then(function (url) {
       pendingImages--;
       if (!inner || !inner.isConnected) return;
-      var img = inner.querySelector('[data-mid="' + m.id + '"]');
+      var img = inner.querySelector('img[data-mid="' + m.id + '"]');
       if (img && url) {
         img.src = url;
         img.classList.add('loaded');
@@ -116,8 +176,7 @@
 
   function updateUnread() {
     if (!HB.chat) return;
-    var n = HB.chat.unreadCount();
-    HB.setUnread('/chat', n);
+    HB.setUnread('/chat', HB.chat.unreadCount());
   }
 
   function render(main) {
@@ -129,10 +188,11 @@
 
     if (!backend || !user || !connected) {
       var waiting = backend && user && HB.rel.data.status === 'waiting';
+      var n0 = HB.firstNames();
       main.innerHTML =
         '<div class="chat-page"><div class="chat-body"><div class="chat-empty">' +
           '<div class="dudu-empty" data-du></div>' +
-          '<h3>' + (waiting ? 'Waiting for your person ♡' : 'Your chat needs your person ♡') + '</h3>' +
+          '<h3>' + (waiting ? 'Waiting for ' + HB.esc(n0.partner) + ' ♡' : 'Your chat needs your person ♡') + '</h3>' +
           '<p>' + (waiting ? 'Once they connect with your code, your private little chat opens right here.'
             : 'Connect your two phones on the Partner page, then your messages will live here — in real time.') + '</p>' +
           '<button class="btn btn-primary" data-partner>Open Partner page 💞</button>' +
@@ -144,6 +204,9 @@
     }
 
     myId = HB.auth.user().id;
+    var names = HB.firstNames();
+    myName = names.me;
+    partnerName = names.partner;
 
     /* The live project has a profiles-only schema: the chat tables
        (messages, photos) don't exist yet. Probe once, then show a
@@ -169,16 +232,19 @@
     }
 
     main.innerHTML =
-      '<div class="chat-page">' +
+      '<div class="chat-page couple-chat">' +
         '<div class="chat-head">' +
-          '<div class="avatar">' + HB.chars.avatarImg('bubu', 'cute') + '<span class="online" id="presence-dot"></span></div>' +
-          '<div><h2>Our Chat ♡</h2><p id="presence-label">just for you two</p></div>' +
+          '<div class="avatar"><span class="char-dp">' + dpLetter(partnerName) + '</span><span class="online" id="presence-dot"></span></div>' +
+          '<div class="chat-head-meta">' +
+            '<h2 id="chat-head-name">' + HB.esc(partnerName) + '</h2>' +
+            '<p id="presence-label">Waiting for ' + HB.esc(partnerName) + '…</p>' +
+          '</div>' +
           '<div class="chat-head-actions">' +
             '<button class="btn-icon btn-soft" data-info title="Photos & links" aria-label="Photos and links">' + HB.icon('sparkle') + '</button>' +
           '</div>' +
         '</div>' +
         '<div class="chat-body"><div class="chat-inner"></div></div>' +
-        '<div class="chat-typing" id="chat-typing"></div>' +
+        '<div id="chat-typing"><div class="typing-bubble"></div></div>' +
         '<div class="chat-input-wrap">' +
           '<div class="chat-input-box">' +
             '<input type="file" id="chat-attach" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden />' +
@@ -199,31 +265,60 @@
     HB.chat.onNew = function (m) {
       appendBubble(m, true);
       markRead();
+      HB.chat.seen();
       updateUnread();
     };
     HB.chat.onChange = updateUnread;
+    HB.chat.onUpdate = function (m) { patchBubble(m); updateUnread(); };
 
-    HB.chat.load().then(renderAll);
+    HB.chat.load().then(function () {
+      renderAll();
+      /* Any partner messages waiting while I wasn't here → Seen. */
+      HB.chat.seen();
+    });
     HB.chat.subscribe();
 
-    /* presence dot (single replaceable handler — never stale) */
+    /* ---- header: partner name + LIVE status (Online / Last seen / Waiting) ---- */
     var dot = main.querySelector('#presence-dot');
     var label = main.querySelector('#presence-label');
-    function setPresence(on) {
-      if (!dot || !dot.isConnected) return;
-      dot.classList.toggle('on', on);
-      if (label) label.textContent = on ? (HB.firstNames().partner + ' is here ♡') : 'waiting for ' + HB.firstNames().partner + '…';
-    }
-    setPresence(HB.presence.online);
-    HB.presence.onChange(setPresence);
+    var _lastSeen = HB.chat.partnerLastSeenAt() || 0;
 
-    /* live "is typing…" indicator (presence, debounced, never stored) */
+    function refreshStatus() {
+      var on = HB.presence.online;
+      var txt = 'Waiting for ' + partnerName + '…';
+      var cls = '';
+      if (on) { txt = 'Online'; cls = 'status-online'; }
+      else if (_lastSeen) { txt = 'Last seen at ' + timeStr(_lastSeen); }
+      if (dot && dot.isConnected) dot.classList.toggle('on', on);
+      if (label && label.isConnected) {
+        label.textContent = txt;
+        label.className = cls;
+      }
+    }
+
+    HB.presence.onChange(refreshStatus);
+    refreshStatus();
+
+    if (statusTimer) clearInterval(statusTimer);
+    statusTimer = setInterval(function () {
+      HB.chat.refreshPartnerActive().then(function () {
+        var t = HB.chat.partnerLastSeenAt();
+        if (t) _lastSeen = t;
+        refreshStatus();
+      });
+    }, 15000);
+
+    /* ---- live "is typing…" bubble (presence, debounced, never stored) ---- */
     var typingEl = main.querySelector('#chat-typing');
     var typingTimer = null;
     function setTypingUi(on) {
       if (!typingEl || !typingEl.isConnected) return;
+      var b = typingEl.querySelector('.typing-bubble');
       typingEl.classList.toggle('show', on);
-      typingEl.textContent = on ? (HB.firstNames().partner + ' is typing…') : '';
+      if (on) b.innerHTML =
+        '<span class="typing-name">' + HB.esc(partnerName) + ' is typing</span>' +
+        '<span class="typing-dots"><i></i><i></i><i></i></span>';
+      else if (b) b.innerHTML = '';
     }
     setTypingUi(HB.presence.partnerTyping);
     HB.presence.onTyping(setTypingUi);
