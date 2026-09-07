@@ -2,9 +2,13 @@
    SERVICE: PRESENCE — partner online + LIVE typing via Realtime
    ------------------------------------------------------------
    One per-couple channel (couple:<pairKey>). Presence state carries
-   { user_id, name, typing, online_at }. The partner sees:
-     * online dot      — any other presence record
-     * "X is typing…"  — the other person's typing flag
+   { user_id, name, typing, active, online_at }. The partner sees:
+     * online dot      — the other person is PRESENT AND ACTIVE (chat open)
+     * "X is typing…"  — the other person's live typing flag
+
+   "Active" means they currently have the couple-chat tab open and visible;
+   that's what counts as "Online". Merely having the app open elsewhere does
+   NOT show them online. Typing is a separate live flag that flips on/off.
 
    No keystrokes are ever stored — only the typing flag flips, with
    a short debounce on the sending side to prevent flickering.
@@ -20,11 +24,12 @@
   var onlineCb = null;
   var typingCb = null;
   var _typingSelf = false;
+  var _activeSelf = false;   /* am I on the chat tab right now (online) */
 
   function track() {
     if (!channel) return;
     try {
-      channel.track({ user_id: me.id, name: myName, typing: _typingSelf, online_at: new Date().toISOString() });
+      channel.track({ user_id: me.id, name: myName, typing: _typingSelf, active: _activeSelf, online_at: new Date().toISOString() });
     } catch (e) {}
   }
 
@@ -72,7 +77,8 @@
           var recs = Array.isArray(state[key]) ? state[key] : [state[key]];
           recs.forEach(function (rec) {
             if (rec && rec.user_id !== me.id) {
-              otherOnline = true;
+              /* Online only when the partner is actively on the chat tab. */
+              if (rec.active === true) otherOnline = true;
               if (rec.typing) otherTyping = true;
             }
           });
@@ -83,17 +89,8 @@
         if (typingCb) { try { typingCb(presence.partnerTyping); } catch (e) {} }
       });
 
-      channel.subscribe(function (status) {
-        if (status === 'SUBSCRIBED') {
-          console.log('[PRESENCE] Channel subscribed');
-          joined = true;
-          track();
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          joined = false;
-        }
-      });
-
-      /* untrack when hidden so we never fake presence */
+      /* untrack when hidden so we never fake presence, and re-track on
+         visibility/online changes with the current typing + active state */
       var onVis = function () {
         if (!channel) return;
         if (document.visibilityState === 'hidden') {
@@ -104,6 +101,23 @@
       };
       document.addEventListener('visibilitychange', onVis);
       window.addEventListener('online', onVis);
+
+      /* Keep my "active" (Online) flag in sync with the chat tab. I'm
+         "Online" only while the couple-chat tab is open and visible. */
+      var navSync = function () { presence.syncActive(); };
+      window.addEventListener('popstate', navSync);
+      document.addEventListener('visibilitychange', navSync);
+      /* initial pass once joined */
+      channel.subscribe(function (status) {
+        if (status === 'SUBSCRIBED') {
+          console.log('[PRESENCE] Channel subscribed');
+          joined = true;
+          presence.syncActive();
+          track();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          joined = false;
+        }
+      });
       window.addEventListener('offline', function () {
         presence.online = false;
         presence.partnerTyping = false;
@@ -127,6 +141,18 @@
     setTyping: function (v) {
       _typingSelf = !!v;
       if (channel) track();
+    },
+
+    /* Called on every navigation — I'm "Online" only while the chat tab
+       is open and visible. Pushes the flag to the other phone. */
+    syncActive: function () {
+      var onChat = HB.currentPath ? HB.currentPath() === '/chat' : false;
+      var should = onChat && document.visibilityState === 'visible';
+      if (should !== _activeSelf) {
+        _activeSelf = should;
+        if (_typingSelf && !_activeSelf) _typingSelf = false;
+        if (channel && joined) track();
+      }
     },
 
     /* Send a small event to the other phone on this couple's channel

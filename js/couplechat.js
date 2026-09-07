@@ -154,7 +154,7 @@
       if (img) {
         img.src = m.media_path;
         img.classList.add('loaded');
-        img.addEventListener('click', function () { openLightbox(m.media_path, m.message || ''); });
+        img.addEventListener('click', function () { openLightbox(m.media_path, m.message || '', this); });
       }
       if (pendingImages === 0) scrollDown();
       return;
@@ -166,7 +166,7 @@
       if (img && url) {
         img.src = url;
         img.classList.add('loaded');
-        img.addEventListener('click', function () { openLightbox(url, m.message || ''); });
+        img.addEventListener('click', function () { openLightbox(url, m.message || '', this); });
       }
       if (pendingImages === 0) scrollDown();
     });
@@ -176,9 +176,10 @@
     if (container && container.isConnected) container.scrollTop = container.scrollHeight;
   }
 
-  function openLightbox(url) {
-    /* Simple full-screen photo preview — just the picture + ✕, no name. */
-    if (HB.dp) HB.dp.preview(url);
+  function openLightbox(url, msg, originEl) {
+    /* Full-screen photo preview — just the picture + ✕, no name, with the
+       same grow-from-the-tap animation as every other image. */
+    if (HB.dp) HB.dp.preview(url, null, null, originEl);
   }
 
   /* A partner/own photo changed (synced via rel) → refresh all chips
@@ -324,7 +325,7 @@
           clearFn().then(function (res) { HB.toast('Photo removed — initials back ♡', '🗑️'); });
         }
       }
-      if (photo) { if (HB.dp) HB.dp.preview(photo, pickAndSet, doDelete); }
+      if (photo) { if (HB.dp) HB.dp.preview(photo, pickAndSet, doDelete, b); }
       else pickAndSet();
     });
     var hdp = main.querySelector('#header-dp');
@@ -348,7 +349,7 @@
           HB.dp.clearPartner().then(function (res) { HB.toast(partnerName + '\'s photo removed — initials back ♡', '🗑️'); });
         }
       }
-      if (ph) HB.dp.preview(ph, changePartnerPhoto, deletePartnerPhoto);
+      if (ph) HB.dp.preview(ph, changePartnerPhoto, deletePartnerPhoto, hdp);
       else changePartnerPhoto();
     });
 

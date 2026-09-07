@@ -216,6 +216,7 @@
         '<button class="btn btn-soft btn-lg" onclick="HB.navigate(&#39;/home&#39;)">Go home ♡</button></div>';
     }
     HB.updateNav();
+    if (HB.presence && HB.presence.syncActive) HB.presence.syncActive();
     window.scrollTo(0, 0);
     main.classList.remove('bb-leave');
     main.classList.add('bb-enter');
@@ -294,7 +295,7 @@
     (function () {
       var duo = sb.querySelector('[data-duo-dp]');
       if (!duo || !HB.dp) return;
-      var act = function (who) {
+      var act = function (who, originEl) {
         var isMe = who !== 'them';
         var photo = isMe ? HB.dp.myPhoto() : HB.dp.partnerPhoto();
         var setFn = isMe ? HB.dp.setMy : HB.dp.setPartner;
@@ -322,12 +323,12 @@
             'Delete photo'
           );
         };
-        if (photo) { HB.dp.preview(photo, pickAndSet, doDelete); }
+        if (photo) { HB.dp.preview(photo, pickAndSet, doDelete, originEl); }
         else pickAndSet();
       };
       duo.addEventListener('click', function (e) {
         var ring = e.target && e.target.closest ? e.target.closest('[data-duo]') : null;
-        act(ring ? ring.getAttribute('data-duo') : 'me');
+        act(ring ? ring.getAttribute('data-duo') : 'me', ring);
       });
     })();
 
@@ -445,7 +446,13 @@
       text: text,
       actions: [
         { label: 'Cancel', kind: 'btn-ghost' },
-        { label: yesLabel || 'Yes, do it', kind: 'btn-danger', onClick: function (ov) { onYes(ov); return false; } }
+        { label: yesLabel || 'Yes, do it', kind: 'btn-danger', onClick: function (ov) {
+          /* Run the action, then auto-close the box unless the action
+             explicitly returns false (meaning it wants to stay open,
+             e.g. a flow that keeps going on the same dialog). */
+          var keep = onYes ? onYes(ov) : true;
+          return keep;
+        } }
       ]
     });
   };

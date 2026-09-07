@@ -108,8 +108,9 @@
   /* Full-screen preview — the photo (big, pinch/zoom in, taps to zoom),
      a ✕ close, and when callbacks are given a "Change photo" and a
      "Delete photo" action. Deleting clears the photo so the person's
-     first-name initial shows again. */
-  function preview(url, onChange, onDelete) {
+     first-name initial shows again. When an origin element is passed
+     (the clicked circle/chip), the picture grows from that spot. */
+  function preview(url, onChange, onDelete, originEl) {
     if (!url) return;
     var ov = document.createElement('div');
     ov.className = 'dp-preview';
@@ -123,6 +124,7 @@
       changeBtn + delBtn +
       '<div class="dp-preview-stage"><img src="' + HB.esc(url) + '" alt=""/></div>';
     var img = ov.querySelector('img');
+    var stage = ov.querySelector('.dp-preview-stage');
     var zoom = 1;
     function applyZoom() { if (img) img.style.transform = 'scale(' + zoom + ')'; }
     function zoomDelta(d) {
@@ -173,6 +175,34 @@
     });
     document.addEventListener('keydown', onKey);
     document.body.appendChild(ov);
+
+    /* Entrance: the picture grows up from wherever it was tapped. The
+       stage fills the viewport, so its border-box top-left is (0,0) and
+       transform-origin in viewport px = the tapped spot. We start at a
+       tiny scale (≈ the source circle) and animate to full size. */
+    if (originEl && originEl.getBoundingClientRect) {
+      var r = originEl.getBoundingClientRect();
+      var cx = r.left + r.width / 2;
+      var cy = r.top + r.height / 2;
+      var startPx = Math.max(24, Math.min(r.width || 40, r.height || 40));
+      var probe = new Image();
+      probe.onload = function () {
+        var vw = window.innerWidth * 0.96, vh = window.innerHeight * 0.78;
+        var s = Math.min(vw / probe.width, vh / probe.height, 1);
+        var fw = Math.max(1, Math.round(probe.width * s));
+        var scale0 = startPx / fw;
+        stage.style.transformOrigin = cx + 'px ' + cy + 'px';
+        stage.style.transform = 'scale(' + scale0.toFixed(4) + ')';
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            stage.style.transition = 'transform 0.5s cubic-bezier(.2,.7,.3,1)';
+            stage.style.transform = 'scale(1)';
+          });
+        });
+      };
+      probe.onerror = function () { stage.style.transform = 'scale(1)'; };
+      probe.src = url;
+    }
   }
 
   /* MY personal photo (chat bubbles): applies instantly, then syncs to

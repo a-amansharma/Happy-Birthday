@@ -487,13 +487,15 @@
       if (data.me) {
         p.name = n.name;
         if (n.age !== '') p.age = n.age;
-        if (data.me.avatar_url) p.myAvatar = data.me.avatar_url;
+        /* avatar_url may be '' (photo deleted → initials show again); use
+           a null check so an empty value actually clears the photo. */
+        if (data.me.avatar_url != null) p.myAvatar = data.me.avatar_url;
       }
       if (data.partner || (data.relationship && data.relationship.partner_hint_name)) {
         var pn = rel.partner();
         p.partner = pn.name;
         if (pn.age !== '') p.partnerAge = pn.age;
-        if (data.partner && data.partner.avatar_url) p.partnerAvatar = data.partner.avatar_url;
+        if (data.partner && data.partner.avatar_url != null) p.partnerAvatar = data.partner.avatar_url;
       }
       if (data.relationship) {
         var r = data.relationship;
@@ -503,7 +505,7 @@
         if (r.chat_style && r.chat_style.length) p.chatStyle = normalizeList(r.chat_style);
         if (r.story) p.story = r.story;
         if (r.theme) { p.theme = r.theme; applyBodyTheme(r.theme); }
-        if (r.couple_dp_url) p.coupleDp = r.couple_dp_url;
+        if (r.couple_dp_url != null) p.coupleDp = r.couple_dp_url;
       }
       if (HB.save) HB.save();
     },

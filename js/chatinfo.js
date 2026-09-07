@@ -5,9 +5,10 @@
   'use strict';
   var HB = window.HB = window.HB || {};
 
-function openLightbox(url) {
-    /* Simple full-screen photo preview — just the picture + ✕, no name. */
-    if (HB.dp) HB.dp.preview(url);
+function openLightbox(url, msg, originEl) {
+    /* Full-screen photo preview — just the picture + ✕, no name, with the
+       same grow-from-the-tap animation as every other image. */
+    if (HB.dp) HB.dp.preview(url, null, null, originEl);
   }
 
   function render(main) {
@@ -53,7 +54,7 @@ function openLightbox(url) {
         var img = cell.querySelector('img');
         if (img && url) {
           img.src = url;
-          cell.addEventListener('click', function () { openLightbox(url, m.message || ''); });
+          cell.addEventListener('click', function () { openLightbox(url, m.message || '', this); });
         }
       });
     });

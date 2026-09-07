@@ -256,7 +256,7 @@
           clearFn().then(function () { paintDpChips(); HB.toast('Photo removed — initials back ♡', '🗑️'); });
         }
       }
-      if (photo) HB.dp.preview(photo, pickAndSet, doDelete);
+      if (photo) HB.dp.preview(photo, pickAndSet, doDelete, row.querySelector('.mng-chip'));
       else pickAndSet();
     });
   }
