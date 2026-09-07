@@ -699,12 +699,32 @@
         on = reduced || focusedField();
       }
       document.body.classList.toggle('kb-open', on);
+      if (on && window.scrollY) {
+        /* Cancel any document-level scroll the keyboard triggered so the
+           chat page stays anchored at its top; the chat-body inner
+           scroll + --vv-h do the positioning (see focusin handler). */
+        try { window.scrollTo(0, 0); } catch (e) {}
+      }
     }
 
     if (vv) { vv.addEventListener('resize', sync); vv.addEventListener('scroll', sync); }
     window.addEventListener('resize', sync);
     window.addEventListener('orientationchange', function () { setTimeout(sync, 150); });
-    document.addEventListener('focusin', function () { setTimeout(sync, 80); });
+    document.addEventListener('focusin', function (e) {
+      setTimeout(function () {
+        sync();
+        if (!mq || !mq.matches) return;
+        var el = e.target;
+        if (!el || !el.tagName || !/^(INPUT|TEXTAREA)$/i.test(el.tagName)) return;
+        if (typeof el.scrollIntoView === 'function') {
+          /* A moment after focus the browser may have scrolled the page
+             so the box flew up near the top while the keyboard opened.
+             Re-align it flush to the bottom edge — i.e. exactly on top
+             of the keys. On resizes-content webviews this is a no-op. */
+          try { el.scrollIntoView({ block: 'end', behavior: 'instant' }); } catch (e) { try { el.scrollIntoView(); } catch (e2) {} }
+        }
+      }, 120);
+    });
     document.addEventListener('focusout', function () { setTimeout(sync, 160); });
     window.addEventListener('load', sync);
     sync();
