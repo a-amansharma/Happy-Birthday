@@ -354,11 +354,11 @@
   function resetToFreshStart(overlay, wipeFn) {
     stopLiveServices();
 
-/* Delete MY profile on the cloud (leave() keeps the partner's
-           world + data intact and issues them a fresh pairing code),
-           or wipe the whole couple for both phones (factoryReset()).
-           Both swallow backend errors so a wipe can never get stuck.
-           Then sign out locally. */
+/* Delete only MY profile on the cloud (leave() keeps the partner's
+       world + data intact and issues them a fresh pairing code), or wipe
+       the whole couple for both phones (factoryReset()). Both swallow
+       backend errors so a wipe can never get stuck. Then sign out
+       locally. */
     var wipe = wipeFn ? wipeFn() : ((HB.rel && HB.rel.leave) ? HB.rel.leave() : Promise.resolve());
 
     /* Safety: never hold the user hostage on a slow network. */

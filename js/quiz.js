@@ -52,15 +52,16 @@
     if (!quiz) return;
     var my = HB.quiz.myAnswers();
     var result = quiz.result;
+    var hadDetail = !!quiz.detail;
 
     if (result) {
       renderResult(main, quiz, result);
       /* The breakdown needs the partner's answers — surface it the moment
-         it arrives instead of making the user wait (and never twice). */
-      if (!quiz.detail) {
+         it arrives instead of making the user wait. Re-render once, even
+         when ensureDetail resolved synchronously from the cache. */
+      if (!hadDetail) {
         HB.quiz.ensureDetail().then(function (d) {
           if (!d || !main.isConnected) return;
-          if (quiz.detail) return;
           quiz.detail = d;
           renderResult(main, quiz, result);
         });
