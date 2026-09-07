@@ -90,6 +90,19 @@
           '</div>';
       }
 
+      /* Our photos — couple photo + personal photos (mobile users can't see
+         the sidebar, so this is where both phones change/set their pictures) */
+      body +=
+        '<div class="card settings-card dp-manage-card" style="margin-top:22px;max-width:480px;margin-left:auto;margin-right:auto">' +
+          '<h3><span class="sc-emoji">📸</span> Our photos</h3>' +
+          '<p class="muted" style="font-size:13px;font-weight:600;margin:2px 0 12px">The couple photo shows on both phones by the header; your photo sits on your chat bubbles.</p>' +
+          '<div class="dp-manage">' +
+            '<button type="button" class="mng-dp" data-mng="couple"><span class="mng-chip" data-chip="couple"></span><span class="mng-label"><b>Couple photo</b><i>both phones, by the title</i></span></button>' +
+            '<button type="button" class="mng-dp" data-mng="me"><span class="mng-chip" data-chip="me"></span><span class="mng-label"><b>Your photo</b><i>your chat bubbles</i></span></button>' +
+            '<button type="button" class="mng-dp" data-mng="them"><span class="mng-chip" data-chip="them"></span><span class="mng-label"><b>Their photo</b><i>preview only</i></span></button>' +
+          '</div>' +
+        '</div>';
+
     } else if (waiting && code) {
       body =
         '<div class="connect-center">' +
@@ -178,6 +191,67 @@
       } else {
         HB.toast('Saved ♡', '✨');
         if (main.isConnected) render(main);
+      }
+    });
+
+    paintDpChips();
+    var mngBtns = main.querySelectorAll('.mng-dp');
+    for (var i = 0; i < mngBtns.length; i++) wireDpAction(mngBtns[i]);
+  }
+
+  /* Return the current #main if the passed one has been swapped out. */
+  function liveMain(old) {
+    return (old && old.isConnected) ? old : document.getElementById('main');
+  }
+
+  /* Fill the "Our photos" chips with the current couple/personal photos. */
+  function paintDpChips() {
+    var m = document.getElementById('main');
+    if (!m || !m.isConnected || HB.currentPath() !== '/partner') return;
+    var rows = m.querySelectorAll('.mng-dp');
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      var which = row.getAttribute('data-mng');
+      var photo = which === 'couple' ? HB.dp.couplePhoto() : (which === 'me' ? HB.dp.myPhoto() : HB.dp.partnerPhoto());
+      var letter = which === 'couple' ? HB.dp.initials()
+        : (which === 'me' ? String(HB.state.profile.name || '♥').trim().charAt(0) : String(HB.state.profile.partner || '♥').trim().charAt(0));
+      var chip = row.querySelector('.mng-chip');
+      if (!chip) continue;
+      chip.innerHTML = photo
+        ? '<img class="mng-img" src="' + HB.esc(photo) + '" alt=""/>'
+        : '<span class="mng-inits">' + HB.esc(String(letter || '♥').toUpperCase()) + '</span>';
+      var sub = row.querySelector('.mng-label i');
+      if (sub) sub.textContent = photo
+        ? (which === 'them' ? 'tap to preview' : 'tap to preview · change below ♡')
+        : (which === 'them' ? 'they haven\'t added one yet' : 'tap to pick one ♡');
+    }
+  }
+
+  /* Tap a photo row: no photo → pick ・ photo → preview (+ change action). */
+  function wireDpAction(row) {
+    row.addEventListener('click', function () {
+      var which = row.getAttribute('data-mng');
+      var photo = which === 'couple' ? HB.dp.couplePhoto() : (which === 'me' ? HB.dp.myPhoto() : HB.dp.partnerPhoto());
+      function pickAndSet(kind) {
+        var fn = kind === 'couple' ? HB.dp.setCouple : HB.dp.setMy;
+        HB.dp.pick().then(function (r) {
+          if (r && r.error) { HB.toast('Couldn\'t read that image ♡', '🐻'); return; }
+          if (!r || !r.dataUrl) return;
+          fn(r.dataUrl).then(function () {
+            paintDpChips();
+            HB.toast(kind === 'couple' ? 'Couple photo set for both phones ♡' : 'Your photo is set ♡', '📸');
+          });
+        });
+      }
+      if (which === 'them') {
+        if (photo) HB.dp.preview(photo);
+        else HB.toast('They haven\'t added a photo yet ♡', '🐻');
+        return;
+      }
+      if (photo) {
+        HB.dp.preview(photo, function () { pickAndSet(which); });
+      } else {
+        pickAndSet(which);
       }
     });
   }

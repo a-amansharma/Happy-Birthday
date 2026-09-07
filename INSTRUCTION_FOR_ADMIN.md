@@ -300,6 +300,8 @@ This single file sets up the **entire database** for the app. It creates:
 | Table | `messages` | Private couple chat (text + images as base64) |
 | Function | `connect_with_partner(code)` | Pairs two users using a LOVE-XXXXX code |
 | Function | `delete_my_data()` | Erases MY profile; partner keeps their world + data and gets a new pairing code |
+| Function | `update_my_avatar(url)` | Saves my profile photo (couple chat bubbles) |
+| Function | `update_couple_dp(url)` | Saves the shared couple photo shown on both phones |
 | Function | `is_couple_pair(a, b)` | Security helper — checks if two UUIDs are a paired couple |
 | Function | `my_partner_id()` | Returns current user's partner_id (security definer, breaks RLS recursion) |
 | Function | `admin_get_insights()` | Returns admin data (owner-only, security definer) |

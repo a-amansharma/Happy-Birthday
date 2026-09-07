@@ -52,7 +52,7 @@
     var letter = dpLetter(name);
     var who = mine ? 'me' : 'them';
     var title = photo
-      ? (mine ? 'View your photo' : 'View ' + partnerName + '\'s photo')
+      ? (mine ? 'View or change your photo' : 'View ' + partnerName + '\'s photo')
       : (mine ? 'Set your photo' : '');
     if (photo) {
       return '<button type="button" class="msg-avatar dp ' + (mine ? 'dp-me' : 'dp-them') + '" data-dp="' + who + '" title="' + title + '" aria-label="' + title + '"><img class="dp-img" src="' + HB.esc(photo) + '" alt="dp"/></button>';
@@ -298,14 +298,14 @@
     var attachInput = main.querySelector('#chat-attach');
     var attachBtn = main.querySelector('#chat-attach-btn');
 
-    /* ---- DP taps (delegated): photo → preview, my chip → add photo ---- */
+    /* ---- DP taps (delegated): preview each person's photo; my chip also
+       offers More/Options → Change Picture that opens the photo picker ---- */
     if (inner) inner.addEventListener('click', function (e) {
       var b = e.target && e.target.closest ? e.target.closest('[data-dp]') : null;
       if (!b) return;
       var mine = b.getAttribute('data-dp') === 'me';
       var photo = mine ? (HB.dp ? HB.dp.myPhoto() : '') : (HB.dp ? HB.dp.partnerPhoto() : '');
-      if (photo) { if (HB.dp) HB.dp.preview(photo); return; }
-      if (mine && HB.dp) {
+      function changeMyPhoto() {
         HB.dp.pick().then(function (out) {
           if (out.error) { HB.toast('That photo couldn\'t load — try another ♡', '💔'); return; }
           HB.dp.setMy(out.dataUrl).then(function (res) {
@@ -314,6 +314,12 @@
           });
         });
       }
+      if (mine) {
+        if (photo) { if (HB.dp) HB.dp.preview(photo, changeMyPhoto); }
+        else changeMyPhoto();
+        return;
+      }
+      if (photo && HB.dp) HB.dp.preview(photo);
     });
     var hdp = main.querySelector('#header-dp');
     if (hdp) hdp.addEventListener('click', function () {

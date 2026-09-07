@@ -28,6 +28,22 @@
     } catch (e) {}
   }
 
+  /* Small side-channel: DP photos + theme ride the same per-couple channel.
+     The DB column doesn't always exist yet (old Supabase schema), so when a
+     photo can't be written to the row we broadcast it straight to the other
+     phone instead — still realtime, no schema required. */
+  function send(payload) {
+    if (!channel || !joined) return false;
+    payload = payload || {};
+    if (me) payload.from = me.id;
+    try {
+      channel.send({ type: 'broadcast', event: 'hb:dp', payload: payload });
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   var presence = {
     online: false,          /* is my partner online right now */
     partnerTyping: false,   /* is my partner typing right now */
@@ -44,6 +60,9 @@
       var pairKey = 'rel_' + rid;
       console.log('[PRESENCE] Starting presence channel for relationship:', pairKey.substring(0, 18) + '…');
       channel = HB.db.client().channel('couple:' + pairKey);
+
+      /* Let the DP service listen for the photo/theme side-channel. */
+      if (HB.dp && HB.dp.attachPresence) HB.dp.attachPresence(channel, me);
 
       channel.on('presence', { event: 'sync' }, function () {
         var state = channel.presenceState();
@@ -108,6 +127,12 @@
     setTyping: function (v) {
       _typingSelf = !!v;
       if (channel) track();
+    },
+
+    /* Send a small event to the other phone on this couple's channel
+       (used by DP photos + shared theme when no DB column is available). */
+    broadcast: function (payload) {
+      return send(payload);
     },
 
     /* Replaceable single handlers — each render swaps the previous one. */

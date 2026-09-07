@@ -410,6 +410,12 @@
         return Promise.resolve({ error: null });
       }
       return HB.db.client().rpc('update_relationship_theme', { p_theme: t }).then(function (res) {
+        if (res.error && /PGRST202|Could not find the function|does not exist/i.test(String(res.error.message || res.error || ''))) {
+          /* New RPC isn't on the live schema yet — broadcast it to the other
+             phone instead so the theme still matches on both devices. */
+          if (HB.dp && HB.dp.broadcast) HB.dp.broadcast({ kind: 'theme', url: t });
+          return { error: null };
+        }
         if (!res.error && data.relationship) {
           data.relationship.theme = t;
           rel.hydrate();
@@ -417,6 +423,10 @@
         return res;
       });
     },
+
+    /* Re-apply the shared theme to the document (used when a broadcasted
+       theme arrives so the receiving phone repaints without a refresh). */
+    paintTheme: applyBodyTheme,
 
     /* ---- leave / erase — deletes my profile + the whole relationship ---- */
     leave: function () {
@@ -477,13 +487,13 @@
       if (data.me) {
         p.name = n.name;
         if (n.age !== '') p.age = n.age;
-        if (data.me.avatar_url != null) p.myAvatar = data.me.avatar_url;
+        if (data.me.avatar_url) p.myAvatar = data.me.avatar_url;
       }
       if (data.partner || (data.relationship && data.relationship.partner_hint_name)) {
         var pn = rel.partner();
         p.partner = pn.name;
         if (pn.age !== '') p.partnerAge = pn.age;
-        if (data.partner && data.partner.avatar_url != null) p.partnerAvatar = data.partner.avatar_url;
+        if (data.partner && data.partner.avatar_url) p.partnerAvatar = data.partner.avatar_url;
       }
       if (data.relationship) {
         var r = data.relationship;
@@ -493,7 +503,7 @@
         if (r.chat_style && r.chat_style.length) p.chatStyle = normalizeList(r.chat_style);
         if (r.story) p.story = r.story;
         if (r.theme) { p.theme = r.theme; applyBodyTheme(r.theme); }
-        if (r.couple_dp_url != null) p.coupleDp = r.couple_dp_url;
+        if (r.couple_dp_url) p.coupleDp = r.couple_dp_url;
       }
       if (HB.save) HB.save();
     },

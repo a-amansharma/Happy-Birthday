@@ -750,6 +750,44 @@ end $$;
 grant execute on function public.update_relationship_theme(text) to authenticated;
 
 
+-- ---- 7e.3 UPDATE MY PROFILE PHOTO + COUPLE PHOTO (durable DP sync) ----
+-- Live schema might not have the avatar_url/couple_dp_url columns yet;
+-- the app falls back to broadcasting when these RPCs are missing. Once this
+-- file has been re-run the photos persist in the database and sync via the
+-- existing realtime → hydrate path.
+create or replace function public.update_my_avatar(p_url text)
+returns jsonb
+language plpgsql security definer set search_path = public
+as $$
+begin
+  if auth.uid() is null then raise exception 'NOT_AUTHENTICATED'; end if;
+  update public.profiles
+     set avatar_url = coalesce(p_url, '')
+   where id = auth.uid();
+  return jsonb_build_object('ok', true);
+end $$;
+
+grant execute on function public.update_my_avatar(text) to authenticated;
+
+create or replace function public.update_couple_dp(p_url text)
+returns jsonb
+language plpgsql security definer set search_path = public
+as $$
+declare
+  rid uuid;
+begin
+  if auth.uid() is null then raise exception 'NOT_AUTHENTICATED'; end if;
+  select relationship_id into rid from public.profiles where id = auth.uid();
+  if rid is null then raise exception 'NOT_CONNECTED'; end if;
+  update public.relationships
+     set couple_dp_url = coalesce(p_url, '')
+   where id = rid;
+  return jsonb_build_object('ok', true);
+end $$;
+
+grant execute on function public.update_couple_dp(text) to authenticated;
+
+
 -- ---- 7f. QUIZ — finalize the day's result once both have answered ----
 -- Called by the quiz service after the second participant submits.
 create or replace function public.finalize_quiz(p_quiz_day uuid)
