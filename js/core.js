@@ -662,32 +662,49 @@
   };
 
   /* ---------------- Mobile viewport + keyboard ----------------
-     * `--vv-h` is ALWAYS kept in sync with the real visible viewport
-       height (visualViewport px). Some phone browsers don't support
-       `dvh`, so CSS falls back to this pixel value — this keeps the
-       bottom nav + chat typing box visible even when the address bar
-       hides or the on-screen keyboard opens.
-     * When the keyboard is up (visualViewport shrinks), `kb-open` is
-       set on <body>: the fixed bottom nav is hidden so it never floats
-       above the keys, and the chat page fills the keyboard-reduced
-       height so the typing box rests exactly on top of the keyboard. */
+     * `--vv-h` tracks the real visible viewport height (visualViewport
+       px) — some phone browsers don't support `dvh`, so CSS falls back
+       to this pixel value. This keeps the bottom nav + chat typing box
+       visible even when the address bar hides.
+     * While the phone keyboard is up (`kb-open` on <body>): the bottom
+       nav hides, and the chat page sizes itself to the keyboard-reduced
+       height with the document scroll LOCKED (`kb-lock` on <html> +
+       <body>). Locking the document scroll is what stops the browser
+       from scrolling the whole page up when the box is focused — the
+       typing box simply sits at the bottom of the (now shorter) chat
+       page, i.e. exactly on top of the keyboard. Non-chat pages keep
+       their full height and let the browser scroll the input into view
+       natively. */
   (function () {
     var vv = window.visualViewport;
     var root = document.documentElement;
     var mq = window.matchMedia ? window.matchMedia('(max-width: 860px)') : null;
+    var fullH = 0;
+    var lastChat = false;
 
     function focusedField() {
       var el = document.activeElement;
       return !!(el && el.tagName && /^(INPUT|TEXTAREA)$/i.test(el.tagName));
     }
 
-    function setVh() {
-      var h = (vv && vv.height) ? Math.round(vv.height) : (window.innerHeight || 0);
+    function vHeight() {
+      return (vv && vv.height) ? Math.round(vv.height) : (window.innerHeight || 0);
+    }
+
+    function chatPage() {
+      return !!(document.querySelector && document.querySelector('.chat-page'));
+    }
+
+    /* Set --vv-h to a px height. When a chat page is focused this is the
+       keyboard-reduced visual height so the input rests above the keys;
+       otherwise it's the full (keyboard-closed) height. */
+    function setVh(useChat) {
+      var h = useChat ? vHeight() : (fullH || vHeight());
       if (h) root.style.setProperty('--vv-h', h + 'px');
     }
 
     function sync() {
-      setVh();
+      var h = vHeight();
       var on = false;
       if (mq && mq.matches) {
         /* Keyboard is (or should be treated as) open when the visual
@@ -698,34 +715,45 @@
         var reduced = !!(vv && vv.height && vv.height < ih - 160);
         on = reduced || focusedField();
       }
+
+      var chat = on && chatPage();
+      if (!on) fullH = h; /* remember the full height for later */
+
       document.body.classList.toggle('kb-open', on);
-      if (on && window.scrollY) {
-        /* Cancel any document-level scroll the keyboard triggered so the
-           chat page stays anchored at its top; the chat-body inner
-           scroll + --vv-h do the positioning (see focusin handler). */
+      root.classList.toggle('kb-lock', chat);
+      document.body.classList.toggle('kb-lock', chat);
+      setVh(chat);
+      lastChat = chat;
+
+      if (on && chat && window.scrollY) {
         try { window.scrollTo(0, 0); } catch (e) {}
       }
+      return on;
     }
 
-    if (vv) { vv.addEventListener('resize', sync); vv.addEventListener('scroll', sync); }
-    window.addEventListener('resize', sync);
-    window.addEventListener('orientationchange', function () { setTimeout(sync, 150); });
+    if (vv) { vv.addEventListener('resize', function () { sync(); }); vv.addEventListener('scroll', function () { sync(); }); }
+    window.addEventListener('resize', function () { sync(); });
+    window.addEventListener('orientationchange', function () { setTimeout(function () { sync(); }, 150); });
     document.addEventListener('focusin', function (e) {
-      setTimeout(function () {
-        sync();
-        if (!mq || !mq.matches) return;
-        var el = e.target;
-        if (!el || !el.tagName || !/^(INPUT|TEXTAREA)$/i.test(el.tagName)) return;
-        if (typeof el.scrollIntoView === 'function') {
-          /* A moment after focus the browser may have scrolled the page
-             so the box flew up near the top while the keyboard opened.
-             Re-align it flush to the bottom edge — i.e. exactly on top
-             of the keys. On resizes-content webviews this is a no-op. */
+      /* Sync synchronously on focus so the layout + scroll-lock are in
+         place BEFORE the browser's default "scroll focused element into
+         view" runs — this is what prevents the whole page from jumping
+         up and banishing the typing box to the top. */
+      sync();
+      if (!mq || !mq.matches) return;
+      var el = e.target;
+      if (!el || !el.tagName || !/^(INPUT|TEXTAREA)$/i.test(el.tagName)) return;
+      if ((lastChat || chatPage()) && typeof el.scrollIntoView === 'function') {
+        /* Backstop: after the keyboard animation, realign the box to the
+           bottom edge (exactly on top of the keys) in case the webview
+           still shifted it. No-op when the webview already keeps it
+           flush. */
+        setTimeout(function () {
           try { el.scrollIntoView({ block: 'end', behavior: 'instant' }); } catch (e) { try { el.scrollIntoView(); } catch (e2) {} }
-        }
-      }, 120);
+        }, 260);
+      }
     });
-    document.addEventListener('focusout', function () { setTimeout(sync, 160); });
+    document.addEventListener('focusout', function () { setTimeout(function () { sync(); }, 180); });
     window.addEventListener('load', sync);
     sync();
   })();

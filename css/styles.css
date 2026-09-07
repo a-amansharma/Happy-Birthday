@@ -1706,6 +1706,14 @@ body.kb-open .chat-page {
   height: var(--vv-h, 100vh);
   height: var(--vv-h, 100dvh);
 }
+body.kb-open .chat-input-wrap { padding-bottom: 6px; }
+
+/* When typing in a chat page on a phone: lock the document scroll so
+   the browser can't shove the page up when the box is focused — only
+   the inner chat feed scrolls. The typing box then sits flush on top
+   of the keyboard. (Set on <html> + <body> by JS as `kb-lock`.) */
+html.kb-lock { overflow: hidden; }
+body.kb-lock { overflow: hidden; }
 
 /* Phones & phablets — everything clearly smaller so it fits snugly */
 @media (max-width: 600px) {
