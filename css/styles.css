@@ -20,7 +20,7 @@
   /* mobile bottom nav height (incl. its bottom margin + home-indicator
      safe area) — used by the chat page + toasts so nothing hides behind
      the floating nav */
-  --bnav: calc(64px + env(safe-area-inset-bottom));
+  --bnav: calc(74px + env(safe-area-inset-bottom));
 }
 
 /* Milk & Mocha (default) */
@@ -259,32 +259,40 @@ a { color: inherit; text-decoration: none; }
   bottom: 0;
   bottom: calc(10px + env(safe-area-inset-bottom));
   z-index: 60;
-  width: min(540px, calc(100% - 24px));
+  width: min(540px, calc(100% - 22px));
   background: var(--glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--line); height: 56px; border-radius: 24px;
+  border: 1px solid var(--line); height: 64px; border-radius: 26px;
   box-shadow: 0 -8px 30px rgba(0,0,0,0.08); padding: 0;
 }
 .bn-inner {
   display: flex; justify-content: space-around; align-items: stretch;
   height: 100%; max-width: 540px; margin: 0 auto;
-  padding: 6px 8px 5px;
+  padding: 6px 8px 6px;
 }
 .bn-item {
   position: relative; flex: 1; min-width: 0; height: auto;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 2px; padding: 2px 3px; border-radius: 18px;
-  font-size: 9.5px; font-weight: 800; color: var(--ink-soft); line-height: 1.1;
+  gap: 2px; padding: 2px 2px; border-radius: 18px;
+  font-size: 9.5px; font-weight: 800; color: var(--ink-soft); line-height: 1.15;
   transition: color 0.25s var(--ease);
 }
-.bn-item svg { width: 19px; height: 19px; display: block; transition: transform 0.3s var(--ease); }
-.bn-label { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.25; padding-top: 1px; }
+.bn-item svg { width: 20px; height: 20px; display: block; transition: transform 0.3s var(--ease); }
+.bn-label {
+  max-width: 100%;
+  white-space: normal;
+  overflow: visible;
+  text-align: center;
+  line-height: 1.2;
+  padding: 1px 1px 0;
+  max-height: 22px;
+}
 .bn-icon-wrap {
   position: relative; display: grid; place-items: center;
-  width: 40px; height: 28px; border-radius: 14px;
+  width: 40px; height: 30px; border-radius: 15px;
   transition: transform 0.3s var(--ease);
 }
 .bn-icon-wrap::before {
-  content: ''; position: absolute; inset: 0; border-radius: 14px;
+  content: ''; position: absolute; inset: 0; border-radius: 15px;
   background: var(--primary-soft);
   background: color-mix(in srgb, var(--primary) 22%, transparent);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 4px 12px var(--glow);
@@ -1575,44 +1583,44 @@ a { color: inherit; text-decoration: none; }
    and phone, so tablets keep the floating nav + smaller tiles.
    ============================================================ */
 @media (max-width: 900px) and (min-width: 601px) {
-  .page { padding: 22px 18px calc(96px + env(safe-area-inset-bottom)); }
+  .page { padding: 20px 16px calc(94px + env(safe-area-inset-bottom)); }
 
-  .dash-hello h1 { font-size: 30px; }
-  .dash-hello p { font-size: 14px; }
-  .section-title { margin: 24px 0 12px; }
-  .section-title h3 { font-size: 19px; }
+  .dash-hello h1 { font-size: 28px; }
+  .dash-hello p { font-size: 13.5px; }
+  .section-title { margin: 22px 0 11px; }
+  .section-title h3 { font-size: 18px; }
 
-  .card { padding: 20px 18px; }
-  .dash-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
-  .dash-tile { padding: 18px 14px; gap: 10px; }
-  .dash-tile .dt-icon { width: 42px; height: 42px; font-size: 20px; }
-  .dash-tile .dt-title { font-size: 14.5px; }
-  .relation-hero { padding: 22px 20px; gap: 16px; }
-  .relation-hero h2 { font-size: 24px; }
+  .card { padding: 18px 16px; }
+  .dash-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 11px; }
+  .dash-tile { padding: 15px 12px; gap: 8px; }
+  .dash-tile .dt-icon { width: 38px; height: 38px; font-size: 18px; }
+  .dash-tile .dt-title { font-size: 14px; }
+  .relation-hero { padding: 18px 17px; gap: 13px; }
+  .relation-hero h2 { font-size: 22px; }
 
-  .btn { padding: 11px 20px; font-size: 13.5px; }
-  .btn-icon { width: 38px; height: 38px; }
-  .chip { font-size: 12.5px; }
+  .btn { padding: 10px 17px; font-size: 13px; }
+  .btn-icon { width: 34px; height: 34px; }
+  .chip { font-size: 12px; }
 
-  .label { font-size: 13px; }
-  .input, .textarea, .select { padding: 12px 15px; font-size: 14px; }
+  .label { font-size: 12.5px; }
+  .input, .textarea, .select { padding: 11px 14px; font-size: 13.5px; }
 
-  .chat-head { padding: 12px 16px; }
-  .chat-head h2 { font-size: 16px; }
-  .msg .bubble { font-size: 14px; padding: 10px 14px; }
-  .couple-chat .msg .bubble { font-size: 13.5px; padding: 9px 12px 7px; }
+  .chat-head { padding: 10px 14px; }
+  .chat-head h2 { font-size: 15px; }
+  .msg .bubble { font-size: 13.5px; padding: 9px 13px; }
+  .couple-chat .msg .bubble { font-size: 13px; padding: 8px 11px 6px; }
 
-  .wizard { padding: 24px 20px 70px; }
-  .wizard-card { padding: 26px 24px; }
-  .option-cards { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
-  .theme-picker { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+  .wizard { padding: 20px 18px 64px; }
+  .wizard-card { padding: 22px 20px; }
+  .option-cards { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  .theme-picker { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
 
-  .note-card { padding: 22px 20px; }
-  .daily-card { padding: 30px 24px; }
-  .polaroid-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
-  .quiz-opts { gap: 10px; }
-  .quiz-opt { padding: 13px 16px; font-size: 14px; }
-  .stat-card .st-num { font-size: 30px; }
+  .note-card { padding: 19px 17px; }
+  .daily-card { padding: 26px 22px; }
+  .polaroid-grid { grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); gap: 14px; }
+  .quiz-opts { gap: 9px; }
+  .quiz-opt { padding: 12px 14px; font-size: 13.5px; }
+  .stat-card .st-num { font-size: 28px; }
   .media-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
   .settings-grid { gap: 14px; }
   .setting-row { padding: 11px 0; }
@@ -1638,154 +1646,158 @@ body.kb-open .chat-page {
 
 /* Phones & phablets — everything clearly smaller so it fits snugly */
 @media (max-width: 600px) {
-  .page { padding: 14px 12px calc(76px + env(safe-area-inset-bottom)); }
+  .page { padding: 10px 10px calc(88px + env(safe-area-inset-bottom)); }
 
-  /* Buttons, chips, forms — compact */
-  .btn { padding: 9px 14px; font-size: 12.5px; gap: 7px; }
-  .btn-sm { padding: 7px 12px; font-size: 12px; }
-  .btn-lg { padding: 12px 22px; font-size: 13.5px; }
-  .btn-icon { width: 34px; height: 34px; }
-  .btn-icon svg { width: 15px; height: 15px; }
-  .chip { padding: 5px 10px; font-size: 11.5px; gap: 4px; }
-  .chip-grid { gap: 7px; }
-  .eyebrow { font-size: 10.5px; gap: 6px; }
+  /* Buttons, chips, forms — very compact */
+  .btn { padding: 8px 12px; font-size: 12px; gap: 6px; border-radius: 14px; }
+  .btn-sm { padding: 6px 11px; font-size: 11.5px; }
+  .btn-lg { padding: 10px 20px; font-size: 13px; }
+  .btn-icon { width: 32px; height: 32px; }
+  .btn-icon svg { width: 14px; height: 14px; }
+  .chip { padding: 4px 9px; font-size: 11px; gap: 4px; border-radius: 999px; }
+  .chip-grid { gap: 6px; }
+  .eyebrow { font-size: 10px; gap: 5px; }
 
   /* Typography */
-  .dash-hello { margin-bottom: 14px; }
-  .dash-hello h1 { font-size: 22px; }
-  .dash-hello p { font-size: 12.5px; }
-  .section-title { margin: 18px 0 9px; gap: 8px; }
-  .section-title h3 { font-size: 17px; }
-  .section-title .hand { font-size: 16px; }
+  .dash-hello { margin-bottom: 10px; gap: 2px; }
+  .dash-hello h1 { font-size: 20px; }
+  .dash-hello p { font-size: 12px; }
+  .section-title { margin: 15px 0 8px; gap: 7px; }
+  .section-title h3 { font-size: 16px; }
+  .section-title .hand { font-size: 15px; }
 
   /* Cards & dashboard */
-  .card { padding: 16px 14px; border-radius: 18px; }
-  .dash-grid { gap: 9px; }
-  .dash-tile { padding: 12px 10px; gap: 7px; border-radius: 16px; }
-  .dash-tile .dt-icon { width: 36px; height: 36px; font-size: 17px; border-radius: 11px; }
-  .dash-tile .dt-title { font-size: 13px; }
-  .dash-tile .dt-sub { font-size: 11.5px; }
-  .dash-tile .dt-go { font-size: 11.5px; }
-  .relation-hero { padding: 16px 13px; gap: 11px; border-radius: 18px; margin-bottom: 14px; }
-  .relation-hero h2 { font-size: 19px; }
-  .relation-hero .rh-tag { font-size: 10.5px; padding: 3px 9px; }
-  .relation-hero .rh-ages { font-size: 12px; }
-  .relation-hero .rh-bears { width: 92px; }
+  .card { padding: 13px 12px; border-radius: 16px; }
+  .dash-grid { gap: 8px; }
+  .dash-tile { padding: 10px 9px; gap: 5px; border-radius: 15px; }
+  .dash-tile .dt-icon { width: 33px; height: 33px; font-size: 16px; border-radius: 10px; }
+  .dash-tile .dt-title { font-size: 12.5px; }
+  .dash-tile .dt-sub { font-size: 11px; }
+  .dash-tile .dt-go { font-size: 11px; }
+  .relation-hero { padding: 13px 12px; gap: 9px; border-radius: 16px; margin-bottom: 10px; }
+  .relation-hero h2 { font-size: 18px; }
+  .relation-hero .rh-tag { font-size: 10px; padding: 2px 8px; }
+  .relation-hero .rh-ages { font-size: 11.5px; }
+  .relation-hero .rh-bears { width: 86px; }
 
   /* Landing */
-  .landing { padding: 22px 14px 50px; }
-  .landing h1 { font-size: 28px; margin-bottom: 8px; }
-  .landing .sub { font-size: 13px; margin-bottom: 18px; }
-  .landing-badge { padding: 6px 12px; font-size: 11.5px; margin-bottom: 14px; }
-  .landing-cards { gap: 10px; }
-  .landing-card { padding: 18px 15px 17px; min-height: 0; border-radius: 18px; }
-  .lc-icon { width: 50px; height: 50px; font-size: 24px; margin-bottom: 10px; }
-  .lc-title { font-size: 17px; }
-  .lc-sub { font-size: 12px; margin-bottom: 10px; }
+  .landing { padding: 18px 12px 40px; }
+  .landing h1 { font-size: 26px; margin-bottom: 6px; }
+  .landing .sub { font-size: 12.5px; margin-bottom: 14px; }
+  .landing-badge { padding: 5px 11px; font-size: 11px; margin-bottom: 12px; }
+  .landing-cards { gap: 8px; }
+  .landing-card { padding: 15px 13px 14px; min-height: 0; border-radius: 16px; }
+  .lc-icon { width: 44px; height: 44px; font-size: 21px; margin-bottom: 7px; }
+  .lc-title { font-size: 15.5px; }
+  .lc-sub { font-size: 11.5px; margin-bottom: 7px; }
 
   /* Wizard */
-  .wizard { padding: 16px 12px 60px; }
-  .wizard-card { padding: 18px 15px; }
-  .wizard-step-q { font-size: 19px; }
-  .wizard-step-hint { font-size: 13px; margin-bottom: 16px; }
-  .option-cards { gap: 7px; }
-  .option-card { padding: 12px 12px; font-size: 13px; border-radius: 13px; }
-  .option-card .opt-emoji { font-size: 19px; }
-  .theme-card { padding: 9px; }
-  .theme-swatch { height: 42px; }
-  .wizard-head { margin-bottom: 22px; }
-  .wizard-head .hand { font-size: 24px; }
-  .progress { margin-bottom: 22px; }
+  .wizard { padding: 12px 10px 54px; }
+  .wizard-card { padding: 15px 13px; }
+  .wizard-step-q { font-size: 17px; }
+  .wizard-step-hint { font-size: 12.5px; margin-bottom: 13px; }
+  .option-cards { gap: 6px; }
+  .option-card { padding: 10px 11px; font-size: 12.5px; border-radius: 12px; }
+  .option-card .opt-emoji { font-size: 17px; }
+  .theme-card { padding: 7px; }
+  .theme-swatch { height: 38px; }
+  .wizard-head { margin-bottom: 18px; }
+  .wizard-head .hand { font-size: 22px; }
+  .progress { margin-bottom: 18px; }
 
   /* Forms */
-  .label { font-size: 12.5px; margin-bottom: 5px; }
-  .field { margin-bottom: 12px; }
-  .input, .textarea, .select { padding: 10px 13px; font-size: 13px; border-radius: 13px; }
-  .input-lg { font-size: 14px; padding: 12px 14px; }
-  .textarea { min-height: 100px; }
+  .label { font-size: 12px; margin-bottom: 4px; }
+  .field { margin-bottom: 10px; }
+  .input, .textarea, .select { padding: 9px 12px; font-size: 12.5px; border-radius: 12px; }
+  .input-lg { font-size: 13px; padding: 10px 13px; }
+  .textarea { min-height: 88px; }
 
-  /* Chat — general + couple */
-  .chat-head { padding: 9px 10px; gap: 9px; }
-  .chat-head h2 { font-size: 14px; }
-  .chat-head p { font-size: 10.5px; }
-  .chat-head .avatar { width: 36px; height: 36px; }
-  .msg { gap: 6px; margin: 5px 0; max-width: 92%; }
-  .msg .msg-avatar { width: 26px; height: 26px; }
-  .msg .bubble { font-size: 13px; padding: 8px 11px; border-radius: 16px; }
-  .msg .msg-time { font-size: 9.5px; }
-  .chat-input-wrap { padding: 7px 8px 10px; }
-  .chat-input-box { border-radius: 28px; padding: 4px 4px 4px 13px; gap: 7px; }
-  .chat-input-box textarea { font-size: 13.5px; max-height: 76px; padding: 5px 0; }
-  .chat-input-box .send-btn { width: 36px; height: 36px; }
-  .chat-input-box .send-btn svg { width: 15px; height: 15px; }
-  .attach-btn { width: 36px; height: 36px; font-size: 16px; }
-  .chat-suggestions { padding: 2px 12px 7px; gap: 6px; }
-  .chat-suggestions .chip { font-size: 11px; padding: 5px 9px; }
-  .couple-chat .chat-head { padding: 9px 10px; }
-  .couple-chat .chat-head .avatar { width: 36px; height: 36px; }
-  .couple-chat .chat-head-meta h2 { font-size: 14.5px; }
-  .couple-chat .msg { max-width: 90%; }
-  .couple-chat .msg .bubble { font-size: 13px; padding: 7px 9px 5px; border-radius: 14px; }
-  .couple-chat .msg .msg-avatar { width: 26px; height: 26px; font-size: 11px; }
-  .couple-chat .chat-input-wrap { padding: 5px 7px 8px; }
-  .chat-empty { min-height: 52vh; padding: 0 12px; }
-  .chat-empty h3 { font-size: 21px; }
-  .chat-empty p { font-size: 13px; }
+  /* Chat — general + couple (compact) */
+  .chat-head { padding: 7px 9px; gap: 8px; }
+  .chat-head h2 { font-size: 13.5px; }
+  .chat-head p { font-size: 10px; }
+  .chat-head .avatar { width: 32px; height: 32px; }
+  .msg { gap: 5px; margin: 4px 0; max-width: 91%; }
+  .msg .msg-avatar { width: 24px; height: 24px; }
+  .msg .bubble { font-size: 12.5px; padding: 6px 10px; border-radius: 14px; }
+  .msg .msg-time { font-size: 9px; }
+  .chat-input-wrap { padding: 6px 7px 9px; }
+  .chat-input-box { border-radius: 26px; padding: 3px 3px 3px 12px; gap: 6px; }
+  .chat-input-box textarea { font-size: 13px; max-height: 66px; padding: 4px 0; }
+  .chat-input-box .send-btn { width: 34px; height: 34px; }
+  .chat-input-box .send-btn svg { width: 14px; height: 14px; }
+  .attach-btn { width: 34px; height: 34px; font-size: 15px; }
+  .chat-suggestions { padding: 2px 11px 6px; gap: 5px; }
+  .chat-suggestions .chip { font-size: 10.5px; padding: 4px 8px; }
+  .couple-chat .chat-head { padding: 7px 9px; }
+  .couple-chat .chat-head .avatar { width: 32px; height: 32px; }
+  .couple-chat .chat-head-meta h2 { font-size: 14px; }
+  .couple-chat .msg { max-width: 89%; }
+  .couple-chat .msg .bubble { font-size: 12.5px; padding: 6px 8px 4px; border-radius: 13px; }
+  .couple-chat .msg .msg-avatar { width: 24px; height: 24px; font-size: 10px; }
+  .couple-chat .chat-input-wrap { padding: 4px 6px 7px; }
+  .chat-empty { min-height: 48vh; padding: 0 10px; }
+  .chat-empty h3 { font-size: 19px; }
+  .chat-empty p { font-size: 12.5px; }
 
   /* Love notes */
-  .note-card { padding: 16px 14px; border-radius: 18px; }
-  .note-card .note-title { font-size: 17px; }
-  .note-card .note-text { font-size: 13.5px; }
-  .note-card .note-meta .tag { font-size: 10.5px; padding: 3px 9px; }
+  .note-card { padding: 13px 12px; border-radius: 16px; }
+  .note-card .note-title { font-size: 15.5px; }
+  .note-card .note-text { font-size: 12.5px; }
+  .note-card .note-meta .tag { font-size: 10px; padding: 2px 8px; }
 
   /* Daily question / quiz */
-  .daily-card { padding: 22px 14px; }
-  .daily-card .big-q { font-size: 28px; }
-  .daily-card h2 { font-size: 17px; }
-  .daily-answers { gap: 9px; }
-  .answer-card { padding: 12px 12px; gap: 9px; }
-  .quiz-cat { padding: 14px; }
-  .quiz-opt { padding: 11px 12px; font-size: 13.5px; gap: 9px; }
-  .quiz-q { font-size: 18px; margin-bottom: 16px; }
-  .score-num { font-size: 38px; }
-  .score-message { font-size: 16px; }
+  .daily-card { padding: 18px 12px; }
+  .daily-card .big-q { font-size: 26px; }
+  .daily-card h2 { font-size: 16px; }
+  .daily-answers { gap: 8px; }
+  .answer-card { padding: 10px 11px; gap: 8px; }
+  .quiz-cat { padding: 12px; }
+  .quiz-opt { padding: 9px 11px; font-size: 13px; gap: 8px; }
+  .quiz-q { font-size: 17px; margin-bottom: 13px; }
+  .score-num { font-size: 34px; }
+  .score-message { font-size: 15px; }
 
   /* Memories */
-  .mem-col-name { font-size: 18px; }
-  .polaroid-grid { gap: 12px; }
-  .media-grid { gap: 7px; }
+  .mem-col-name { font-size: 17px; }
+  .polaroid-grid { gap: 10px; }
+  .media-grid { gap: 6px; }
 
   /* Dates / settings / partner */
-  .stats-row { gap: 10px; }
-  .stat-card { padding: 16px 8px; }
-  .stat-card .st-num { font-size: 24px; }
-  .stat-card .st-label { font-size: 10.5px; }
-  .date-event { padding: 14px 12px; }
-  .date-idea { padding: 16px 14px; gap: 7px; }
-  .date-idea h3 { font-size: 15px; }
-  .date-idea .di-emoji { font-size: 26px; }
-  .setting-row { padding: 10px 0; }
-  .settings-card h3 { font-size: 14.5px; }
-  .mini-stat { padding: 12px; }
-  .mini-stat .ms-val { font-size: 20px; }
-  .waiting-card { padding: 18px 14px; }
-  .connect-card { padding: 11px 11px; gap: 9px; }
-  .connect-card .cc-scene { width: 58px; }
+  .stats-row { gap: 8px; }
+  .stat-card { padding: 13px 6px; }
+  .stat-card .st-num { font-size: 22px; }
+  .stat-card .st-label { font-size: 10px; }
+  .date-event { padding: 12px 11px; }
+  .date-idea { padding: 13px 12px; gap: 6px; }
+  .date-idea h3 { font-size: 14px; }
+  .date-idea .di-emoji { font-size: 23px; }
+  .setting-row { padding: 8px 0; }
+  .settings-card h3 { font-size: 14px; }
+  .mini-stat { padding: 10px; }
+  .mini-stat .ms-val { font-size: 18px; }
+  .waiting-card { padding: 14px 12px; }
+  .connect-card { padding: 9px 10px; gap: 8px; }
+  .connect-card .cc-scene { width: 52px; }
 
   /* Modal / toasts */
-  .modal { padding: 18px 14px; }
-  .modal .modal-title { font-size: 17px; }
-  .modal .modal-text { font-size: 13.5px; margin-bottom: 16px; }
-  .toast { font-size: 12.5px; padding: 10px 15px; gap: 8px; }
+  .modal { padding: 15px 13px; }
+  .modal .modal-title { font-size: 16px; }
+  .modal .modal-text { font-size: 12.5px; margin-bottom: 13px; }
+  .toast { font-size: 12px; padding: 8px 13px; gap: 7px; }
 
-  /* Bottom nav labels stay legible but compact */
-  .bn-label { font-size: 9.5px; }
+  /* Bottom nav — compact labels, never cut (taller pill handles wrap) */
+  .bn-label { font-size: 9px; }
   .bn-item svg { width: 19px; height: 19px; }
 }
 
 @media (max-width: 380px) {
-  .landing h1 { font-size: 25px; }
+  .landing { padding: 15px 11px 34px; }
+  .landing h1 { font-size: 23px; }
   .dash-grid { grid-template-columns: 1fr 1fr; }
   .msg { max-width: 94%; }
   .couple-chat .msg { max-width: 92%; }
+  .chat-head .avatar, .couple-chat .chat-head .avatar { width: 29px; height: 29px; }
+  .btn { padding: 7px 11px; }
+  .dash-tile { padding: 9px 8px; }
 }
