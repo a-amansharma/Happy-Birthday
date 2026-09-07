@@ -490,6 +490,7 @@ declare
   rid uuid;
   n int;
   letters text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  me_name text;
 begin
   if me is null then raise exception 'NOT_AUTHENTICATED'; end if;
 
