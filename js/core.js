@@ -266,13 +266,12 @@
     var sb = document.getElementById('sidebar');
     var bn = document.getElementById('bottom-nav');
 
-    var coupleDp = (HB.state.profile && HB.state.profile.coupleDp) || '';
-    var cdInner = coupleDp
-      ? '<img class="cdp-img" src="' + HB.esc(coupleDp) + '" alt="dp"/>'
-      : '<span class="cdp-initials">' + HB.esc(HB.coupleInitials()) + '</span>';
-    var logo = '<div class="sidebar-logo"><button type="button" class="couple-dp" data-couple-dp title="' +
-      (coupleDp ? 'View your couple photo' : 'Add your couple photo') + '">' + cdInner +
-      '</button><div><div class="logo-text">Our Little World</div><div class="logo-sub">' + HB.esc(HB.couple()) + '</div></div></div>';
+    var duoInner = (HB.dp && HB.dp.duo)
+      ? HB.dp.duo()
+      : '<span class="duo-cluster"><span class="duo-ring duo-top"><span class="duo-let">♥</span></span><span class="duo-heart" aria-hidden="true">♥</span><span class="duo-ring duo-bot"><span class="duo-let">♥</span></span></span>';
+    var logo = '<div class="sidebar-logo"><div class="duo-dp" data-duo-dp title="' +
+      'You two — change either of your little pictures">' + duoInner +
+      '</div><div><div class="logo-text">Our Little World</div><div class="logo-sub">' + HB.esc(HB.couple()) + '</div></div></div>';
 
     var items = navItems.map(function (n) {
       var active = activePath === n.path ? ' active' : '';
@@ -287,21 +286,34 @@
 
     sb.innerHTML = logo + items + footer;
 
-    /* Couple DP: tap to preview the shared photo, or (when none is set)
-       open the gallery and sync the chosen picture to both phones. */
+    /* Duo circles: tap the TOP circle to set/change MY photo, the LOWER
+       one to set/change my partner's photo. Each circle that already has
+       a photo opens the preview with a "change" action. Both photos sync
+       to the correct person on BOTH phones. Taps in the empty gap default
+       to my (top) circle. */
     (function () {
-      var cdp = sb.querySelector('[data-couple-dp]');
-      if (!cdp || !HB.dp) return;
-      cdp.addEventListener('click', function () {
-        var cur = (HB.state.profile && HB.state.profile.coupleDp) || '';
-        if (cur) { HB.dp.preview(cur); return; }
+      var duo = sb.querySelector('[data-duo-dp]');
+      if (!duo || !HB.dp) return;
+      function pickAndSet(fn, isMe) {
         HB.dp.pick().then(function (out) {
-          if (out.error) { if (HB.toast) HB.toast('That photo couldn\'t load — try another ♡', '💔'); return; }
-          HB.dp.setCouple(out.dataUrl).then(function (res) {
+          if (out && out.error) { if (HB.toast) HB.toast('That photo couldn\'t load — try another ♡', '💔'); return; }
+          if (!out || !out.dataUrl) return;
+          fn(out.dataUrl).then(function (res) {
             if (res && res.error) { if (HB.toast) HB.toast('Couldn\'t sync to your person — try again ♡', '💔'); return; }
-            if (HB.toast) HB.toast('Your couple photo is set ♡', '✨');
+            if (HB.toast) HB.toast((isMe ? 'Your photo is set ♡' : (HB.firstNames().partner + '\'s photo is set ♡')), '📸');
           });
         });
+      }
+      var act = function (who) {
+        var isMe = who !== 'them';
+        var photo = isMe ? HB.dp.myPhoto() : HB.dp.partnerPhoto();
+        var fn = isMe ? HB.dp.setMy : HB.dp.setPartner;
+        if (photo) { HB.dp.preview(photo, function () { pickAndSet(fn, isMe); }); }
+        else { pickAndSet(fn, isMe); }
+      };
+      duo.addEventListener('click', function (e) {
+        var ring = e.target && e.target.closest ? e.target.closest('[data-duo]') : null;
+        act(ring ? ring.getAttribute('data-duo') : 'me');
       });
     })();
 

@@ -1,16 +1,19 @@
 /* ============================================================
    DP — personal + couple display pictures ♡
    ------------------------------------------------------------
-   * couple DP (sidebar, near "Our Little World") = first letters
-     of both names (mine first: Aman+Stuti → AS, Stuti+Aman → SA)
-     until a shared photo is added; tapping opens the gallery and
-     the picked photo syncs to BOTH phones.
+   * duo (sidebar, next to "Our Little World") = two overlapping
+     circles — MY first-name initial top-left, my partner's
+     bottom-right (Aman → A, Stuti → S) with a ♥ between them —
+     until a synced chat photo replaces either circle. Each phone
+     sees its OWN top circle (reversed order per device).
    * personal DP (chat bubbles) = my first letter on my bubbles,
-     partner's on theirs; tapping MY bubbles' DP opens the gallery
-     for MY photo only (it shows on all my bubbles everywhere).
+     partner's on theirs; tapping EITHER bubble's DP opens the
+     gallery for that person's photo (mine syncs to my row, my
+     partner's syncs to their row — both phones always agree).
+   * couple DP (Partner page) = shared photo for both phones.
    * tapping any DP that already has a photo opens a simple
-     full-screen preview with a ✕ close — no file names shown,
-     same clean preview for photos shared inside the chat.
+     full-screen preview with a ✕ close — and a "change photo"
+     action whenever that photo is editable by this phone.
    ============================================================ */
 (function () {
   'use strict';
@@ -24,9 +27,37 @@
     return ((m + t).toUpperCase()) || '♥';
   }
 
+  /* A single person's initial — mine vs my partner's. Used by the
+     top-left "two little circles" avatar (Aman → A, Stuti → S). */
+  function firstOf(name) { return (String(name || '').trim().charAt(0) || '♥').toUpperCase(); }
+  function myLetter() { return firstOf(HB.state && HB.state.profile && HB.state.profile.name); }
+  function partnerLetter() { return firstOf(HB.state && HB.state.profile && HB.state.profile.partner); }
+
   function myPhoto() { return (HB.state && HB.state.profile && HB.state.profile.myAvatar) || ''; }
   function partnerPhoto() { return (HB.state && HB.state.profile && HB.state.profile.partnerAvatar) || ''; }
   function couplePhoto() { return (HB.state && HB.state.profile && HB.state.profile.coupleDp) || ''; }
+
+  /* ---- top-left homepage duo: two overlapping circles (mine on top,
+     my partner below), a heart between them, subtle float. Defaults to
+     each person's first-name initial; a synced chat photo replaces it. ----
+     data-duo → 'me' | 'them' so the sidebar can wire the taps. */
+  function duoRing(who, cls, photo, letter, title) {
+    var inner = photo
+      ? '<img src="' + HB.esc(photo) + '" alt=""/>'
+      : '<span class="duo-let">' + HB.esc(letter) + '</span>';
+    return '<button type="button" class="duo-ring ' + cls + '" data-duo="' + who + '" title="' + HB.esc(title) + '" aria-label="' + HB.esc(title) + '">' + inner + '</button>';
+  }
+  function duoHtml() {
+    var meN = (HB.state && HB.state.profile && HB.state.profile.name) || '';
+    var ptN = (HB.state && HB.state.profile && HB.state.profile.partner) || '';
+    var meT = myPhoto() ? 'View or change your photo' : 'Set your photo';
+    var ptT = partnerPhoto() ? ('View or change ' + ptN + '\'s photo') : ('Set ' + (ptN || 'your person') + '\'s photo');
+    return '<span class="duo-cluster">' +
+      duoRing('me', 'duo-top', myPhoto(), firstOf(meN), meT) +
+      '<span class="duo-heart" aria-hidden="true">♥</span>' +
+      duoRing('them', 'duo-bot', partnerPhoto(), firstOf(ptN), ptT) +
+    '</span>';
+  }
 
   /* Downscale a picked image to a small, chat-friendly square photo. */
   function toDataUrl(file, max) {
@@ -115,6 +146,7 @@
   function setMy(dataUrl) {
     var pf = HB.state && HB.state.profile;
     if (pf) { pf.myAvatar = dataUrl || ''; if (HB.save) HB.save(); }
+    if (HB.updateNav) HB.updateNav();
     if (window.dispatchEvent) {
       try { window.dispatchEvent(new window.CustomEvent('hb:relchange')); } catch (e) {}
     }
@@ -138,6 +170,44 @@
       })
       .catch(function () {
         blast({ kind: 'my', url: dataUrl || '' });
+        return { error: null };
+      });
+  }
+
+  /* MY PARTNER'S personal photo (chat bubbles on my phone / the duo's
+     lower circle): applies instantly, then syncs to their profile row so
+     BOTH phones show it in their own perspective. Their phone sees it as
+     their own photo; mine sees it as the partner's photo. Tries the
+     update_partner_avatar RPC first; if that's not in the DB schema yet it
+     broadcasts the photo straight to the partner over our realtime channel. */
+  function setPartner(dataUrl) {
+    var pf = HB.state && HB.state.profile;
+    if (pf) { pf.partnerAvatar = dataUrl || ''; if (HB.save) HB.save(); }
+    if (HB.updateNav) HB.updateNav();
+    if (window.dispatchEvent) {
+      try { window.dispatchEvent(new window.CustomEvent('hb:relchange')); } catch (e) {}
+    }
+    if (!HB.db || !HB.db.configured() || !HB.auth || !HB.auth.user() || !HB.rel || !HB.rel.data) {
+      return Promise.resolve({ error: null });
+    }
+    var mark = function () {
+      if (HB.rel.data.partner) HB.rel.data.partner.avatar_url = dataUrl || '';
+    };
+    return HB.db.client().rpc('update_partner_avatar', { p_url: dataUrl || '' })
+      .then(function (res) {
+        if (!res.error) { mark(); return res; }
+        if (!isMissingFunc(res.error)) return res;
+        return HB.db.client().from('profiles')
+          .update({ avatar_url: dataUrl || '' })
+          .eq('id', HB.rel.data.partner ? HB.rel.data.partner.id : '')
+          .then(function (r2) {
+            if (r2.error) { blast({ kind: 'partner', url: dataUrl || '' }); return { error: null }; }
+            mark();
+            return r2;
+          });
+      })
+      .catch(function () {
+        blast({ kind: 'partner', url: dataUrl || '' });
         return { error: null };
       });
   }
@@ -208,7 +278,16 @@
     if (!pf) return;
     if (p.kind === 'my') {
       pf.partnerAvatar = p.url || '';
+      if (HB.rel && HB.rel.data && HB.rel.data.partner) HB.rel.data.partner.avatar_url = p.url || '';
       if (HB.save) HB.save();
+      if (HB.updateNav) HB.updateNav();
+      if (window.dispatchEvent) { try { window.dispatchEvent(new window.CustomEvent('hb:relchange')); } catch (e) {} }
+    } else if (p.kind === 'partner') {
+      /* My partner changed MY picture from their phone → it's my photo here. */
+      pf.myAvatar = p.url || '';
+      if (HB.rel && HB.rel.data && HB.rel.data.me) HB.rel.data.me.avatar_url = p.url || '';
+      if (HB.save) HB.save();
+      if (HB.updateNav) HB.updateNav();
       if (window.dispatchEvent) { try { window.dispatchEvent(new window.CustomEvent('hb:relchange')); } catch (e) {} }
     } else if (p.kind === 'couple') {
       pf.coupleDp = p.url || '';
@@ -239,13 +318,18 @@
 
   HB.dp = {
     initials: initials,
+    firstOf: firstOf,
+    myLetter: myLetter,
+    partnerLetter: partnerLetter,
     myPhoto: myPhoto,
     partnerPhoto: partnerPhoto,
     couplePhoto: couplePhoto,
+    duo: duoHtml,
     pick: pick,
     toDataUrl: toDataUrl,
     preview: preview,
     setMy: setMy,
+    setPartner: setPartner,
     setCouple: setCouple,
     attachPresence: onPresenceAvailable,
     broadcast: blast

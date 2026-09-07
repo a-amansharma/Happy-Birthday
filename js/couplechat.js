@@ -44,21 +44,19 @@
 
   /* Bubble DP: my first-letter chip (right) / partner's (left). When a
      personal photo exists, the chip becomes that photo instead. Tapping
-     MY chip opens the gallery to change only MY photo; any photo chips
-     open the simple full-screen preview. */
+     EITHER chip opens the gallery to change that person's photo — mine
+     syncs to my row, my partner's syncs to theirs — and any photo chips
+     open a simple full-screen preview with a "change" action. */
   function dpHtml(mine) {
     var name = mine ? myName : partnerName;
     var photo = mine ? (HB.dp ? HB.dp.myPhoto() : '') : (HB.dp ? HB.dp.partnerPhoto() : '');
     var letter = dpLetter(name);
     var who = mine ? 'me' : 'them';
     var title = photo
-      ? (mine ? 'View or change your photo' : 'View ' + partnerName + '\'s photo')
-      : (mine ? 'Set your photo' : '');
-    if (photo) {
-      return '<button type="button" class="msg-avatar dp ' + (mine ? 'dp-me' : 'dp-them') + '" data-dp="' + who + '" title="' + title + '" aria-label="' + title + '"><img class="dp-img" src="' + HB.esc(photo) + '" alt="dp"/></button>';
-    }
-    return '<button type="button" class="msg-avatar dp ' + (mine ? 'dp-me' : 'dp-them') + '" data-dp="' + who + '"' +
-      (mine ? ' title="Set your photo" aria-label="Set your photo"' : '') + '>' + letter + '</button>';
+      ? (mine ? 'View or change your photo' : 'View or change ' + partnerName + '\'s photo')
+      : (mine ? 'Set your photo' : 'Set ' + partnerName + '\'s photo');
+    return '<button type="button" class="msg-avatar dp ' + (mine ? 'dp-me' : 'dp-them') + '" data-dp="' + who + '" title="' + title + '" aria-label="' + title + '">' +
+      (photo ? '<img class="dp-img" src="' + HB.esc(photo) + '" alt="dp"/>' : letter) + '</button>';
   }
 
   /* The little receipt ticks on MY bubbles.
@@ -201,7 +199,7 @@
       hd.innerHTML = ph
         ? '<img class="dp-img" src="' + HB.esc(ph) + '" alt="dp"/>'
         : dpLetter(partnerName);
-      hd.title = ph ? 'View ' + partnerName + '\'s photo' : '';
+      hd.title = ph ? 'View or change ' + partnerName + '\'s photo' : 'Set ' + partnerName + '\'s photo';
     }
   }
   window.addEventListener('hb:relchange', function () {
@@ -268,7 +266,7 @@
     main.innerHTML =
       '<div class="chat-page couple-chat">' +
         '<div class="chat-head">' +
-          '<div class="avatar"><button type="button" class="char-dp" id="header-dp" title="' + (HB.dp && HB.dp.partnerPhoto() ? 'View ' + HB.esc(partnerName) + '\'s photo' : '') + '">' +
+          '<div class="avatar"><button type="button" class="char-dp" id="header-dp" title="' + (HB.dp && HB.dp.partnerPhoto() ? 'View or change ' + HB.esc(partnerName) + '\'s photo' : 'Set ' + HB.esc(partnerName) + '\'s photo') + '">' +
             (HB.dp && HB.dp.partnerPhoto() ? '<img class="dp-img" src="' + HB.esc(HB.dp.partnerPhoto()) + '" alt="dp"/>' : dpLetter(partnerName)) +
           '</button><span class="online" id="presence-dot"></span></div>' +
           '<div class="chat-head-meta">' +
@@ -298,33 +296,40 @@
     var attachInput = main.querySelector('#chat-attach');
     var attachBtn = main.querySelector('#chat-attach-btn');
 
-    /* ---- DP taps (delegated): preview each person's photo; my chip also
-       offers More/Options → Change Picture that opens the photo picker ---- */
+    /* ---- DP taps (delegated): preview each person's photo; either chip
+       also offers Change Picture that opens the photo picker ---- */
     if (inner) inner.addEventListener('click', function (e) {
       var b = e.target && e.target.closest ? e.target.closest('[data-dp]') : null;
       if (!b) return;
       var mine = b.getAttribute('data-dp') === 'me';
       var photo = mine ? (HB.dp ? HB.dp.myPhoto() : '') : (HB.dp ? HB.dp.partnerPhoto() : '');
-      function changeMyPhoto() {
+      function pickAndSet() {
+        var fn = mine ? HB.dp.setMy : HB.dp.setPartner;
         HB.dp.pick().then(function (out) {
           if (out.error) { HB.toast('That photo couldn\'t load — try another ♡', '💔'); return; }
-          HB.dp.setMy(out.dataUrl).then(function (res) {
+          fn(out.dataUrl).then(function (res) {
             if (res && res.error) { HB.toast('Couldn\'t save — try again ♡', '💔'); return; }
-            HB.toast('Your chat photo is set ♡', '✨');
+            HB.toast(mine ? 'Your chat photo is set ♡' : (partnerName + '\'s chat photo is set ♡'), '✨');
           });
         });
       }
-      if (mine) {
-        if (photo) { if (HB.dp) HB.dp.preview(photo, changeMyPhoto); }
-        else changeMyPhoto();
-        return;
-      }
-      if (photo && HB.dp) HB.dp.preview(photo);
+      if (photo) { if (HB.dp) HB.dp.preview(photo, pickAndSet); }
+      else pickAndSet();
     });
     var hdp = main.querySelector('#header-dp');
     if (hdp) hdp.addEventListener('click', function () {
       var ph = HB.dp ? HB.dp.partnerPhoto() : '';
-      if (ph) HB.dp.preview(ph);
+      function changePartnerPhoto() {
+        HB.dp.pick().then(function (out) {
+          if (out.error) { HB.toast('That photo couldn\'t load — try another ♡', '💔'); return; }
+          HB.dp.setPartner(out.dataUrl).then(function (res) {
+            if (res && res.error) { HB.toast('Couldn\'t save — try again ♡', '💔'); return; }
+            HB.toast(partnerName + '\'s photo is set ♡', '✨');
+          });
+        });
+      }
+      if (ph) HB.dp.preview(ph, changePartnerPhoto);
+      else changePartnerPhoto();
     });
 
     HB.chat.onNew = function (m) {

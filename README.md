@@ -51,7 +51,7 @@ admin/                  ← PRIVATE owner insights page (not linked in UI)
 2. **Run the schema.** In the Supabase dashboard → SQL Editor, paste the entire contents of `supabase/run-all.sql` and run it. It creates:
    - Tables: `relationships`, `profiles`, `messages`, `love_notes`, `memories`, `quiz_days`, `quiz_answers`
    - RLS policies (strict access for the two members only)
-   - RPC functions: `create_relationship`, `complete_pairing`, `update_my_profile`, `update_relationship`, `update_my_avatar`, `update_couple_dp`, `update_relationship_theme`, `delete_my_data`, `finalize_quiz`, `admin_get_insights`
+   - RPC functions: `create_relationship`, `complete_pairing`, `update_my_profile`, `update_relationship`, `update_my_avatar`, `update_partner_avatar`, `update_couple_dp`, `update_relationship_theme`, `delete_my_data`, `finalize_quiz`, `admin_get_insights`
    - Realtime publication for all seven tables
 
 3. **Enable anonymous sign-ins.** Dashboard → Authentication → Providers → enable "Anonymous sign-ins".

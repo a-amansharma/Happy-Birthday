@@ -787,6 +787,36 @@ end $$;
 
 grant execute on function public.update_couple_dp(text) to authenticated;
 
+-- ---- 7e.4 UPDATE MY PARTNER'S PROFILE PHOTO (either side this phone) ----
+-- Lets each phone change the OTHER person's profile picture too. Updates
+-- the partner's avatar_url row; with a security definer this bypasses the
+-- "update own row only" RLS policy. Both phones pick it up via realtime:
+-- the receiver sees its own row change (its photo), the sender sees the
+-- partner row change (their photo) — correct per-device perspective.
+create or replace function public.update_partner_avatar(p_url text)
+returns jsonb
+language plpgsql security definer set search_path = public
+as $$
+declare
+  me    uuid := auth.uid();
+  rid   uuid;
+  other uuid;
+begin
+  if me is null then raise exception 'NOT_AUTHENTICATED'; end if;
+  select relationship_id into rid from public.profiles where id = me;
+  if rid is null then raise exception 'NOT_CONNECTED'; end if;
+  select id into other from public.profiles
+   where relationship_id = rid and id <> me
+   limit 1;
+  if other is null then raise exception 'NO_PARTNER'; end if;
+  update public.profiles
+     set avatar_url = coalesce(p_url, '')
+   where id = other;
+  return jsonb_build_object('ok', true);
+end $$;
+
+grant execute on function public.update_partner_avatar(text) to authenticated;
+
 
 -- ---- 7f. QUIZ — finalize the day's result once both have answered ----
 -- Called by the quiz service after the second participant submits.

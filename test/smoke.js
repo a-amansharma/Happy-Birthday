@@ -180,6 +180,23 @@ HB.rel.hydrate();
 t('hydrate mirrors couple photo', HB.state.profile.coupleDp === 'data:couple');
 t('hydrate mirrors personal photos (mine + partner)', HB.state.profile.myAvatar === 'data:myface' && HB.state.profile.partnerAvatar === 'data:theirface');
 
+// ---- dp: partner photo set, per-person letters, top-left duo ----
+t('dp.setPartner local-first + no-db safe', (HB.dp.setPartner('data:theirface2'), HB.state.profile.partnerAvatar === 'data:theirface2'));
+t('dp.firstOf per person', HB.dp.firstOf('Aman') === 'A' && HB.dp.firstOf('Stuti') === 'S' && HB.dp.firstOf('') === '♥');
+var prevName = HB.state.profile.name, prevPartner = HB.state.profile.partner;
+var prevMe = HB.state.profile.myAvatar, prevPt = HB.state.profile.partnerAvatar;
+HB.state.profile.name = 'Aman'; HB.state.profile.partner = 'Stuti';
+HB.state.profile.myAvatar = ''; HB.state.profile.partnerAvatar = '';
+t('dp per-person letters (me → A, partner → S)', HB.dp.myLetter() === 'A' && HB.dp.partnerLetter() === 'S');
+var duoInit = HB.dp.duo();
+t('duo starts as initials A + S', duoInit.indexOf('duo-let">A</span>') !== -1 && duoInit.indexOf('duo-let">S</span>') !== -1);
+t('duo top circle = me, bottom = partner', duoInit.indexOf('duo-ring duo-top" data-duo="me"') !== -1 && duoInit.indexOf('duo-ring duo-bot" data-duo="them"') !== -1);
+HB.state.profile.myAvatar = 'data:me2'; HB.state.profile.partnerAvatar = 'data:them2';
+var duoPhoto = HB.dp.duo();
+t('duo swaps to synced photos when set', duoPhoto.indexOf('src="data:me2"') !== -1 && duoPhoto.indexOf('src="data:them2"') !== -1 && duoPhoto.indexOf('duo-let">') === -1);
+HB.state.profile.name = prevName; HB.state.profile.partner = prevPartner;
+HB.state.profile.myAvatar = prevMe; HB.state.profile.partnerAvatar = prevPt;
+
 // ---- services: presence (online + live typing, replaceable handlers) ----
 t('presence service loads', typeof HB.presence.setTyping === 'function' && typeof HB.presence.onTyping === 'function');
 t('presence default states', HB.presence.online === false && HB.presence.partnerTyping === false);
