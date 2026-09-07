@@ -661,6 +661,48 @@
     return I[name] || '';
   };
 
+  /* ---------------- Mobile keyboard ----------------
+     When the on-screen keyboard covers the bottom of a phone screen we:
+       * hide the fixed bottom nav (it would otherwise float above the
+         keys and push the typing box upward), and
+       * expand the chat page to the keyboard-reduced available height so
+         the typing box sits exactly on top of the keyboard.
+     Driven by the visualViewport API where available; falls back to "a
+     text field is focused" on older engines. Only active on phones. */
+  (function () {
+    var vv = window.visualViewport;
+    var mq = window.matchMedia ? window.matchMedia('(max-width: 860px)') : null;
+
+    function focusedField() {
+      var el = document.activeElement;
+      return !!(el && el.tagName && /^(INPUT|TEXTAREA)$/i.test(el.tagName));
+    }
+
+    function sync() {
+      var on = false;
+      if (mq && mq.matches) {
+        var ih = window.innerHeight || 0;
+        if (vv && vv.height) {
+          on = vv.height < ih - 160;
+        } else {
+          on = focusedField();
+        }
+      }
+      document.body.classList.toggle('kb-open', on);
+      var root = document.documentElement;
+      if (on && vv && vv.height) root.style.setProperty('--kb-h', vv.height + 'px');
+      else root.style.removeProperty('--kb-h');
+    }
+
+    if (vv) { vv.addEventListener('resize', sync); vv.addEventListener('scroll', sync); }
+    window.addEventListener('resize', sync);
+    window.addEventListener('orientationchange', function () { setTimeout(sync, 150); });
+    document.addEventListener('focusin', function () { setTimeout(sync, 80); });
+    document.addEventListener('focusout', function () { setTimeout(sync, 160); });
+    window.addEventListener('load', sync);
+    sync();
+  })();
+
   /* ---------------- Boot ---------------- */
   HB.ready = window.__sbReady || Promise.resolve();
   HB.onReady = function () {};
