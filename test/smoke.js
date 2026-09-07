@@ -44,7 +44,7 @@ global.Element = class {};
 global.Blob = class { constructor(p){ this.p = p; } };
 
 const dir = path.join(__dirname, '..', 'js');
-['core.js','bears.js','data.js','notes.js','chatdata.js'].forEach((f) => {
+['core.js','dp.js','bears.js','data.js','notes.js','chatdata.js'].forEach((f) => {
   eval(fs.readFileSync(path.join(dir, f), 'utf8'));
 });
 
@@ -155,6 +155,30 @@ t('chat load unconfigured resolves []', (HB.chat.load().then(function (m) { retu
 t('chat statusOf seen/delivered/sent', HB.chat.statusOf({ seen_at: 'x' }) === 'seen' && HB.chat.statusOf({ delivered_at: 'x' }) === 'delivered' && HB.chat.statusOf({}) === 'sent');
 t('chat receipt helpers exist', typeof HB.chat.delivered === 'function' && typeof HB.chat.seen === 'function' && typeof HB.chat.startHeartbeat === 'function');
 t('receiptFor no-op without auth', (HB.chat.receiptFor({ sender_user_id: 'x' }), true));
+
+// ---- shared theme (synced to both phones) ----
+t('rel.setTheme exists + local-first resolves unconfigured', typeof HB.rel.setTheme === 'function' && HB.rel.setTheme('midnight') instanceof Promise);
+HB.rel.data.relationship = { theme: 'sunset', vibes: [], chat_style: [] };
+HB.rel.hydrate();
+t('hydrate mirrors shared theme into local profile', HB.state.profile.theme === 'sunset');
+
+// ---- dp module (couple + personal photos, simple preview) ----
+t('dp module loads', !!HB.dp && typeof HB.dp.setMy === 'function' && typeof HB.dp.setCouple === 'function' && typeof HB.dp.preview === 'function' && typeof HB.dp.pick === 'function');
+const oldName = HB.state.profile.name, oldPartner = HB.state.profile.partner;
+HB.state.profile.name = 'Aman'; HB.state.profile.partner = 'Stuti';
+t('coupleInitials mine-first (Aman → AS)', HB.coupleInitials() === 'AS');
+HB.state.profile.name = 'Stuti'; HB.state.profile.partner = 'Aman';
+t('coupleInitials swapped (Stuti → SA)', HB.coupleInitials() === 'SA');
+HB.state.profile.name = oldName; HB.state.profile.partner = oldPartner;
+t('dp.setMy local-first + no-db safe', (HB.dp.setMy('data:mine'), HB.state.profile.myAvatar === 'data:mine'));
+t('dp.setCouple local-first + no-db safe', (HB.dp.setCouple('data:couple'), HB.state.profile.coupleDp === 'data:couple'));
+t('dp.preview renders without error', (HB.dp.preview('data:test'), true));
+HB.rel.data.relationship = { theme: 'sunset', vibes: [], chat_style: [], couple_dp_url: 'data:couple' };
+HB.rel.data.me = { name: 'Me', age: '24', avatar_url: 'data:myface' };
+HB.rel.data.partner = { name: 'Partner', age: '25', avatar_url: 'data:theirface' };
+HB.rel.hydrate();
+t('hydrate mirrors couple photo', HB.state.profile.coupleDp === 'data:couple');
+t('hydrate mirrors personal photos (mine + partner)', HB.state.profile.myAvatar === 'data:myface' && HB.state.profile.partnerAvatar === 'data:theirface');
 
 // ---- services: presence (online + live typing, replaceable handlers) ----
 t('presence service loads', typeof HB.presence.setTyping === 'function' && typeof HB.presence.onTyping === 'function');

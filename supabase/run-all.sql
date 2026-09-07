@@ -66,6 +66,8 @@ create table if not exists public.relationships (
   vibes              jsonb not null default '[]'::jsonb,
   chat_style         jsonb not null default '[]'::jsonb,
   story              text not null default '',
+  theme              text not null default 'milk',   -- shared visual theme for BOTH phones
+  couple_dp_url      text not null default '',       -- shared couple photo (sidebar DP, synced)
   created_at         timestamptz not null default now(),
   connected_at       timestamptz,
   completed_at       timestamptz
@@ -74,12 +76,18 @@ create table if not exists public.relationships (
 create index if not exists relationships_creator_idx
   on public.relationships (creator_user_id);
 
+-- Idempotent backfill for databases created before the shared theme
+-- column existed (so re-running this file always brings it up to date).
+alter table public.relationships add column if not exists theme text not null default 'milk';
+alter table public.relationships add column if not exists couple_dp_url text not null default '';
+
 -- ---- 2b. PROFILES — one PARTICIPANT row per auth user ----
 -- id = auth.users(id): stable participant identity. Holds ONLY the
 -- participant's own personal data (name, age). Pairing + shared data
 -- live on the relationships row, referenced by relationship_id.
 alter table public.profiles add column if not exists name            text not null default '';
 alter table public.profiles add column if not exists age             integer;
+alter table public.profiles add column if not exists avatar_url      text not null default '';
 alter table public.profiles add column if not exists relationship_id uuid references public.relationships(id) on delete set null;
 alter table public.profiles add column if not exists created_at      timestamptz not null default now();
 alter table public.profiles add column if not exists last_active     timestamptz default now();
@@ -438,7 +446,8 @@ create or replace function public.create_relationship(
   rel_styles    jsonb,
   rel_story     text,
   hint_name     text,
-  hint_age      integer
+  hint_age      integer,
+  rel_theme     text default 'milk'
 )
 returns jsonb
 language plpgsql security definer set search_path = public
@@ -474,12 +483,13 @@ begin
   insert into public.relationships (
     status, pairing_code, creator_user_id,
     partner_hint_name, partner_hint_age,
-    relationship_type, together_since, vibes, chat_style, story
+    relationship_type, together_since, vibes, chat_style, story, theme
   ) values (
     'waiting', code, me,
     coalesce(hint_name, ''), hint_age,
     coalesce(rel_rel_type, ''), rel_together,
-    coalesce(rel_vibes, '[]'::jsonb), coalesce(rel_styles, '[]'::jsonb), coalesce(rel_story, '')
+    coalesce(rel_vibes, '[]'::jsonb), coalesce(rel_styles, '[]'::jsonb), coalesce(rel_story, ''),
+    coalesce(rel_theme, 'milk')
   ) returning id into rid;
 
   update public.profiles set relationship_id = rid where id = me;
@@ -489,7 +499,7 @@ begin
   );
 end $$;
 
-grant execute on function public.create_relationship(text, date, jsonb, jsonb, text, text, integer) to authenticated;
+grant execute on function public.create_relationship(text, date, jsonb, jsonb, text, text, integer, text) to authenticated;
 
 
 -- ---- 7b. COMPLETE PAIRING (Person 2 enters the code) ----
@@ -564,7 +574,8 @@ begin
     'together_since', to_char(rel.together_since, 'YYYY-MM-DD'),
     'vibes', rel.vibes,
     'chat_style', rel.chat_style,
-    'story', rel.story
+    'story', rel.story,
+    'theme', coalesce(rel.theme, 'milk')
   );
 end $$;
 
@@ -621,10 +632,13 @@ grant execute on function public.update_relationship(text, date, jsonb, jsonb, t
 
 
 -- ---- 7e. ERASE MY DATA + RELATIONSHIP (full reset) ----
--- Deleting my data removes the ENTIRE relationship (both participants,
--- all shared chat/notes/memories/quiz). Both phones then appear fresh
--- and unpaired, ready to start over. This is the one explicit destructive
--- "erase everything" flow.
+-- When one person erases, their profile is deleted. The OTHER
+-- participant's data (chat, notes, memories, quiz, theme, shared
+-- fields) is kept in the relationship row, which is handed to the
+-- survivor as a fresh 'waiting' relationship with a brand-new
+-- pairing code. They can then share the new code with a new partner
+-- and resume — all stored data syncs to the newly-connected device.
+-- If no other participant exists, the whole world is cleaned up.
 create or replace function public.delete_my_data()
 returns void
 language plpgsql security definer set search_path = public
@@ -632,20 +646,39 @@ as $$
 declare
   me  uuid := auth.uid();
   rid uuid;
+  other uuid;
+  code text;
+  n int;
+  letters text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 begin
   if me is null then return; end if;
 
   select relationship_id into rid from public.profiles where id = me;
+  delete from public.profiles where id = me;
 
   if rid is not null then
-    -- Remove both participants' profile rows (cascade frees them).
-    delete from public.profiles where relationship_id = rid;
-    -- Remove the relationship (cascades to messages, love_notes,
-    -- memories, quiz_days + quiz_answers).
-    delete from public.relationships where id = rid;
-  else
-    -- Not paired — just remove my own profile row.
-    delete from public.profiles where id = me;
+    select id into other from public.profiles
+      where relationship_id = rid and id <> me limit 1;
+
+    if other is not null then
+      loop
+        code := 'LOVE-';
+        for i in 1..5 loop
+          code := code || substring(letters from (1 + (random()*31)::int) for 1);
+        end loop;
+        exit when not exists (select 1 from public.relationships where pairing_code = code);
+      end loop;
+
+      update public.relationships
+         set status = 'waiting',
+             pairing_code = code,
+             creator_user_id = other,
+             connected_at = null,
+             completed_at = null
+       where id = rid;
+    else
+      delete from public.relationships where id = rid;
+    end if;
   end if;
 end $$;
 
@@ -695,6 +728,26 @@ begin
 end $$;
 
 grant execute on function public.mark_messages_seen() to authenticated;
+
+
+-- ---- 7e.2 UPDATE SHARED THEME (either partner, synced to both phones) ----
+create or replace function public.update_relationship_theme(p_theme text)
+returns jsonb
+language plpgsql security definer set search_path = public
+as $$
+declare
+  rid uuid;
+begin
+  if auth.uid() is null then raise exception 'NOT_AUTHENTICATED'; end if;
+  select relationship_id into rid from public.profiles where id = auth.uid();
+  if rid is null then raise exception 'NOT_CONNECTED'; end if;
+  update public.relationships
+     set theme = coalesce(nullif(p_theme, ''), 'milk')
+   where id = rid;
+  return jsonb_build_object('ok', true, 'theme', coalesce(nullif(p_theme, ''), 'milk'));
+end $$;
+
+grant execute on function public.update_relationship_theme(text) to authenticated;
 
 
 -- ---- 7f. QUIZ — finalize the day's result once both have answered ----

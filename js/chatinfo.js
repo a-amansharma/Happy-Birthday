@@ -5,12 +5,9 @@
   'use strict';
   var HB = window.HB = window.HB || {};
 
-  function openLightbox(url, caption) {
-    HB.modal({
-      title: caption ? caption : 'A little memory ♡',
-      body: '<img class="lightbox-img" src="' + HB.esc(url) + '" alt="photo"/>',
-      actions: [{ label: 'Close', kind: 'btn-soft' }]
-    });
+function openLightbox(url) {
+    /* Simple full-screen photo preview — just the picture + ✕, no name. */
+    if (HB.dp) HB.dp.preview(url);
   }
 
   function render(main) {

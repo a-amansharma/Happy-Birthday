@@ -376,6 +376,7 @@
                   vibes: draft.vibes,
                   chat_style: draft.chatStyle,
                   story: draft.story,
+                  theme: draft.theme || HB.state.profile.theme || 'milk',
                   partner_name: draft.partner,
                   partner_age: draft.partnerAge != null && draft.partnerAge !== '' ? Number(draft.partnerAge) : null
                 }).then(function (out) {

@@ -81,6 +81,15 @@
     }
   }
 
+  /* Apply a theme id to <body> (single source of truth for sync). */
+  function applyBodyTheme(themeId) {
+    var t = (themeId || 'milk').toString().replace(/[^a-z]/g, '');
+    if (!document.body) return;
+    var cur = document.body.className || '';
+    document.body.className = cur.replace(/theme-[a-z]+/, '').trim();
+    if (document.body.classList) document.body.classList.add('theme-' + t);
+  }
+
   /* ---- load my profile + relationship + partner ----
      The relationship's creator self is MY row only when I'm the
      creator. The partner row is the OTHER member. */
@@ -265,15 +274,32 @@
       if (!meId()) return Promise.resolve({ error: { message: 'NOT_AUTHENTICATED' } });
       data.busy = true;
       var meProfile = (HB.state && HB.state.profile) || {};
-      return HB.db.client().rpc('create_relationship', {
-        rel_rel_type: shared.relationship_type || meProfile.relationship || '',
-        rel_together: shared.together_since || null,
-        rel_vibes: shared.vibes || meProfile.vibes || [],
-        rel_styles: shared.chat_style || meProfile.chatStyle || [],
-        rel_story: shared.story || meProfile.story || '',
-        hint_name: shared.partner_name || meProfile.partner || '',
-        hint_age: shared.partner_age != null ? Number(shared.partner_age) : null
-      }).then(function (res) {
+      var relArgs = function () {
+        var a = {
+          rel_rel_type: shared.relationship_type || meProfile.relationship || '',
+          rel_together: shared.together_since || null,
+          rel_vibes: shared.vibes || meProfile.vibes || [],
+          rel_styles: shared.chat_style || meProfile.chatStyle || [],
+          rel_story: shared.story || meProfile.story || '',
+          hint_name: shared.partner_name || meProfile.partner || '',
+          hint_age: shared.partner_age != null ? Number(shared.partner_age) : null
+        };
+        return a;
+      };
+      var callCreate = function (themeArg) {
+        var a = relArgs();
+        if (themeArg) a.rel_theme = shared.theme || meProfile.theme || 'milk';
+        return HB.db.client().rpc('create_relationship', a).then(function (res) {
+          /* Older databases don't take the theme param yet — retry without
+             it so pairing keeps working until run-all.sql is re-run. */
+          if (themeArg && res.error && /PGRST202|42883|Could not find the function/.test(
+            String((res.error && (res.error.message || res.error.code)) || ''))) {
+            return callCreate(false);
+          }
+          return res;
+        });
+      };
+      return callCreate(true).then(function (res) {
         data.busy = false;
         if (res.error) return res;
         var out = res.data || {};
@@ -370,6 +396,28 @@
       });
     },
 
+    /* ---- shared visual theme (either partner; reachable via rel.setTheme) ----
+       Local-first: applies instantly, then syncs to the shared row so the
+       other phone adopts it too via the realtime relchange → hydrate. */
+    setTheme: function (theme) {
+      var t = (theme || 'milk').toString();
+      applyBodyTheme(t);
+      if (HB.state && HB.state.profile) {
+        HB.state.profile.theme = t;
+        if (HB.save) HB.save();
+      }
+      if (!HB.db.configured() || !meId() || !data.relationship) {
+        return Promise.resolve({ error: null });
+      }
+      return HB.db.client().rpc('update_relationship_theme', { p_theme: t }).then(function (res) {
+        if (!res.error && data.relationship) {
+          data.relationship.theme = t;
+          rel.hydrate();
+        }
+        return res;
+      });
+    },
+
     /* ---- leave / erase — deletes my profile + the whole relationship ---- */
     leave: function () {
       if (!HB.db.configured() || !meId()) return Promise.resolve();
@@ -429,11 +477,13 @@
       if (data.me) {
         p.name = n.name;
         if (n.age !== '') p.age = n.age;
+        if (data.me.avatar_url != null) p.myAvatar = data.me.avatar_url;
       }
       if (data.partner || (data.relationship && data.relationship.partner_hint_name)) {
         var pn = rel.partner();
         p.partner = pn.name;
         if (pn.age !== '') p.partnerAge = pn.age;
+        if (data.partner && data.partner.avatar_url != null) p.partnerAvatar = data.partner.avatar_url;
       }
       if (data.relationship) {
         var r = data.relationship;
@@ -442,6 +492,8 @@
         if (r.vibes && r.vibes.length) p.vibes = normalizeList(r.vibes);
         if (r.chat_style && r.chat_style.length) p.chatStyle = normalizeList(r.chat_style);
         if (r.story) p.story = r.story;
+        if (r.theme) { p.theme = r.theme; applyBodyTheme(r.theme); }
+        if (r.couple_dp_url != null) p.coupleDp = r.couple_dp_url;
       }
       if (HB.save) HB.save();
     },

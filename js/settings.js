@@ -32,7 +32,6 @@
     if (!HB.state.settings || typeof HB.state.settings !== 'object') HB.state.settings = {};
     HB.state.settings.notifications = HB.state.settings.notifications !== false;
     HB.state.settings.music = !!HB.state.settings.music;
-    HB.state.settings.privacy = HB.state.settings.privacy !== false;
 
     function relOptions() {
       return HB.RELATIONSHIPS.map(function (r) {
@@ -83,10 +82,9 @@
           '<span class="cc-dot' + (connected ? ' on' : '') + '" style="position:static;margin-left:8px"></span></div>' +
           (partnerName ? '<div class="setting-row"><div><div class="sr-title">Your partner</div><div class="sr-sub">' + HB.esc(partnerName) + ' — connected securely to you</div></div><span class="sr-badge">💞</span></div>' : '') +
           (code && !connected ? '<div class="code-card code-card--sm" style="margin:6px 0 14px"><div class="code-card-label">Your pairing code 💕</div><div class="code-card-value">' + HB.esc(code) + '</div><button class="code-card-copy" data-copy-code>' + HB.icon('copy') + ' Copy</button></div>' : '') +
-          '<div class="row" style="gap:10px;flex-wrap:wrap">' +
-            '<button class="btn btn-soft btn-sm" data-manage>Manage connection</button>' +
-            (connected ? '<button class="btn btn-danger btn-sm" data-leave>Delete my data & leave</button>' : '') +
-          '</div>' +
+          (connected
+            ? ''
+            : '<div class="row" style="gap:10px;flex-wrap:wrap"><button class="btn btn-soft btn-sm" data-manage>Manage connection</button></div>') +
         '</div>';
     }
 
@@ -127,7 +125,6 @@
             '<h3><span class="sc-emoji">🔔</span> Preferences</h3>' +
             switchHtml('s-notifs', HB.state.settings.notifications, 'Notifications', 'Gentle reminders for your little world') +
             switchHtml('s-music', HB.state.settings.music, 'Cute music', 'Play the soft lullaby in the background') +
-            switchHtml('s-privacy', HB.state.settings.privacy, 'Private mode', 'Everything stays on this device only') +
           '</div>' +
 
           '<div class="card settings-card">' +
@@ -138,8 +135,8 @@
             '<button class="btn btn-ghost btn-sm" id="clear-data">Clear</button></div>' +
             '<div class="setting-row"><div><div class="sr-title">Export memories</div><div class="sr-sub">Download your memories as a keepsake file</div></div>' +
             '<button class="btn btn-soft btn-sm" id="export-data">Export</button></div>' +
-            '<div class="setting-row"><div><div class="sr-title">Erase all data & start fresh</div><div class="sr-sub">Wipes your profile, your pairing, and every memory on this device — a completely fresh start</div></div>' +
-            '<button class="btn btn-danger btn-sm" id="reset-all">Erase all</button></div>' +
+            '<div class="setting-row"><div><div class="sr-title">Erase only me & start fresh</div><div class="sr-sub">Removes your profile from this couple. Your partner keeps everything — their world stays as it was, ready for someone new.</div></div>' +
+            '<button class="btn btn-danger btn-sm" id="reset-all">Erase me</button></div>' +
           '</div>' +
 
           (HB.creator ? HB.creator.html() : '') +
@@ -155,7 +152,7 @@
       c.addEventListener('click', function () { c.classList.toggle('selected'); });
     });
 
-    /* theme selection (saves immediately) */
+    /* theme selection (saves immediately + syncs to your partner's phone) */
     main.querySelectorAll('#s-themes [data-theme]').forEach(function (c) {
       c.addEventListener('click', function () {
         p.theme = c.dataset.theme;
@@ -163,6 +160,7 @@
         document.body.className = document.body.className.replace(/theme-[a-z]+/, '').trim();
         document.body.classList.add('theme-' + p.theme);
         HB.save();
+        if (HB.rel && HB.rel.setTheme) HB.rel.setTheme(p.theme);
         HB.toast('Theme changed ♡', '🎨');
       });
     });
@@ -217,10 +215,6 @@
     main.querySelector('#s-music').addEventListener('change', function (e) {
       if (e.target.checked !== HB.music.isOn()) HB.music.toggle();
     });
-    main.querySelector('#s-privacy').addEventListener('change', function (e) {
-      HB.state.settings.privacy = e.target.checked; HB.save();
-      HB.toast(e.target.checked ? 'Everything stays private on this device' : 'Privacy mode off', '🔐');
-    });
 
     main.querySelector('#reset-chat').addEventListener('click', function () {
       HB.confirm('Reset your companion chat?', 'Your talks with your little companion will be cleared. Your couple chat is never touched.', function () {
@@ -261,12 +255,12 @@
     });
 
     main.querySelector('#reset-all').addEventListener('click', function () {
-      HB.confirm('Erase everything & start fresh?', 'This erases your profile and unlinks you two, clears every memory, chat and note on this device, and starts a completely fresh little world. When you come back you\'ll be asked to pair again — with a brand-new pairing code. This can\'t be undone.', function () {
+      HB.confirm('Erase only you & start fresh?', 'This removes your profile from your couple — your chats, memories, notes and everything you two shared stay behind with your partner, ready for someone new. This can\'t be undone.', function () {
         var overlay = showEraseOverlay();
         resetToFreshStart(overlay).then(function () {
-          HB.toast('Start fresh — a brand-new little world ♡', '🌷');
+          HB.toast('A fresh start for you — your partner\'s world is untouched ♡', '🌷');
         });
-      }, 'Erase everything');
+      }, 'Erase me');
     });
 
     /* relationship card actions */
@@ -281,16 +275,6 @@
         setTimeout(function () { btn.innerHTML = HB.icon('copy') + ' Copy'; }, 1600);
         HB.toast('Code copied ♡', '💌');
       });
-    });
-
-    var leave = main.querySelector('[data-leave]');
-    if (leave) leave.addEventListener('click', function () {
-      HB.confirm('Delete my data & leave?', 'This deletes your profile, unlinks you two, and clears this device. Your partner is set free too — you can both start fresh and pair again anytime.', function () {
-        HB.toast('Saying goodbye — one moment ♡', '🕊️');
-        resetToFreshStart().then(function () {
-          HB.toast('Your data is gone. Goodbye for now, love ♡', '🕊️');
-        });
-      }, 'Delete everything');
     });
 
     /* When the partner connects, flip the "waiting" connection card to
@@ -359,8 +343,10 @@
   function resetToFreshStart(overlay) {
     stopLiveServices();
 
-    /* Delete profile + unlink partner on the cloud, then sign out.
-       leave() swallows backend errors so a wipe can never get stuck. */
+/* Delete MY profile on the cloud (leave() keeps the partner's
+           world + data intact and issues them a fresh pairing code),
+           then sign out locally. leave() swallows backend errors so a
+           wipe can never get stuck. */
     var wipe = (HB.rel && HB.rel.leave) ? HB.rel.leave() : Promise.resolve();
 
     /* Safety: never hold the user hostage on a slow network. */
@@ -379,7 +365,7 @@
         dailyAnswers: [],
         memories: [],
         specialDates: [],
-        settings: { music: false, notifications: true, privacy: true }
+        settings: { music: false, notifications: true }
       };
       HB.authSession = null;
       HB.authUser = null;

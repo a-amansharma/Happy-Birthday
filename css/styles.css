@@ -389,6 +389,51 @@ a { color: inherit; text-decoration: none; }
 .landing-ctas { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; animation: fadeUp 0.8s var(--ease) both; animation-delay: 0.7s; }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
 
+/* ---- Landing two-card layout ---- */
+.landing-cards { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; margin-top: 6px; max-width: 620px; width: 100%; animation: fadeUp 0.8s var(--ease) both; animation-delay: 0.6s; }
+.landing-card {
+  flex: 1 1 240px; max-width: 300px; min-height: 290px;
+  background: var(--surface); border: 2px solid var(--line);
+  border-radius: 24px; padding: 32px 26px 28px; text-align: center;
+  box-shadow: var(--shadow-card); cursor: pointer;
+  display: flex; flex-direction: column; align-items: center;
+  transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease), border-color 0.18s;
+  -webkit-appearance: none; outline: none; font-family: var(--font-body); color: var(--ink);
+}
+.landing-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+.landing-card:active { transform: translateY(0); }
+.lc-create { border-color: color-mix(in srgb, var(--primary) 40%, transparent); }
+.lc-create:hover { border-color: var(--primary); }
+.lc-join   { border-color: color-mix(in srgb, #c5b5e9 40%, transparent); }
+.lc-join:hover   { border-color: #c5b5e9; }
+.lc-icon {
+  width: 72px; height: 72px; border-radius: 50%; display: flex;
+  align-items: center; justify-content: center; font-size: 34px;
+  margin-bottom: 18px; box-shadow: 0 6px 18px rgba(0,0,0,0.07);
+}
+.lc-title { font-size: 22px; font-weight: 900; margin-bottom: 6px; }
+.lc-sub   { font-size: 13.5px; color: var(--ink-soft); font-weight: 600; line-height: 1.45; margin-bottom: 16px; flex: 1; }
+.lc-btn   { width: 100%; margin-top: auto; font-size: 14px; }
+
+/* ---- floating hearts decoration ---- */
+.landing-hearts {
+  position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 14px; opacity: 0.18; pointer-events: none;
+}
+.landing-hearts span {
+  font-size: 18px; color: var(--primary);
+  animation: floatHeart 4s ease-in-out infinite;
+}
+.landing-hearts span:nth-child(2) { animation-delay: 0.7s; font-size: 14px; }
+.landing-hearts span:nth-child(3) { animation-delay: 1.4s; font-size: 20px; }
+.landing-hearts span:nth-child(4) { animation-delay: 2.1s; font-size: 12px; }
+.landing-hearts span:nth-child(5) { animation-delay: 2.8s; font-size: 16px; }
+@keyframes floatHeart { 0%,100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-12px) scale(1.15) rotate(6deg); } }
+@media (max-width: 540px) {
+  .landing-cards { flex-direction: column; align-items: center; }
+  .landing-card { max-width: 100%; min-height: auto; padding: 26px 22px 24px; }
+}
+
 /* ---------- Onboarding wizard ---------- */
 .wizard { max-width: 720px; margin: 0 auto; padding: 30px 24px 80px; animation: pageIn 0.5s var(--ease); }
 .wizard-head { text-align: center; margin-bottom: 30px; }
@@ -1369,3 +1414,39 @@ a { color: inherit; text-decoration: none; }
   }
 }
 
+
+/* ============================================================
+   DP — couple chip (sidebar), chat bubble photos, photo preview
+   ============================================================ */
+.sidebar-logo .couple-dp {
+  width: 46px; height: 46px; border-radius: 50%; border: 0; padding: 0;
+  flex-shrink: 0; cursor: pointer; overflow: hidden; display: grid;
+  place-items: center; background: var(--grad); box-shadow: var(--shadow-card);
+}
+.couple-dp .cdp-initials {
+  font-family: var(--font-hand); font-size: 17px; font-weight: 800;
+  color: #fff; letter-spacing: 0.05em; padding-right: 0.08em;
+}
+.couple-dp .cdp-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+
+/* Chat bubble chips become buttons (photo replaces the letter). */
+.msg-avatar.dp { border: 0; padding: 0; cursor: pointer; }
+.msg-avatar.dp .dp-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+.couple-chat .chat-head .char-dp { border: 0; padding: 0; overflow: hidden; cursor: pointer; }
+.couple-chat .chat-head .char-dp .dp-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+
+/* Simple full-screen photo preview — image + ✕ only. */
+.dp-preview {
+  position: fixed; inset: 0; z-index: 10001; background: rgba(12, 10, 6, 0.94);
+  display: flex; align-items: center; justify-content: center; animation: fadeIn 0.18s var(--ease);
+}
+.dp-preview img { max-width: 92vw; max-height: 86vh; border-radius: 12px; box-shadow: 0 8px 40px rgba(0,0,0,0.55); object-fit: contain; }
+.dp-preview .dp-preview-close {
+  position: absolute; top: 14px; right: 14px; width: 40px; height: 40px; border-radius: 50%;
+  border: 0; cursor: pointer; font-size: 18px; font-weight: 700; color: #fff;
+  background: rgba(255,255,255,0.16); display: grid; place-items: center;
+}
+@media (max-width: 400px) {
+  .sidebar-logo .couple-dp { width: 40px; height: 40px; }
+  .couple-dp .cdp-initials { font-size: 15px; }
+}

@@ -42,9 +42,23 @@
     return HB.esc(c.toUpperCase());
   }
 
+  /* Bubble DP: my first-letter chip (right) / partner's (left). When a
+     personal photo exists, the chip becomes that photo instead. Tapping
+     MY chip opens the gallery to change only MY photo; any photo chips
+     open the simple full-screen preview. */
   function dpHtml(mine) {
     var name = mine ? myName : partnerName;
-    return '<span class="msg-avatar dp ' + (mine ? 'dp-me' : 'dp-them') + '">' + dpLetter(name) + '</span>';
+    var photo = mine ? (HB.dp ? HB.dp.myPhoto() : '') : (HB.dp ? HB.dp.partnerPhoto() : '');
+    var letter = dpLetter(name);
+    var who = mine ? 'me' : 'them';
+    var title = photo
+      ? (mine ? 'View your photo' : 'View ' + partnerName + '\'s photo')
+      : (mine ? 'Set your photo' : '');
+    if (photo) {
+      return '<button type="button" class="msg-avatar dp ' + (mine ? 'dp-me' : 'dp-them') + '" data-dp="' + who + '" title="' + title + '" aria-label="' + title + '"><img class="dp-img" src="' + HB.esc(photo) + '" alt="dp"/></button>';
+    }
+    return '<button type="button" class="msg-avatar dp ' + (mine ? 'dp-me' : 'dp-them') + '" data-dp="' + who + '"' +
+      (mine ? ' title="Set your photo" aria-label="Set your photo"' : '') + '>' + letter + '</button>';
   }
 
   /* The little receipt ticks on MY bubbles.
@@ -164,15 +178,35 @@
     if (container && container.isConnected) container.scrollTop = container.scrollHeight;
   }
 
-  function openLightbox(url, caption) {
-    var ov = HB.modal({
-      title: caption ? caption : 'A little memory ♡',
-      body: '<img class="lightbox-img" src="' + HB.esc(url) + '" alt="photo"/>',
-      actions: [{ label: 'Close', kind: 'btn-soft' }]
-    });
-    var img = ov.querySelector('.lightbox-img');
-    if (img) img.addEventListener('load', function () { ov.scrollTop = 0; });
+  function openLightbox(url) {
+    /* Simple full-screen photo preview — just the picture + ✕, no name. */
+    if (HB.dp) HB.dp.preview(url);
   }
+
+  /* A partner/own photo changed (synced via rel) → refresh all chips
+     and the header mini-avatar without rebuilding the whole chat. */
+  function repaintAvatars() {
+    if (!inner || !inner.isConnected) return;
+    var els = inner.querySelectorAll('.msg .msg-avatar.dp');
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      var mine = el.classList.contains('dp-me');
+      var tmp = document.createElement('div');
+      tmp.innerHTML = dpHtml(mine);
+      el.parentNode.replaceChild(tmp.firstChild, el);
+    }
+    var hd = document.getElementById('header-dp');
+    if (hd) {
+      var ph = HB.dp ? HB.dp.partnerPhoto() : '';
+      hd.innerHTML = ph
+        ? '<img class="dp-img" src="' + HB.esc(ph) + '" alt="dp"/>'
+        : dpLetter(partnerName);
+      hd.title = ph ? 'View ' + partnerName + '\'s photo' : '';
+    }
+  }
+  window.addEventListener('hb:relchange', function () {
+    if (HB.currentPath() === '/chat' && HB.state.onboarded) repaintAvatars();
+  });
 
   function updateUnread() {
     if (!HB.chat) return;
@@ -234,7 +268,9 @@
     main.innerHTML =
       '<div class="chat-page couple-chat">' +
         '<div class="chat-head">' +
-          '<div class="avatar"><span class="char-dp">' + dpLetter(partnerName) + '</span><span class="online" id="presence-dot"></span></div>' +
+          '<div class="avatar"><button type="button" class="char-dp" id="header-dp" title="' + (HB.dp && HB.dp.partnerPhoto() ? 'View ' + HB.esc(partnerName) + '\'s photo' : '') + '">' +
+            (HB.dp && HB.dp.partnerPhoto() ? '<img class="dp-img" src="' + HB.esc(HB.dp.partnerPhoto()) + '" alt="dp"/>' : dpLetter(partnerName)) +
+          '</button><span class="online" id="presence-dot"></span></div>' +
           '<div class="chat-head-meta">' +
             '<h2 id="chat-head-name">' + HB.esc(partnerName) + '</h2>' +
             '<p id="presence-label">Waiting for ' + HB.esc(partnerName) + '…</p>' +
@@ -261,6 +297,29 @@
     var send = main.querySelector('#chat-send');
     var attachInput = main.querySelector('#chat-attach');
     var attachBtn = main.querySelector('#chat-attach-btn');
+
+    /* ---- DP taps (delegated): photo → preview, my chip → add photo ---- */
+    if (inner) inner.addEventListener('click', function (e) {
+      var b = e.target && e.target.closest ? e.target.closest('[data-dp]') : null;
+      if (!b) return;
+      var mine = b.getAttribute('data-dp') === 'me';
+      var photo = mine ? (HB.dp ? HB.dp.myPhoto() : '') : (HB.dp ? HB.dp.partnerPhoto() : '');
+      if (photo) { if (HB.dp) HB.dp.preview(photo); return; }
+      if (mine && HB.dp) {
+        HB.dp.pick().then(function (out) {
+          if (out.error) { HB.toast('That photo couldn\'t load — try another ♡', '💔'); return; }
+          HB.dp.setMy(out.dataUrl).then(function (res) {
+            if (res && res.error) { HB.toast('Couldn\'t save — try again ♡', '💔'); return; }
+            HB.toast('Your chat photo is set ♡', '✨');
+          });
+        });
+      }
+    });
+    var hdp = main.querySelector('#header-dp');
+    if (hdp) hdp.addEventListener('click', function () {
+      var ph = HB.dp ? HB.dp.partnerPhoto() : '';
+      if (ph) HB.dp.preview(ph);
+    });
 
     HB.chat.onNew = function (m) {
       appendBubble(m, true);

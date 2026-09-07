@@ -90,12 +90,6 @@
           '</div>';
       }
 
-      /* Disconnect / reset */
-      body +=
-        '<div style="text-align:center;margin-top:28px">' +
-          '<button class="btn btn-ghost btn-sm" id="leave-btn" style="color:var(--ink-soft);font-size:12px">Disconnect from ' + HB.esc(partnerName) + '…</button>' +
-        '</div>';
-
     } else if (waiting && code) {
       body =
         '<div class="connect-center">' +
@@ -185,25 +179,6 @@
         HB.toast('Saved ♡', '✨');
         if (main.isConnected) render(main);
       }
-    });
-
-    var leaveBtn = main.querySelector('#leave-btn');
-    if (leaveBtn) leaveBtn.addEventListener('click', function () {
-      HB.modal({
-        title: 'Disconnect from your person?',
-        text: 'This will remove your pairing. Both of you will need to re-enter a code to reconnect.',
-        actions: [
-          { label: 'Disconnect', kind: 'btn-primary', onClick: function () {
-            if (HB.rel && HB.rel.leave) {
-              HB.rel.leave().then(function () {
-                HB.toast('Disconnected. Returning to the start ♡', '🐻');
-                setTimeout(function () { HB.navigate('/'); }, 600);
-              });
-            }
-          }},
-          { label: 'Cancel', kind: 'btn-ghost' }
-        ]
-      });
     });
   }
 

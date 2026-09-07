@@ -28,8 +28,7 @@
     specialDates: [],
     settings: {
       music: false,
-      notifications: true,
-      privacy: true
+      notifications: true
     }
   };
 
@@ -121,6 +120,16 @@
     if (p.name && p.partner) return HB.titleCase(p.name) + ' ♡ ' + HB.titleCase(p.partner);
     if (p.name) return HB.titleCase(p.name);
     return 'You two';
+  };
+
+  /* First-and-first initials for the couple chip — e.g. Aman & Stuti →
+     "AS", and on Stuti's phone "SA". The couple photo replaces this. */
+  HB.coupleInitials = function () {
+    if (HB.dp && HB.dp.initials) return HB.dp.initials();
+    var p = HB.state.profile;
+    var m = String(p.name || '').trim().charAt(0) || '';
+    var t = String(p.partner || '').trim().charAt(0) || '';
+    return ((m + t).toUpperCase()) || '♥';
   };
 
   HB.firstNames = function () {
@@ -257,8 +266,13 @@
     var sb = document.getElementById('sidebar');
     var bn = document.getElementById('bottom-nav');
 
-    var logo = '<div class="sidebar-logo">' + (HB.chars && HB.chars.avatarImg ? HB.chars.avatarImg('bubu', 'cute', 'side-logo') : HB.bearMiniSVG()) +
-      '<div><div class="logo-text">Our Little World</div><div class="logo-sub">' + HB.esc(HB.couple()) + '</div></div></div>';
+    var coupleDp = (HB.state.profile && HB.state.profile.coupleDp) || '';
+    var cdInner = coupleDp
+      ? '<img class="cdp-img" src="' + HB.esc(coupleDp) + '" alt="dp"/>'
+      : '<span class="cdp-initials">' + HB.esc(HB.coupleInitials()) + '</span>';
+    var logo = '<div class="sidebar-logo"><button type="button" class="couple-dp" data-couple-dp title="' +
+      (coupleDp ? 'View your couple photo' : 'Add your couple photo') + '">' + cdInner +
+      '</button><div><div class="logo-text">Our Little World</div><div class="logo-sub">' + HB.esc(HB.couple()) + '</div></div></div>';
 
     var items = navItems.map(function (n) {
       var active = activePath === n.path ? ' active' : '';
@@ -272,6 +286,24 @@
       '<div class="sf-sub">made with ♡, just for you two</div></div>';
 
     sb.innerHTML = logo + items + footer;
+
+    /* Couple DP: tap to preview the shared photo, or (when none is set)
+       open the gallery and sync the chosen picture to both phones. */
+    (function () {
+      var cdp = sb.querySelector('[data-couple-dp]');
+      if (!cdp || !HB.dp) return;
+      cdp.addEventListener('click', function () {
+        var cur = (HB.state.profile && HB.state.profile.coupleDp) || '';
+        if (cur) { HB.dp.preview(cur); return; }
+        HB.dp.pick().then(function (out) {
+          if (out.error) { if (HB.toast) HB.toast('That photo couldn\'t load — try another ♡', '💔'); return; }
+          HB.dp.setCouple(out.dataUrl).then(function (res) {
+            if (res && res.error) { if (HB.toast) HB.toast('Couldn\'t sync to your person — try again ♡', '💔'); return; }
+            if (HB.toast) HB.toast('Your couple photo is set ♡', '✨');
+          });
+        });
+      });
+    })();
 
     function bnItemHtml(n, path) {
       var active = activePath === path ? ' active' : '';

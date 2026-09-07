@@ -1,9 +1,9 @@
 /* ============================================================
-   LANDING — Dudu & Bubu hero + account entry
+   LANDING — clean two-card entry screen + pairing flow
    ------------------------------------------------------------
    Three possible states:
-     1. Fresh — never onboarded → show "Create Our Space" + "I already have our space"
-     2. Creator waiting — onboarded, Supabase says status=waiting → show pairing code
+     1. Fresh — never onboarded → two equal cards: Create / Join
+     2. Creator waiting — onboarded, status=waiting → show pairing code
      3. Connected — onboarded, status=connected → redirect to home
    ============================================================ */
 (function () {
@@ -11,24 +11,20 @@
   var HB = window.HB = window.HB || {};
 
   function renderLanding(main) {
-    /* ---- Connected → go straight home ---- */
     if (HB.state.onboarded && HB.rel && HB.rel.data && HB.rel.data.status === 'connected') {
       HB.navigate('/home');
       return;
     }
 
-    /* ---- Creator waiting → show their pairing code ---- */
     if (HB.state.onboarded && HB.rel && HB.rel.data && HB.rel.data.status === 'waiting') {
       var code = HB.rel.data.relationship && HB.rel.data.relationship.pairing_code;
       renderWaiting(main, code);
       return;
     }
 
-    /* ---- Fresh landing (Person 1 or Person 2 first visit) ---- */
     renderFresh(main);
   }
 
-  /* ---- Waiting screen for Person 1 (creator) ---- */
   function renderWaiting(main, code) {
     code = code || 'LOVE-?????';
     var n = HB.firstNames();
@@ -36,7 +32,6 @@
     main.innerHTML =
       '<section class="landing">' +
       '<div class="landing-badge"><span class="pulse-dot"></span> A little world made for two ♡</div>' +
-      '<div class="landing-dudu" data-dudu></div>' +
       '<h1>Your little world is <span class="accent">ready</span> ♡</h1>' +
       '<p class="sub">Hi ' + HB.esc(n.me) + ' — share this code with your person. They\'ll enter it on their phone to join you.</p>' +
       '<div class="code-card" style="max-width:380px;margin:0 auto">' +
@@ -46,12 +41,8 @@
       '</div>' +
       '<p class="muted" style="font-size:13px;margin-top:14px;font-weight:600">We\'ll celebrate the moment they connect. ♡</p>' +
       '<button class="btn btn-primary btn-lg" data-home>Go to my little world →</button>' +
+      '<div class="landing-hearts"><span>♡</span><span>♡</span><span>♡</span></div>' +
       '</section>';
-
-    var stage = main.querySelector('[data-dudu]');
-    if (stage && HB.chars) {
-      HB.chars.hero(stage, { which: 'both', actions: ['wait', 'love', 'happy'], size: 'land', alt: 'Waiting for your person' });
-    }
 
     main.querySelector('[data-copy]').addEventListener('click', function () {
       var btn = this;
@@ -66,7 +57,6 @@
 
     main.querySelector('[data-home]').addEventListener('click', function () { HB.navigate('/home'); });
 
-    /* Auto-transition when partner connects */
     window.addEventListener('hb:relchange', function onConnect() {
       if (HB.rel.data.status === 'connected') {
         window.removeEventListener('hb:relchange', onConnect);
@@ -77,36 +67,28 @@
     });
   }
 
-  /* ---- Fresh landing page (Person 1: Create, Person 2: enter code) ---- */
   function renderFresh(main) {
     main.innerHTML =
       '<section class="landing">' +
       '<div class="landing-badge"><span class="pulse-dot"></span> A little world made for two ♡</div>' +
-      '<div class="landing-dudu" data-dudu></div>' +
-      '<h1>A little corner made just for <span class="accent">you two</span> ♡</h1>' +
-      '<p class="sub">A private little world for two hearts — your chat, your memories, your daily bond quiz —<br/>all of it, just for you two.</p>' +
-      '<div class="landing-ctas">' +
-        '<button class="btn btn-primary btn-lg" data-go="onboarding">Create Our Space ♡</button>' +
+      '<h1>Two phones, one little <span class="accent">world</span> ♡</h1>' +
+      '<p class="sub">Where your chats, memories, and daily rituals live together.</p>' +
+      '<div class="landing-cards">' +
+        '<button class="landing-card lc-create" data-go="onboarding">' +
+          '<div class="lc-icon" style="background:linear-gradient(135deg,var(--primary),var(--primary-deep))">💕</div>' +
+          '<div class="lc-title">Create our world</div>' +
+          '<div class="lc-sub">Start fresh — get a pairing code to share with your person.</div>' +
+          '<div class="lc-btn btn btn-primary">Create our world ♡</div>' +
+        '</button>' +
+        '<button class="landing-card lc-join" data-login>' +
+          '<div class="lc-icon" style="background:linear-gradient(135deg,#D8C6F5,#c5b5e9)">✨</div>' +
+          '<div class="lc-title">I have a code</div>' +
+          '<div class="lc-sub">Join your person by entering the code they sent you.</div>' +
+          '<div class="lc-btn btn btn-soft">Join with code ♡</div>' +
+        '</button>' +
       '</div>' +
-      '<div class="landing-status">' +
-        '<div class="landing-account"><span class="pulse-dot"></span>' +
-        '<span>This little world lives on two phones — yours and your person\'s.</span>' +
-        '<button class="btn btn-soft btn-sm" data-login>I already have our space</button></div>' +
-      '</div>' +
+      '<div class="landing-hearts"><span>♡</span><span>♡</span><span>♡</span><span>♡</span><span>♡</span></div>' +
       '</section>';
-
-    var stage = main.querySelector('[data-dudu]');
-    if (stage && HB.chars) {
-      HB.chars.hero(stage, {
-        which: Math.random() < 0.5 ? 'dudu' : 'bubu',
-        alternate: true,
-        actions: ['happy', 'cute', 'think', 'wait', 'dance', 'funny'],
-        size: 'land',
-        alt: 'Bubu ♡ Dudu'
-      });
-      stage.style.cursor = 'pointer';
-      stage.addEventListener('click', function () { HB.navigate('/onboarding'); });
-    }
 
     main.querySelector('[data-go="onboarding"]').addEventListener('click', function () {
       HB.navigate('/onboarding');
