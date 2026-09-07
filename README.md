@@ -13,6 +13,7 @@ Built with vanilla JavaScript (no build step, no frameworks) + [Supabase](https:
 - 🔗 **Pairing — no email or password.** Each phone silently gets a private anonymous identity, and a single-use `LOVE-XXXXX` code pairs them. No login screens anywhere, and no duplicate relationships — one canonical record, two participants.
 - 🎵 **Romantic background music** — synthesized (no audio files), starts OFF; tap to hear soft, dreamy chords.
 - ✨ AI companion chat, love notes, two-column memories gallery, daily question, date ideas, love timers, themes, settings.
+- 📓 **Partner page "What's new"** — a shared, newest-first feed of every change either of you makes (names, ages, photos, themes, connecting) with who did it and a sweet little message.
 
 ## Project structure
 
@@ -31,6 +32,7 @@ js/
                           create/join pairing, realtime)
     chat.js             ← Chat messages keyed by relationship_id
     shared.js           ← Love notes + memories (DB-backed, realtime)
+    journal.js          ← "What's new" couple activity log (DB-backed, realtime)
     presence.js         ← Online status + typing indicators
     quiz.js             ← Daily quiz (both phones, result in real time)
     net.js              ← Connectivity detection
@@ -49,7 +51,7 @@ admin/                  ← PRIVATE owner insights page (not linked in UI)
 1. **Create a Supabase project** at https://supabase.com (free tier is plenty).
 
 2. **Run the schema.** In the Supabase dashboard → SQL Editor, paste the entire contents of `supabase/run-all.sql` and run it. It creates:
-   - Tables: `relationships`, `profiles`, `messages`, `love_notes`, `memories`, `quiz_days`, `quiz_answers`
+   - Tables: `relationships`, `profiles`, `messages`, `love_notes`, `memories`, `couple_activity` (the "What's new" journal), `quiz_days`, `quiz_answers`
    - RLS policies (strict access for the two members only)
    - RPC functions: `create_relationship`, `complete_pairing`, `update_my_profile`, `update_relationship`, `update_my_avatar`, `update_partner_avatar`, `update_couple_dp`, `update_relationship_theme`, `delete_my_data`, `finalize_quiz`, `admin_get_insights`
    - Realtime publication for all seven tables

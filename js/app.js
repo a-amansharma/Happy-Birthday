@@ -30,6 +30,9 @@
     if (HB.shared && HB.shared.subscribe) {
       HB.shared.load().then(function () { HB.shared.subscribe(); });
     }
+    if (HB.journal && HB.journal.subscribe) {
+      HB.journal.load().then(function () { HB.journal.subscribe(); });
+    }
   }
 
   function initBackend() {

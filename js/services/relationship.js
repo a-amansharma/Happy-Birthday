@@ -361,6 +361,8 @@
       if (!HB.db.configured()) return Promise.resolve({ error: { message: 'NOT_CONFIGURED' } });
       var id = meId();
       if (!id) return Promise.resolve({ error: { message: 'NOT_AUTHENTICATED' } });
+      var prevName = data.me ? data.me.name : '';
+      var prevAge = data.me != null ? data.me.age : null;
       var upd = {};
       if (fields.name !== undefined) upd.name = fields.name;
       if (fields.age !== undefined) upd.age = fields.age === '' || fields.age == null ? null : Number(fields.age);
@@ -368,6 +370,15 @@
         .then(function (res) {
           if (!res.error && data.me) Object.assign(data.me, upd);
           if (!res.error) { rel.hydrate(); rel.dispatch(); }
+          if (!res.error && HB.journal && HB.journal.log && data.status === 'connected') {
+            if (upd.name !== undefined && upd.name !== prevName) {
+              HB.journal.log('name', 'wants to be called “' + String(upd.name) + '” now — still the sweetest name ♡')
+                .catch(function () {});
+            } else if (upd.age !== undefined && upd.age !== prevAge) {
+              HB.journal.log('age', (upd.age != null ? 'just turned ' + upd.age : 'kept their age a mystery') + ' — how are you still this adorable ♡')
+                .catch(function () {});
+            }
+          }
           return res;
         });
     },
@@ -401,10 +412,22 @@
        other phone adopts it too via the realtime relchange → hydrate. */
     setTheme: function (theme) {
       var t = (theme || 'milk').toString();
+      var prev = (data.relationship && data.relationship.theme)
+        || (HB.state && HB.state.profile && HB.state.profile.theme) || '';
       applyBodyTheme(t);
       if (HB.state && HB.state.profile) {
         HB.state.profile.theme = t;
         if (HB.save) HB.save();
+      }
+      /* Journal: a shared theme change by either person. */
+      if (HB.journal && HB.journal.log && t !== prev && data.status === 'connected') {
+        var tName = t;
+        if (HB.THEMES) {
+          var match = HB.THEMES.filter(function (th) { return th.id === t; })[0];
+          if (match) tName = match.icon + ' ' + match.name;
+        }
+        HB.journal.log('theme', 'switched the look to “' + String(tName) + '” — cozy for both of us ♡')
+          .catch(function () {});
       }
       if (!HB.db.configured() || !meId() || !data.relationship) {
         return Promise.resolve({ error: null });

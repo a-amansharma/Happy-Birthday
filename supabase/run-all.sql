@@ -152,7 +152,26 @@ create table if not exists public.memories (
 create index if not exists memories_rel_idx
   on public.memories (relationship_id, created_at);
 
--- ---- 2f. QUIZ DAYS — one shared quiz per relationship per day ----
+-- ---- 2f. COUPLE ACTIVITY — a shared "what changed" journal ----
+-- Newest-first, relationship-scoped log that shows on the Partner page:
+-- every theme / name / age / photo change appears with the person's name
+-- and a sweet little message. Created with "if not exists" (NOT dropped on
+-- re-runs) so the journal survives re-running this file.
+create table if not exists public.couple_activity (
+  id               uuid primary key default gen_random_uuid(),
+  relationship_id  uuid not null references public.relationships(id) on delete cascade,
+  created_by       uuid not null,                 -- who did it (auth user id)
+  actor            text not null default '',      -- their name, snapshot at change time
+  kind             text not null default '',      -- theme | name | age | photo | photo_off | connect | relationship
+  msg              text not null default '',      -- the sweet message
+  created_at       timestamptz not null default now()
+);
+
+create index if not exists couple_activity_rel_idx
+  on public.couple_activity (relationship_id, created_at);
+
+
+-- ---- 2g. QUIZ DAYS — one shared quiz per relationship per day ----
 create table if not exists public.quiz_days (
   id               uuid primary key default gen_random_uuid(),
   relationship_id  uuid not null references public.relationships(id) on delete cascade,
@@ -171,7 +190,7 @@ create table if not exists public.quiz_days (
 create index if not exists quiz_days_rel_idx
   on public.quiz_days (relationship_id, quiz_date);
 
--- ---- 2g. QUIZ ANSWERS — per participant per quiz ----
+-- ---- 2h. QUIZ ANSWERS — per participant per quiz ----
 create table if not exists public.quiz_answers (
   id               uuid primary key default gen_random_uuid(),
   quiz_day_id      uuid not null references public.quiz_days(id) on delete cascade,
@@ -191,7 +210,7 @@ create index if not exists quiz_answers_day_idx
 do $$
 declare t text;
 begin
-  foreach t in array array['relationships','profiles','messages','love_notes','memories','quiz_days','quiz_answers'] loop
+  foreach t in array array['relationships','profiles','messages','love_notes','memories','couple_activity','quiz_days','quiz_answers'] loop
     if not exists (
       select 1 from pg_publication_tables
        where pubname = 'supabase_realtime'
@@ -293,6 +312,7 @@ alter table public.love_notes   enable row level security;
 alter table public.memories     enable row level security;
 alter table public.quiz_days    enable row level security;
 alter table public.quiz_answers enable row level security;
+alter table public.couple_activity enable row level security;
 
 -- ---- DROP EXISTING POLICIES FIRST (idempotent re-runs) ----
 -- Tables are created with "if not exists", so on a re-run their policies
@@ -322,6 +342,8 @@ drop policy if exists "qa select member" on public.quiz_answers;
 drop policy if exists "qa insert own" on public.quiz_answers;
 drop policy if exists "qa update own" on public.quiz_answers;
 drop policy if exists "qa delete own" on public.quiz_answers;
+drop policy if exists "act select member" on public.couple_activity;
+drop policy if exists "act insert member" on public.couple_activity;
 
 -- ---- RELATIONSHIPS ----
 -- A creator can INSERT a relationship (it just created it). Members can
@@ -430,6 +452,16 @@ create policy "qa update own" on public.quiz_answers
 create policy "qa delete own" on public.quiz_answers
   for delete using (user_id = auth.uid());
 
+-- ---- COUPLE ACTIVITY (shared journal; both read, actor writes own) ----
+create policy "act select member" on public.couple_activity
+  for select using (public.is_relationship_member(relationship_id));
+
+create policy "act insert member" on public.couple_activity
+  for insert with check (
+    created_by = auth.uid()
+    and public.is_relationship_member(relationship_id)
+  );
+
 
 -- ============================================================
 -- 7. RPC FUNCTIONS + GRANTS
@@ -494,6 +526,11 @@ begin
 
   update public.profiles set relationship_id = rid where id = me;
 
+  -- Journal: the little world was created ♡
+  select name into me_name from public.profiles where id = me;
+  insert into public.couple_activity (relationship_id, created_by, actor, kind, msg)
+  values (rid, me, coalesce(me_name, hint_name, 'someone'), 'connect', 'started your little world ♡');
+
   return jsonb_build_object(
     'relationship_id', rid, 'code', code, 'status', 'waiting'
   );
@@ -514,6 +551,7 @@ declare
   rid uuid;
   rel record;
   me_name text;
+  my_name text;
 begin
   if me is null then raise exception 'NOT_AUTHENTICATED'; end if;
 
@@ -561,6 +599,11 @@ begin
          connected_at = now(),
          completed_at = now()
    where id = rid;
+
+  -- Journal: the two little worlds became one ♡
+  select name into my_name from public.profiles where id = me;
+  insert into public.couple_activity (relationship_id, created_by, actor, kind, msg)
+  values (rid, me, coalesce(my_name, rel.partner_hint_name, 'someone'), 'connect', 'joined you — two phones, one little world ♡');
 
   -- Fetch the creator's personal info so Person 2 can render "Partner".
   select name into me_name from public.profiles where id = rel.creator_user_id;
@@ -925,7 +968,7 @@ grant execute on function public.admin_get_insights() to authenticated;
 select tablename, policyname, cmd
 from pg_policies
 where schemaname = 'public'
-  and tablename in ('relationships','profiles','messages','love_notes','memories','quiz_days','quiz_answers')
+  and tablename in ('relationships','profiles','messages','love_notes','memories','couple_activity','quiz_days','quiz_answers')
 order by tablename, policyname;
 
 select 'ALL DONE ✔  Your two-participant, one-relationship database is ready ♡' as status;

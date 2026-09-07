@@ -90,18 +90,19 @@
           '</div>';
       }
 
-      /* Our photos — couple photo + personal photos (mobile users can't see
-         the sidebar, so this is where both phones change/set their pictures) */
+      /* Our photos — YOUR photo + THEIR photo side by side (mobile users
+         can't see the sidebar, so this is where both phones set/change the
+         two personal circle photos). */
       body +=
-        '<div class="card settings-card dp-manage-card" style="margin-top:22px;max-width:480px;margin-left:auto;margin-right:auto">' +
+        '<div class="card settings-card dp-manage-card" style="margin-top:22px;max-width:560px;margin-left:auto;margin-right:auto">' +
           '<h3><span class="sc-emoji">📸</span> Our photos</h3>' +
-          '<p class="muted" style="font-size:13px;font-weight:600;margin:2px 0 12px">The couple photo shows on both phones by the header; your photo sits on your chat bubbles.</p>' +
+          '<p class="muted" style="font-size:13px;font-weight:600;margin:2px 0 12px">Your photo sits on your chat bubbles, and ' + HB.esc(partnerName) + '\'s photo sits on theirs. Tap to preview, change or delete ♡</p>' +
           '<div class="dp-manage">' +
-            '<button type="button" class="mng-dp" data-mng="couple"><span class="mng-chip" data-chip="couple"></span><span class="mng-label"><b>Couple photo</b><i>both phones, by the title</i></span></button>' +
             '<button type="button" class="mng-dp" data-mng="me"><span class="mng-chip" data-chip="me"></span><span class="mng-label"><b>Your photo</b><i>your chat bubbles</i></span></button>' +
-            '<button type="button" class="mng-dp" data-mng="them"><span class="mng-chip" data-chip="them"></span><span class="mng-label"><b>Their photo</b><i>set · preview · change · delete</i></span></button>' +
+            '<button type="button" class="mng-dp" data-mng="them"><span class="mng-chip" data-chip="them"></span><span class="mng-label"><b>' + HB.esc(partnerName) + '\'s photo</b><i>their chat bubbles</i></span></button>' +
           '</div>' +
-        '</div>';
+        '</div>' +
+        journalHtml();
 
     } else if (waiting && code) {
       body =
@@ -197,6 +198,50 @@
     paintDpChips();
     var mngBtns = main.querySelectorAll('.mng-dp');
     for (var i = 0; i < mngBtns.length; i++) wireDpAction(mngBtns[i]);
+
+    /* "What's new" feed — load the couple's change journal, then keep it
+       live through the realtime subscription + hb:activity repaints. */
+    if (connected && HB.journal) {
+      HB.journal.load().then(function () { paintJournal(); }).catch(function () {});
+    }
+  }
+
+  /* ---- "What's new" — the couple activity feed (newest first) ---- */
+  function journalRow(it) {
+    var ui = (HB.journal && HB.journal.kindUi) ? HB.journal.kindUi(it.kind) : { emoji: '✨', label: 'Little things' };
+    var when = (HB.journal && HB.journal.timeAgo) ? HB.journal.timeAgo(it.created_at) : '';
+    return '<li class="j-item">' +
+      '<span class="j-emoji">' + HB.esc(ui.emoji) + '</span>' +
+      '<span class="j-body">' +
+        '<span class="j-msg">' + HB.esc(it.msg || '') + '</span>' +
+        '<span class="j-meta"><b>' + HB.esc(it.actor || 'someone') + '</b> · ' + HB.esc(ui.label) + (when ? ' · <span class="j-when">' + HB.esc(when) + '</span>' : '') + '</span>' +
+      '</span>' +
+    '</li>';
+  }
+
+  function journalHtml() {
+    var rows = (HB.journal && HB.journal.items) ? HB.journal.items() : [];
+    var list = rows.length
+      ? '<ul class="journal-list">' + rows.map(journalRow).join('') + '</ul>'
+      : '<div class="journal-empty"><span class="j-empty-emoji">🐻</span><p>No changes yet — every time either of you tweaks something, it\'ll show up here, newest first ♡</p></div>';
+    return '<div class="card settings-card journal-card" id="journal-card" style="margin-top:16px;max-width:560px;margin-left:auto;margin-right:auto">' +
+      '<h3><span class="sc-emoji">✨</span> What\'s new</h3>' +
+      '<p class="muted" style="font-size:13px;font-weight:600;margin:2px 0 12px">Every little change either of you makes — names, ages, photos, themes ♡</p>' +
+      list +
+    '</div>';
+  }
+
+  /* Swap in a fresh feed after a journal load/realtime event (only while
+     the Partner page is on screen). */
+  function paintJournal() {
+    var m = document.getElementById('main');
+    if (!m || !m.isConnected || HB.currentPath() !== '/partner') return;
+    var card = m.querySelector('#journal-card');
+    if (!card) return;
+    var wrap = document.createElement('div');
+    wrap.innerHTML = journalHtml();
+    var fresh = wrap.firstChild;
+    if (fresh) card.parentNode.replaceChild(fresh, card);
   }
 
   /* Return the current #main if the passed one has been swapped out. */
@@ -204,17 +249,16 @@
     return (old && old.isConnected) ? old : document.getElementById('main');
   }
 
-  /* Fill the "Our photos" chips with the current couple/personal photos. */
+  /* Fill the two "Your photo / Their photo" chips with the current photos. */
   function paintDpChips() {
     var m = document.getElementById('main');
     if (!m || !m.isConnected || HB.currentPath() !== '/partner') return;
     var rows = m.querySelectorAll('.mng-dp');
     for (var i = 0; i < rows.length; i++) {
       var row = rows[i];
-      var which = row.getAttribute('data-mng');
-      var photo = which === 'couple' ? HB.dp.couplePhoto() : (which === 'me' ? HB.dp.myPhoto() : HB.dp.partnerPhoto());
-      var letter = which === 'couple' ? HB.dp.initials()
-        : (which === 'me' ? String(HB.state.profile.name || '♥').trim().charAt(0) : String(HB.state.profile.partner || '♥').trim().charAt(0));
+      var isMe = row.getAttribute('data-mng') === 'me';
+      var photo = isMe ? HB.dp.myPhoto() : HB.dp.partnerPhoto();
+      var letter = String((isMe ? HB.state.profile.name : HB.state.profile.partner) || '♥').trim().charAt(0);
       var chip = row.querySelector('.mng-chip');
       if (!chip) continue;
       chip.innerHTML = photo
@@ -223,38 +267,33 @@
       var sub = row.querySelector('.mng-label i');
       if (sub) sub.textContent = photo
         ? 'tap to preview · change or delete below ♡'
-        : 'they haven\'t added one yet — tap to set ♡';
+        : 'not set yet — tap to add ♡';
     }
   }
 
-  /* Tap a photo row: no photo → pick ・ photo → big preview with
-     Change photo + Delete photo (delete restores the first-letter initial).
-     Their photo now works exactly like yours — set, preview, change, delete. */
+  /* Tap a photo tile: no photo → pick ・ photo → big preview with
+     Change photo + Delete photo (delete restores the first-letter initial). */
   function wireDpAction(row) {
     row.addEventListener('click', function () {
-      var which = row.getAttribute('data-mng');
-      var photo = which === 'couple' ? HB.dp.couplePhoto() : (which === 'me' ? HB.dp.myPhoto() : HB.dp.partnerPhoto());
-      var setFn = which === 'couple' ? HB.dp.setCouple : (which === 'me' ? HB.dp.setMy : HB.dp.setPartner);
-      var clearFn = which === 'couple' ? HB.dp.clearCouple : (which === 'me' ? HB.dp.clearMy : HB.dp.clearPartner);
-      var kindTxt = which === 'couple' ? 'couple' : (which === 'me' ? 'your' : (String(HB.state.profile.partner || '').trim() || 'their') + '\'s');
+      var isMe = row.getAttribute('data-mng') === 'me';
+      var photo = isMe ? HB.dp.myPhoto() : HB.dp.partnerPhoto();
+      var setFn = isMe ? HB.dp.setMy : HB.dp.setPartner;
+      var clearFn = isMe ? HB.dp.clearMy : HB.dp.clearPartner;
+      var who = isMe ? 'your' : ((String(HB.state.profile.partner || '').trim() || 'their'));
       function pickAndSet() {
         HB.dp.pick().then(function (r) {
           if (r && r.error) { HB.toast('Couldn\'t read that image ♡', '🐻'); return; }
           if (!r || !r.dataUrl) return;
           setFn(r.dataUrl).then(function () {
             paintDpChips();
-            HB.toast(which === 'couple' ? 'Couple photo set for both phones ♡' : (which === 'me' ? 'Your photo is set ♡' : (String(HB.state.profile.partner || '').trim() || 'Their') + '\'s photo is set ♡'), '📸');
+            HB.toast(isMe ? 'Your photo is set ♡' : (who.charAt(0).toUpperCase() + who.slice(1) + '\'s photo is set ♡'), '📸');
           });
         });
       }
       function doDelete() {
-        if (HB.confirm) {
-          HB.confirm(kindTxt + ' photo', 'Remove the picture? The first letter will show again ♡', function () {
-            clearFn().then(function () { paintDpChips(); HB.toast('Photo removed — initials back ♡', '🗑️'); });
-          }, 'Delete photo');
-        } else {
-          clearFn().then(function () { paintDpChips(); HB.toast('Photo removed — initials back ♡', '🗑️'); });
-        }
+        var done = function () { paintDpChips(); HB.toast('Photo removed — initials back ♡', '🗑️'); };
+        if (HB.confirm) HB.confirm(who + ' photo', 'Remove the picture? The first letter will show again ♡', done, 'Delete photo');
+        else done();
       }
       if (photo) HB.dp.preview(photo, pickAndSet, doDelete, row.querySelector('.mng-chip'));
       else pickAndSet();
@@ -295,6 +334,9 @@
       ready = true;
       window.addEventListener('hb:relchange', function () {
         if (HB.currentPath() === '/partner') render(document.getElementById('main'));
+      });
+      window.addEventListener('hb:activity', function () {
+        if (HB.currentPath() === '/partner' && document.getElementById('main').isConnected) paintJournal();
       });
     }
   });

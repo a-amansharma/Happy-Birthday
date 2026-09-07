@@ -33,6 +33,7 @@
 - ☀️ **Daily Question** — one sweet question a day
 - 🐻 **AI Companion** — a cozy chatbot companion
 - 🎨 **Themes** — 7 visual themes, changeable anytime
+- 📓 **Partner "What's new"** — a shared newest-first feed of every change either of you makes (names, ages, photos, themes, connecting)
 - 🎵 **Background music** — soft synthesized romantic music (starts muted)
 - 🌐 **Pairing** — no email/password, just a `LOVE-XXXXX` code
 
@@ -133,6 +134,10 @@ Happy-Birthday/
 │   ├── settings.js         ← Settings page + erase data
 │   ├── creator.js          ← Creator info
 │   ├── app.js              ← Boot sequence, backend init
+│   └── services/
+│       ├── db.js, auth.js, relationship.js     ← core backend services
+│       ├── chat.js, presence.js, journal.js    ← couple chat, presence, activity log
+│       └── shared.js, quiz.js, net.js          ← notes/memories, quiz, connectivity
 │   ├── vendor/
 │   │   └── supabase.min.js ← Vendored supabase-js v2 (works offline)
 │   └── services/
@@ -298,6 +303,7 @@ This single file sets up the **entire database** for the app. It creates:
 |---|---|---|
 | Table | `profiles` | One row per user (name, age, pairing code, partner link) |
 | Table | `messages` | Private couple chat (text + images as base64) |
+| Table | `couple_activity` | The shared "What's new" journal (who changed what, newest first) |
 | Function | `connect_with_partner(code)` | Pairs two users using a LOVE-XXXXX code |
 | Function | `delete_my_data()` | Erases MY profile; partner keeps their world + data and gets a new pairing code |
 | Function | `update_my_avatar(url)` | Saves my profile photo (couple chat bubbles) |

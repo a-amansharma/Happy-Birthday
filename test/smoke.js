@@ -49,7 +49,7 @@ const dir = path.join(__dirname, '..', 'js');
 });
 
 // ---- services (backend wiring) ----
-['services/db.js','services/auth.js','services/relationship.js','services/chat.js','services/presence.js','services/net.js','services/quiz.js'].forEach((f) => {
+['services/db.js','services/auth.js','services/relationship.js','services/chat.js','services/presence.js','services/net.js','services/quiz.js','services/journal.js'].forEach((f) => {
   eval(fs.readFileSync(path.join(dir, f), 'utf8'));
 });
 
@@ -217,6 +217,16 @@ HB.presence.onTyping(function () { calls++; order.push('b'); });
 t('net service loads', !!HB.net && typeof HB.net.init === 'function' && typeof HB.net.getErrorReport === 'function');
 t('net.init runs on the shim DOM', (HB.net.init(), true));
 
+// ---- services: journal (the "What's new" couple feed) ----
+t('journal service loads', !!HB.journal && typeof HB.journal.log === 'function' && typeof HB.journal.load === 'function' && typeof HB.journal.subscribe === 'function');
+t('journal starts empty + not loaded', HB.journal.items().length === 0 && !HB.journal.loaded());
+t('journal.timeAgo blank safe', HB.journal.timeAgo() === '' && HB.journal.timeAgo(null) === '');
+t('journal.timeAgo labels', HB.journal.timeAgo(new Date().toISOString()) === 'just now' && /min ago|just now/.test(HB.journal.timeAgo(new Date(Date.now() - 3 * 60000).toISOString())));
+t('journal.kindUi theme', HB.journal.kindUi('theme').emoji === '🎨' && HB.journal.kindUi('theme').label === 'Look & feel');
+t('journal.kindUi name/age', HB.journal.kindUi('name').emoji === '💫' && HB.journal.kindUi('age').label === 'Ages');
+t('journal.kindUi photos off', HB.journal.kindUi('photo_off').emoji === '🗑️' && HB.journal.kindUi('photo').emoji === '📸');
+t('journal.kindUi fallback', HB.journal.kindUi('mystery-change').emoji === '✨');
+
 // async assertions
 let pending = 0;
 function when(promise, name, cond) {
@@ -229,6 +239,7 @@ function finish() {
   process.exit(fail ? 1 : 0);
 }
 
+when(HB.journal.log('age', 'just turned 24 ♡'), 'journal.log unconfigured → resolves gracefully', function (r) { return !!r && !!(r.error); });
 when(HB.rel.init(), 'init unconfigured → unconfigured', function () { return HB.rel.data.status === 'unconfigured'; });
 when(HB.rel.ensureProfile({ name: 'X' }), 'ensureProfile unconfigured → NOT_CONFIGURED', function (r) { return r.error && r.error.message === 'NOT_CONFIGURED'; });
 when(HB.rel.connectWithCode('LOVE-ABC12'), 'connectWithCode unconfigured → NOT_CONFIGURED', function (r) { return r.error && r.error.message === 'NOT_CONFIGURED' && HB.rel.data.busy === false; });

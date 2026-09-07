@@ -208,6 +208,14 @@
     }
   }
 
+  /* Best-effort journal entry for DP changes (feeds the Partner page's
+     "What's new" list). Fire-and-forget: never blocks the photo sync. */
+  function journal(entry) {
+    if (!HB.journal || !HB.journal.log) return;
+    if (!HB.rel || !HB.rel.data || HB.rel.data.status !== 'connected') return;
+    HB.journal.log(entry.kind, entry.msg).catch(function () {});
+  }
+
   /* MY personal photo (chat bubbles): applies instantly, then syncs to
      my profile row so the other phone shows it on my bubbles too.
      Tries the dedicated RPC first; if that's not in the DB schema yet it
@@ -215,11 +223,15 @@
      the photo straight to the partner over our realtime channel. */
   function setMy(dataUrl) {
     var pf = HB.state && HB.state.profile;
+    var had = !!(pf && pf.myAvatar);
     if (pf) { pf.myAvatar = dataUrl || ''; if (HB.save) HB.save(); }
     if (HB.updateNav) HB.updateNav();
     if (window.dispatchEvent) {
       try { window.dispatchEvent(new window.CustomEvent('hb:relchange')); } catch (e) {}
     }
+    journal(dataUrl
+      ? { kind: 'photo', msg: had ? 'came back with a fresh profile photo ♡' : 'put up their very first profile photo ♡' }
+      : { kind: 'photo_off', msg: 'took down their profile photo — the initial is back ♡' });
     if (!HB.db || !HB.db.configured() || !HB.auth || !HB.auth.user()) return Promise.resolve({ error: null });
     var uid = HB.auth.user().id;
     var mark = function () {
@@ -252,11 +264,15 @@
      broadcasts the photo straight to the partner over our realtime channel. */
   function setPartner(dataUrl) {
     var pf = HB.state && HB.state.profile;
+    var had = !!(pf && pf.partnerAvatar);
     if (pf) { pf.partnerAvatar = dataUrl || ''; if (HB.save) HB.save(); }
     if (HB.updateNav) HB.updateNav();
     if (window.dispatchEvent) {
       try { window.dispatchEvent(new window.CustomEvent('hb:relchange')); } catch (e) {}
     }
+    journal(dataUrl
+      ? { kind: 'photo', msg: had ? 'gave you a fresh profile photo ♡' : 'set a profile photo for you ♡' }
+      : { kind: 'photo_off', msg: 'cleared your profile photo — a letter will do for now ♡' });
     if (!HB.db || !HB.db.configured() || !HB.auth || !HB.auth.user() || !HB.rel || !HB.rel.data) {
       return Promise.resolve({ error: null });
     }
@@ -287,11 +303,15 @@
      chain as setMy — RPC, then bare column, then realtime broadcast. */
   function setCouple(dataUrl) {
     var pf = HB.state && HB.state.profile;
+    var had = !!(pf && pf.coupleDp);
     if (pf) { pf.coupleDp = dataUrl || ''; if (HB.save) HB.save(); }
     if (HB.updateNav) HB.updateNav();
     if (window.dispatchEvent) {
       try { window.dispatchEvent(new window.CustomEvent('hb:relchange')); } catch (e) {}
     }
+    journal(dataUrl
+      ? { kind: 'photo', msg: had ? 'swapped the couple photo ♡' : 'put up a couple photo for you two ♡' }
+      : { kind: 'photo_off', msg: 'removed the couple photo — the letters are back ♡' });
     if (!HB.db || !HB.db.configured() || !HB.rel || !HB.rel.data || !HB.rel.data.relationship) {
       return Promise.resolve({ error: null });
     }
