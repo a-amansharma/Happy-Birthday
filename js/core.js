@@ -288,28 +288,42 @@
 
     /* Duo circles: tap the TOP circle to set/change MY photo, the LOWER
        one to set/change my partner's photo. Each circle that already has
-       a photo opens the preview with a "change" action. Both photos sync
-       to the correct person on BOTH phones. Taps in the empty gap default
-       to my (top) circle. */
+       a photo opens a big preview with Change + Delete actions; deleting
+       brings the first-letter initial back. Both photos auto-sync to the
+       correct person on BOTH phones everywhere. */
     (function () {
       var duo = sb.querySelector('[data-duo-dp]');
       if (!duo || !HB.dp) return;
-      function pickAndSet(fn, isMe) {
-        HB.dp.pick().then(function (out) {
-          if (out && out.error) { if (HB.toast) HB.toast('That photo couldn\'t load — try another ♡', '💔'); return; }
-          if (!out || !out.dataUrl) return;
-          fn(out.dataUrl).then(function (res) {
-            if (res && res.error) { if (HB.toast) HB.toast('Couldn\'t sync to your person — try again ♡', '💔'); return; }
-            if (HB.toast) HB.toast((isMe ? 'Your photo is set ♡' : (HB.firstNames().partner + '\'s photo is set ♡')), '📸');
-          });
-        });
-      }
       var act = function (who) {
         var isMe = who !== 'them';
         var photo = isMe ? HB.dp.myPhoto() : HB.dp.partnerPhoto();
-        var fn = isMe ? HB.dp.setMy : HB.dp.setPartner;
-        if (photo) { HB.dp.preview(photo, function () { pickAndSet(fn, isMe); }); }
-        else { pickAndSet(fn, isMe); }
+        var setFn = isMe ? HB.dp.setMy : HB.dp.setPartner;
+        var clearFn = isMe ? HB.dp.clearMy : HB.dp.clearPartner;
+        var pickAndSet = function () {
+          HB.dp.pick().then(function (out) {
+            if (out && out.error) { if (HB.toast) HB.toast('That photo couldn\'t load — try another ♡', '💔'); return; }
+            if (!out || !out.dataUrl) return;
+            setFn(out.dataUrl).then(function (res) {
+              if (res && res.error) { if (HB.toast) HB.toast('Couldn\'t sync to your person — try again ♡', '💔'); return; }
+              if (HB.toast) HB.toast((isMe ? 'Your photo is set ♡' : (HB.firstNames().partner + '\'s photo is set ♡')), '📸');
+            });
+          });
+        };
+        var doDelete = function () {
+          if (!HB.confirm) return clearFn().then(function (res) { if (HB.toast) HB.toast((isMe ? 'Your photo removed — initials back ♡' : (HB.firstNames().partner + '\'s photo removed — initials back ♡')), '🗑️'); });
+          HB.confirm(
+            (isMe ? 'Your photo' : HB.firstNames().partner + '\'s photo'),
+            'Remove the picture? Your first letter will show again ♡',
+            function (ov) {
+              clearFn().then(function (res) {
+                if (HB.toast) HB.toast((isMe ? 'Your photo removed — initials back ♡' : (HB.firstNames().partner + '\'s photo removed — initials back ♡')), '🗑️');
+              });
+            },
+            'Delete photo'
+          );
+        };
+        if (photo) { HB.dp.preview(photo, pickAndSet, doDelete); }
+        else pickAndSet();
       };
       duo.addEventListener('click', function (e) {
         var ring = e.target && e.target.closest ? e.target.closest('[data-duo]') : null;

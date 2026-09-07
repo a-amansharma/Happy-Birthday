@@ -99,7 +99,7 @@
           '<div class="dp-manage">' +
             '<button type="button" class="mng-dp" data-mng="couple"><span class="mng-chip" data-chip="couple"></span><span class="mng-label"><b>Couple photo</b><i>both phones, by the title</i></span></button>' +
             '<button type="button" class="mng-dp" data-mng="me"><span class="mng-chip" data-chip="me"></span><span class="mng-label"><b>Your photo</b><i>your chat bubbles</i></span></button>' +
-            '<button type="button" class="mng-dp" data-mng="them"><span class="mng-chip" data-chip="them"></span><span class="mng-label"><b>Their photo</b><i>preview only</i></span></button>' +
+            '<button type="button" class="mng-dp" data-mng="them"><span class="mng-chip" data-chip="them"></span><span class="mng-label"><b>Their photo</b><i>set · preview · change · delete</i></span></button>' +
           '</div>' +
         '</div>';
 
@@ -222,37 +222,42 @@
         : '<span class="mng-inits">' + HB.esc(String(letter || '♥').toUpperCase()) + '</span>';
       var sub = row.querySelector('.mng-label i');
       if (sub) sub.textContent = photo
-        ? (which === 'them' ? 'tap to preview' : 'tap to preview · change below ♡')
-        : (which === 'them' ? 'they haven\'t added one yet' : 'tap to pick one ♡');
+        ? 'tap to preview · change or delete below ♡'
+        : 'they haven\'t added one yet — tap to set ♡';
     }
   }
 
-  /* Tap a photo row: no photo → pick ・ photo → preview (+ change action). */
+  /* Tap a photo row: no photo → pick ・ photo → big preview with
+     Change photo + Delete photo (delete restores the first-letter initial).
+     Their photo now works exactly like yours — set, preview, change, delete. */
   function wireDpAction(row) {
     row.addEventListener('click', function () {
       var which = row.getAttribute('data-mng');
       var photo = which === 'couple' ? HB.dp.couplePhoto() : (which === 'me' ? HB.dp.myPhoto() : HB.dp.partnerPhoto());
-      function pickAndSet(kind) {
-        var fn = kind === 'couple' ? HB.dp.setCouple : HB.dp.setMy;
+      var setFn = which === 'couple' ? HB.dp.setCouple : (which === 'me' ? HB.dp.setMy : HB.dp.setPartner);
+      var clearFn = which === 'couple' ? HB.dp.clearCouple : (which === 'me' ? HB.dp.clearMy : HB.dp.clearPartner);
+      var kindTxt = which === 'couple' ? 'couple' : (which === 'me' ? 'your' : (String(HB.state.profile.partner || '').trim() || 'their') + '\'s');
+      function pickAndSet() {
         HB.dp.pick().then(function (r) {
           if (r && r.error) { HB.toast('Couldn\'t read that image ♡', '🐻'); return; }
           if (!r || !r.dataUrl) return;
-          fn(r.dataUrl).then(function () {
+          setFn(r.dataUrl).then(function () {
             paintDpChips();
-            HB.toast(kind === 'couple' ? 'Couple photo set for both phones ♡' : 'Your photo is set ♡', '📸');
+            HB.toast(which === 'couple' ? 'Couple photo set for both phones ♡' : (which === 'me' ? 'Your photo is set ♡' : (String(HB.state.profile.partner || '').trim() || 'Their') + '\'s photo is set ♡'), '📸');
           });
         });
       }
-      if (which === 'them') {
-        if (photo) HB.dp.preview(photo);
-        else HB.toast('They haven\'t added a photo yet ♡', '🐻');
-        return;
+      function doDelete() {
+        if (HB.confirm) {
+          HB.confirm(kindTxt + ' photo', 'Remove the picture? The first letter will show again ♡', function () {
+            clearFn().then(function () { paintDpChips(); HB.toast('Photo removed — initials back ♡', '🗑️'); });
+          }, 'Delete photo');
+        } else {
+          clearFn().then(function () { paintDpChips(); HB.toast('Photo removed — initials back ♡', '🗑️'); });
+        }
       }
-      if (photo) {
-        HB.dp.preview(photo, function () { pickAndSet(which); });
-      } else {
-        pickAndSet(which);
-      }
+      if (photo) HB.dp.preview(photo, pickAndSet, doDelete);
+      else pickAndSet();
     });
   }
 

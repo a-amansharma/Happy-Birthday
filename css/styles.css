@@ -980,7 +980,6 @@ a { color: inherit; text-decoration: none; }
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
   .landing-bears .bear-wave { animation: none !important; }
   .duo-top, .duo-bot { animation: none !important; }
-  .duo-heart { animation: none !important; }
 }
 
 /* ============================================================
@@ -1421,42 +1420,30 @@ a { color: inherit; text-decoration: none; }
    DP — duo circles (sidebar), chat bubble photos, photo preview
    ============================================================ */
 /* Two overlapping circles — my picture top-left, my partner's
-   bottom-right — with a little heart between them. Each floats;
-   initials until a synced chat photo replaces the circle. */
+   bottom-right. Each floats; initials until a synced chat photo
+   replaces the circle. No border, no heart — just two circles. */
 .sidebar-logo .duo-dp {
-  width: 54px; height: 54px; flex-shrink: 0; border: 0; padding: 0;
+  width: 64px; height: 64px; flex-shrink: 0; border: 0; padding: 0;
   background: none; cursor: pointer; border-radius: 50%;
   display: block; position: relative;
 }
 .duo-dp .duo-cluster { position: absolute; inset: 0; display: block; }
 .duo-ring {
-  position: absolute; width: 36px; height: 36px; border-radius: 50%;
+  position: absolute; width: 44px; height: 44px; border-radius: 50%;
   display: grid; place-items: center; overflow: hidden; cursor: pointer; padding: 0; font: inherit;
   background: var(--grad); color: #fff; box-shadow: var(--shadow-card);
-  border: 2.5px solid #fff;
+  border: none;
 }
 .duo-ring:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .duo-ring img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
 .duo-ring .duo-let {
-  font-family: var(--font-hand); font-size: 17px; font-weight: 800;
+  font-family: var(--font-hand); font-size: 22px; font-weight: 800;
   color: #fff; line-height: 1;
 }
-.duo-top { top: 0; left: 1px; z-index: 2; animation: duoFloatA 3.8s ease-in-out infinite; }
-.duo-bot { bottom: 0; right: 1px; z-index: 1; animation: duoFloatB 4.2s ease-in-out infinite; }
-.duo-heart {
-  position: absolute; z-index: 3; top: 50%; left: 50%;
-  width: 17px; height: 17px; transform: translate(-50%, -50%);
-  background: #ff6b81; color: #fff; font-size: 9px; line-height: 1;
-  display: grid; place-items: center; border-radius: 50%;
-  border: 2px solid #fff; box-shadow: 0 2px 8px rgba(255, 107, 129, 0.55);
-  animation: duoHeartBeat 2.4s ease-in-out infinite;
-}
+.duo-top { top: 0; left: 0; z-index: 2; animation: duoFloatA 3.8s ease-in-out infinite; }
+.duo-bot { bottom: 0; right: 0; z-index: 1; animation: duoFloatB 4.2s ease-in-out infinite; }
 @keyframes duoFloatA { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 @keyframes duoFloatB { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(3px); } }
-@keyframes duoHeartBeat {
-  0%, 100% { transform: translate(-50%, -50%) scale(1); }
-  50% { transform: translate(-50%, -50%) scale(1.18); }
-}
 
 /* Chat bubble chips become buttons (photo replaces the letter). */
 .msg-avatar.dp { border: 0; padding: 0; cursor: pointer; }
@@ -1464,21 +1451,31 @@ a { color: inherit; text-decoration: none; }
 .couple-chat .chat-head .char-dp { border: 0; padding: 0; overflow: hidden; cursor: pointer; }
 .couple-chat .chat-head .char-dp .dp-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
 
-/* Simple full-screen photo preview — image + ✕ only. */
+/* Full-screen photo preview — big image, zoomable, with Change + Delete */
 .dp-preview {
   position: fixed; inset: 0; z-index: 10001; background: rgba(12, 10, 6, 0.94);
   display: flex; align-items: center; justify-content: center; animation: fadeIn 0.18s var(--ease);
+  flex-direction: column; gap: 0;
 }
-.dp-preview img { max-width: 92vw; max-height: 86vh; border-radius: 12px; box-shadow: 0 8px 40px rgba(0,0,0,0.55); object-fit: contain; }
-.dp-preview .dp-preview-close {
+.dp-preview-stage { position: relative; max-width: 96vw; max-height: 78vh; display: flex; align-items: center; justify-content: center; overflow: auto; touch-action: manipulation; -webkit-overflow-scrolling: touch; }
+.dp-preview-stage img { max-width: 96vw; max-height: 78vh; border-radius: 14px; box-shadow: 0 8px 40px rgba(0,0,0,0.55); object-fit: contain; transform: scale(1); transition: transform 0.18s ease; cursor: zoom-in; }
+.dp-preview-close {
   position: absolute; top: 14px; right: 14px; width: 40px; height: 40px; border-radius: 50%;
   border: 0; cursor: pointer; font-size: 18px; font-weight: 700; color: #fff;
-  background: rgba(255,255,255,0.16); display: grid; place-items: center;
+  background: rgba(255,255,255,0.16); display: grid; place-items: center; z-index: 2;
 }
+.dp-preview-action {
+  position: absolute; bottom: 24px; border: 0; cursor: pointer; font-size: 15px; font-weight: 700;
+  color: #fff; padding: 11px 22px; border-radius: 999px; z-index: 2;
+}
+.dp-preview-change { background: rgba(255,255,255,0.18); left: 50%; transform: translateX(-50%); }
+.dp-preview-change:active { background: rgba(255,255,255,0.28); }
+.dp-preview-del { background: rgba(200,40,40,0.35); right: 24px; }
+.dp-preview-del:active { background: rgba(200,40,40,0.55); }
 @media (max-width: 400px) {
-  .sidebar-logo .duo-dp { width: 48px; height: 48px; }
-  .duo-ring { width: 32px; height: 32px; }
-  .duo-ring .duo-let { font-size: 15px; }
+  .sidebar-logo .duo-dp { width: 54px; height: 54px; }
+  .duo-ring { width: 38px; height: 38px; }
+  .duo-ring .duo-let { font-size: 18px; }
 }
 
 /* Partner page: Our photos manager (also the mobile way to set the DP) */
@@ -1502,12 +1499,6 @@ a { color: inherit; text-decoration: none; }
 .mng-label b { font-size: 14px; font-weight: 700; color: var(--t2, #3a3124); }
 .mng-label i { font-style: normal; font-size: 12px; color: var(--mut, #9b8f7a); }
 
-/* Change-photo action inside the full-screen preview */
-.dp-preview .dp-preview-change {
-  position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%);
-  border: 0; cursor: pointer; font-size: 15px; font-weight: 700; color: #fff;
-  background: rgba(255,255,255,0.18); padding: 11px 22px; border-radius: 999px;
-}
 @media (max-width: 640px) {
   .mng-chip { width: 44px; height: 44px; }
 }

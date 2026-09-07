@@ -197,6 +197,13 @@ t('duo swaps to synced photos when set', duoPhoto.indexOf('src="data:me2"') !== 
 HB.state.profile.name = prevName; HB.state.profile.partner = prevPartner;
 HB.state.profile.myAvatar = prevMe; HB.state.profile.partnerAvatar = prevPt;
 
+// ---- dp: clear/delete restores initials, no heart in duo ----
+HB.dp.clearMy(); HB.dp.clearPartner();
+t('clearMy restores empty myAvatar (initial shows)', HB.state.profile.myAvatar === '');
+t('clearPartner restores empty partnerAvatar (initial shows)', HB.state.profile.partnerAvatar === '');
+t('duo contains no heart span', HB.dp.duo().indexOf('duo-heart') === -1);
+HB.dp.setMy('data:restored-mine'); HB.dp.setPartner('data:restored-pt');
+
 // ---- services: presence (online + live typing, replaceable handlers) ----
 t('presence service loads', typeof HB.presence.setTyping === 'function' && typeof HB.presence.onTyping === 'function');
 t('presence default states', HB.presence.online === false && HB.presence.partnerTyping === false);

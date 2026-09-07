@@ -50,11 +50,10 @@
   function duoHtml() {
     var meN = (HB.state && HB.state.profile && HB.state.profile.name) || '';
     var ptN = (HB.state && HB.state.profile && HB.state.profile.partner) || '';
-    var meT = myPhoto() ? 'View or change your photo' : 'Set your photo';
-    var ptT = partnerPhoto() ? ('View or change ' + ptN + '\'s photo') : ('Set ' + (ptN || 'your person') + '\'s photo');
+    var meT = myPhoto() ? 'View, change or delete your photo' : 'Set your photo';
+    var ptT = partnerPhoto() ? ('View, change or delete ' + ptN + '\'s photo') : ('Set ' + (ptN || 'your person') + '\'s photo');
     return '<span class="duo-cluster">' +
       duoRing('me', 'duo-top', myPhoto(), firstOf(meN), meT) +
-      '<span class="duo-heart" aria-hidden="true">♥</span>' +
       duoRing('them', 'duo-bot', partnerPhoto(), firstOf(ptN), ptT) +
     '</span>';
   }
@@ -106,18 +105,50 @@
     });
   }
 
-  /* Simple full-screen preview — the photo, a ✕, and (optionally) a
-     "change photo" action when the caller passes an onChange callback. */
-  function preview(url, onChange) {
+  /* Full-screen preview — the photo (big, pinch/zoom in, taps to zoom),
+     a ✕ close, and when callbacks are given a "Change photo" and a
+     "Delete photo" action. Deleting clears the photo so the person's
+     first-name initial shows again. */
+  function preview(url, onChange, onDelete) {
     if (!url) return;
     var ov = document.createElement('div');
     ov.className = 'dp-preview';
     var changeBtn = onChange
-      ? '<button type="button" class="dp-preview-change" aria-label="Change photo">Change photo ♡</button>'
+      ? '<button type="button" class="dp-preview-action dp-preview-change" aria-label="Change photo">Change photo ♡</button>'
+      : '';
+    var delBtn = onDelete
+      ? '<button type="button" class="dp-preview-action dp-preview-del" aria-label="Delete photo">Delete photo</button>'
       : '';
     ov.innerHTML = '<button type="button" class="dp-preview-close" aria-label="Close">✕</button>' +
-      changeBtn +
-      '<img src="' + HB.esc(url) + '" alt=""/>';
+      changeBtn + delBtn +
+      '<div class="dp-preview-stage"><img src="' + HB.esc(url) + '" alt=""/></div>';
+    var img = ov.querySelector('img');
+    var zoom = 1;
+    function applyZoom() { if (img) img.style.transform = 'scale(' + zoom + ')'; }
+    function zoomDelta(d) {
+      zoom = Math.min(4, Math.max(1, zoom + d));
+      applyZoom();
+    }
+    img.addEventListener('click', function () {
+      zoom = zoom === 1 ? 2 : 1; applyZoom();
+    });
+    ov.addEventListener('wheel', function (e) {
+      if (e.ctrlKey) { e.preventDefault(); zoomDelta(e.deltaY < 0 ? 0.25 : -0.25); }
+    }, { passive: false });
+    img.addEventListener('touchstart', function (e) {
+      if (e.touches.length === 2) { ov._pinchDist = dist(e.touches[0], e.touches[1]); }
+    }, { passive: true });
+    function dist(a, b) { return Math.abs(a.clientX - b.clientX) + Math.abs(a.clientY - b.clientY); }
+    ov.addEventListener('touchmove', function (e) {
+      if (e.touches.length === 2 && ov._pinchDist) {
+        var d = dist(e.touches[0], e.touches[1]);
+        zoomDelta((d - ov._pinchDist) * 0.01);
+        ov._pinchDist = d;
+      }
+    }, { passive: true });
+    img.addEventListener('touchend', function (e) {
+      if (e.touches.length < 2) ov._pinchDist = null;
+    }, { passive: true });
     function closeIt() {
       document.removeEventListener('keydown', onKey);
       if (ov.parentNode) ov.parentNode.removeChild(ov);
@@ -126,13 +157,19 @@
       closeIt();
       if (typeof onChange === 'function') { try { onChange(); } catch (e) {} }
     }
+    function doDelete() {
+      closeIt();
+      if (typeof onDelete === 'function') { try { onDelete(); } catch (e) {} }
+    }
     function onKey(e) {
       if (e.key === 'Escape') closeIt();
-      else if (e.key === 'Enter' && onChange) doChange();
+      else if (e.key === 'Enter') { if (onChange) doChange(); else closeIt(); }
+      else if (e.key === 'Delete' || e.key === 'Backspace') { if (onDelete) doDelete(); }
     }
     ov.addEventListener('click', function (e) {
       if (e.target === ov || (e.target.classList && e.target.classList.contains('dp-preview-close'))) closeIt();
       else if (e.target && e.target.classList && e.target.classList.contains('dp-preview-change')) doChange();
+      else if (e.target && e.target.classList && e.target.classList.contains('dp-preview-del')) doDelete();
     });
     document.addEventListener('keydown', onKey);
     document.body.appendChild(ov);
@@ -248,6 +285,13 @@
       });
   }
 
+  /* Delete MY personal photo → the initials show again. Same sync as setMy. */
+  function clearMy() { return setMy(''); }
+  /* Delete MY PARTNER's personal photo → their initial shows again. */
+  function clearPartner() { return setPartner(''); }
+  /* Delete the shared couple photo → the AS initials show again. */
+  function clearCouple() { return setCouple(''); }
+
   /* ---- realtime side-channel (DP photos + shared theme) ----
      The DB currently has no avatar_url/couple_dp_url/theme columns on the
      live schema, so writes fail and photos would never reach phone 2.
@@ -331,6 +375,9 @@
     setMy: setMy,
     setPartner: setPartner,
     setCouple: setCouple,
+    clearMy: clearMy,
+    clearPartner: clearPartner,
+    clearCouple: clearCouple,
     attachPresence: onPresenceAvailable,
     broadcast: blast
   };

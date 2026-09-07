@@ -303,17 +303,28 @@
       if (!b) return;
       var mine = b.getAttribute('data-dp') === 'me';
       var photo = mine ? (HB.dp ? HB.dp.myPhoto() : '') : (HB.dp ? HB.dp.partnerPhoto() : '');
+      var setFn = mine ? HB.dp.setMy : HB.dp.setPartner;
+      var clearFn = mine ? HB.dp.clearMy : HB.dp.clearPartner;
+      var whoTxt = mine ? 'your' : (partnerName + '\'s');
       function pickAndSet() {
-        var fn = mine ? HB.dp.setMy : HB.dp.setPartner;
         HB.dp.pick().then(function (out) {
           if (out.error) { HB.toast('That photo couldn\'t load — try another ♡', '💔'); return; }
-          fn(out.dataUrl).then(function (res) {
+          setFn(out.dataUrl).then(function (res) {
             if (res && res.error) { HB.toast('Couldn\'t save — try again ♡', '💔'); return; }
-            HB.toast(mine ? 'Your chat photo is set ♡' : (partnerName + '\'s chat photo is set ♡'), '✨');
+            HB.toast((mine ? 'Your chat photo is set ♡' : (partnerName + '\'s chat photo is set ♡')), '✨');
           });
         });
       }
-      if (photo) { if (HB.dp) HB.dp.preview(photo, pickAndSet); }
+      function doDelete() {
+        if (HB.confirm) {
+          HB.confirm(whoTxt + ' photo', 'Remove the picture? The first letter will show again ♡', function () {
+            clearFn().then(function (res) { HB.toast('Photo removed — initials back ♡', '🗑️'); });
+          }, 'Delete photo');
+        } else {
+          clearFn().then(function (res) { HB.toast('Photo removed — initials back ♡', '🗑️'); });
+        }
+      }
+      if (photo) { if (HB.dp) HB.dp.preview(photo, pickAndSet, doDelete); }
       else pickAndSet();
     });
     var hdp = main.querySelector('#header-dp');
@@ -328,7 +339,16 @@
           });
         });
       }
-      if (ph) HB.dp.preview(ph, changePartnerPhoto);
+      function deletePartnerPhoto() {
+        if (HB.confirm) {
+          HB.confirm(partnerName + '\'s photo', 'Remove the picture? The first letter will show again ♡', function () {
+            HB.dp.clearPartner().then(function (res) { HB.toast(partnerName + '\'s photo removed — initials back ♡', '🗑️'); });
+          }, 'Delete photo');
+        } else {
+          HB.dp.clearPartner().then(function (res) { HB.toast(partnerName + '\'s photo removed — initials back ♡', '🗑️'); });
+        }
+      }
+      if (ph) HB.dp.preview(ph, changePartnerPhoto, deletePartnerPhoto);
       else changePartnerPhoto();
     });
 
