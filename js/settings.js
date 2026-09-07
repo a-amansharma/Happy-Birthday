@@ -113,6 +113,24 @@
 
         '<div class="settings-grid" style="align-content:start">' +
 
+          '<div class="card settings-card settings-card--data">' +
+            '<h3><span class="sc-emoji">💾</span> Your data</h3>' +
+            '<p class="data-hint">Everything below is saved to your couple. Only the red zone wipes things — think twice before you tap.</p>' +
+            '<div class="data-rows">' +
+              '<div class="setting-row"><div><div class="sr-title">Reset companion chat</div><div class="sr-sub">Clear your talks with your little companion (your couple chat lives on)</div></div>' +
+              '<button class="btn btn-ghost btn-sm" id="reset-chat">Reset</button></div>' +
+              '<div class="setting-row"><div><div class="sr-title">Clear memories</div><div class="sr-sub">Remove every saved memory and love note</div></div>' +
+              '<button class="btn btn-ghost btn-sm" id="clear-data">Clear</button></div>' +
+              '<div class="setting-row"><div><div class="sr-title">Export memories</div><div class="sr-sub">Download your memories as a keepsake file</div></div>' +
+              '<button class="btn btn-soft btn-sm" id="export-data">Export 🎁</button></div>' +
+            '</div>' +
+            '<div class="data-danger">' +
+              '<div><div class="dr-title">⚠️ Factory reset this couple</div>' +
+              '<div class="dr-sub">Deletes everything on both your phones — chats, memories, notes, photos, quiz history and your couple itself. There is no going back.</div></div>' +
+              '<button class="btn btn-danger" id="factory-reset">Reset everything</button>' +
+            '</div>' +
+          '</div>' +
+
           (relCard || '') +
 
           '<div class="card settings-card">' +
@@ -125,20 +143,6 @@
             '<h3><span class="sc-emoji">🔔</span> Preferences</h3>' +
             switchHtml('s-notifs', HB.state.settings.notifications, 'Notifications', 'Gentle reminders for your little world') +
             switchHtml('s-music', HB.state.settings.music, 'Cute music', 'Play the soft lullaby in the background') +
-          '</div>' +
-
-          '<div class="card settings-card">' +
-            '<h3><span class="sc-emoji">💾</span> Your data</h3>' +
-            '<div class="setting-row"><div><div class="sr-title">Reset companion chat</div><div class="sr-sub">Clear your talks with your little companion (your couple chat is never touched)</div></div>' +
-            '<button class="btn btn-ghost btn-sm" id="reset-chat">Reset</button></div>' +
-            '<div class="setting-row"><div><div class="sr-title">Clear memories</div><div class="sr-sub">Remove all saved memories & notes</div></div>' +
-            '<button class="btn btn-ghost btn-sm" id="clear-data">Clear</button></div>' +
-            '<div class="setting-row"><div><div class="sr-title">Export memories</div><div class="sr-sub">Download your memories as a keepsake file</div></div>' +
-            '<button class="btn btn-soft btn-sm" id="export-data">Export</button></div>' +
-            '<div class="setting-row"><div><div class="sr-title">Erase only me & start fresh</div><div class="sr-sub">Removes your profile from this couple. Your partner keeps everything — their world stays as it was, ready for someone new.</div></div>' +
-            '<button class="btn btn-danger btn-sm" id="reset-all">Erase me</button></div>' +
-            '<div class="setting-row"><div><div class="sr-title">Factory reset this couple</div><div class="sr-sub">Wipes EVERYTHING for BOTH phones — chats, memories, notes, photos, quiz history, feeds, and your couple. There is no going back.</div></div>' +
-            '<button class="btn btn-danger btn-sm" id="factory-reset">Reset all</button></div>' +
           '</div>' +
 
           (HB.creator ? HB.creator.html() : '') +
@@ -254,15 +258,6 @@
       a.click();
       URL.revokeObjectURL(a.href);
       HB.toast('Your memories are exported ♡', '📦');
-    });
-
-    main.querySelector('#reset-all').addEventListener('click', function () {
-      HB.confirm('Erase only you & start fresh?', 'This removes your profile from your couple — your chats, memories, notes and everything you two shared stay behind with your partner, ready for someone new. This can\'t be undone.', function () {
-        var overlay = showEraseOverlay();
-        resetToFreshStart(overlay, (HB.rel && HB.rel.leave ? HB.rel.leave.bind(HB.rel) : null)).then(function () {
-          HB.toast('A fresh start for you — your partner\'s world is untouched ♡', '🌷');
-        });
-      }, 'Erase me');
     });
 
     main.querySelector('#factory-reset').addEventListener('click', function () {
