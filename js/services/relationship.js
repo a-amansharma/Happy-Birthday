@@ -224,20 +224,35 @@
     /* ---- PERSPECTIVE: current user ----
        "You": my personal profile row. */
     me: function () {
+      var local = (HB.state && HB.state.profile) || {};
       var m = data.me;
       if (!m) {
-        return { name: (HB.state && HB.state.profile && HB.state.profile.name) || 'you',
-                 age: (HB.state && HB.state.profile && HB.state.profile.age) || '' };
+        return { name: local.name || 'you',
+                 age: local.age != null ? String(local.age) : '' };
       }
-      return { name: m.name || 'you', age: m.age != null ? String(m.age) : '' };
+      /* Prefer the server name; if my row is still empty, keep the local
+         name instead of degrading to 'you' (hydrate self-heals it next). */
+      return { name: (m.name && m.name.trim()) ? m.name : (local.name || 'you'),
+               age: m.age != null ? String(m.age) : (local.age != null ? String(local.age) : '') };
     },
 
     /* ---- PERSPECTIVE: partner user ----
        "Partner": the OTHER participant's personal profile row. */
     partner: function () {
+      var local = (HB.state && HB.state.profile) || {};
       var p = data.partner;
       if (p) {
-        return { name: p.name || 'your person', age: p.age != null ? String(p.age) : '' };
+        if (p.name) {
+          return { name: p.name, age: p.age != null ? String(p.age) : '' };
+        }
+        /* Partner row exists but has no name yet — fall back to Person 1's
+           hint if present, then the local draft. Never return a placeholder
+           here: hydrate() uses this and would wipe the local name. */
+        if (data.relationship && data.relationship.partner_hint_name) {
+          return { name: data.relationship.partner_hint_name,
+                   age: p.age != null ? String(p.age) : '' };
+        }
+        return { name: local.partner || '', age: p.age != null ? String(p.age) : '' };
       }
       /* Not yet connected: fall back to Person 1's hint (shared row). */
       if (data.relationship && data.relationship.partner_hint_name) {
@@ -246,8 +261,8 @@
           age: data.relationship.partner_hint_age != null ? String(data.relationship.partner_hint_age) : ''
         };
       }
-      return { name: (HB.state && HB.state.profile && HB.state.profile.partner) || 'your person',
-               age: (HB.state && HB.state.profile && HB.state.profile.partnerAge) || '' };
+      return { name: local.partner || 'your person',
+               age: (local && local.partnerAge) || '' };
     },
 
     /* ---- SHARED relationship row (identical on both phones) ---- */
@@ -331,12 +346,15 @@
       data.busy = true;
       var retried = false;
 
-      /* Make sure my personal profile row exists before the RPC. */
+      /* Make sure my personal profile row exists before the RPC. Create a
+         BLANK row (never copy a stale local name as my identity — my real
+         name is passed separately to complete_pairing as p_name). */
+      var myName = (HB.state.profile && HB.state.profile.name) || '';
       var ensure = data.me ? Promise.resolve({ error: null })
-        : rel.ensureProfile({ name: (HB.state.profile && HB.state.profile.name) || '' });
+        : rel.ensureProfile({ name: '' });
 
       var doRpc = function () {
-        return HB.db.client().rpc('complete_pairing', { code: code }).then(function (res) {
+        return HB.db.client().rpc('complete_pairing', { code: code, p_name: myName }).then(function (res) {
           if (res.error) {
             var msg = String(res.error.message || res.error);
             if (/Could not find the function|PGRST202/.test(msg) && !HB._rpcNotice) {
@@ -548,15 +566,23 @@
       var p = HB.state.profile;
       var n = rel.me();
       if (data.me) {
-        p.name = n.name;
+        if (n.name) p.name = n.name;
         if (n.age !== '') p.age = n.age;
         /* avatar_url may be '' (photo deleted → initials show again); use
            a null check so an empty value actually clears the photo. */
         if (data.me.avatar_url != null) p.myAvatar = data.me.avatar_url;
+        /* Self-heal: I'm connected but my row lost its name (was seeded
+           from a hint or stale local state) — push my real local name so
+           both phones never show the same name for me. */
+        if (data.status === 'connected'
+            && !(data.me.name && data.me.name.trim())
+            && p.name && p.name.trim() && p.name !== 'you') {
+          rel.updateMyProfile({ name: p.name }).catch(function () {});
+        }
       }
       if (data.partner || (data.relationship && data.relationship.partner_hint_name)) {
         var pn = rel.partner();
-        p.partner = pn.name;
+        if (pn.name) p.partner = pn.name;
         if (pn.age !== '') p.partnerAge = pn.age;
         if (data.partner && data.partner.avatar_url != null) p.partnerAvatar = data.partner.avatar_url;
       }

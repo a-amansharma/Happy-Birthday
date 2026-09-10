@@ -14,6 +14,19 @@
   <link rel="stylesheet" href="css/dudu.css" />
   <link rel="stylesheet" href="css/characters.css" />
   <script>
+    // Route Supabase password-recovery links to the private Admin Desk so
+    // the "set a new password" step can complete there. Runs before any
+    // app script so the recovery token is never consumed by the public app.
+    (function () {
+      try {
+        var probe = (location.search || '') + (location.hash || '');
+        if (probe.indexOf('type=recovery') !== -1) {
+          location.replace('./admin/index.html' + location.search + location.hash);
+        }
+      } catch (e) { /* never block the app */ }
+    })();
+  </script>
+  <script>
     // Resolves once the Supabase client is ready (js/supabase.js) — or after a
     // generous timeout so the app still boots offline / unconfigured without
     // leaving the user stuck (this used to be 2s, too aggressive on slow nets).

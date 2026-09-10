@@ -20,26 +20,25 @@
 -- PERSPECTIVE is derived at runtime, never stored:
 --   "You"      = the row in profiles for your auth user id
 --   "Partner"  = the OTHER profile row in the SAME relationship
---   Shared     = the relationship row (identical on both phones)
+--   "Shared"   = the relationship row (identical on both phones)
 --
--- It is safe to DROP and RECREATE the old columns/tables — they held
--- no irreplaceable data and the new model is cleanly idempotent.
+-- DATA SAFETY: this file NEVER drops tables that hold irreplaceable user
+-- data (profiles, relationships, messages, memories, love_notes, quiz rows,
+-- couple_activity). Every change is additive/idempotent, so re-running it
+-- is always safe and never loses a single memory, note, chat or photo.
 -- ============================================================
 
 
 -- ============================================================
--- 1. DROP OLD SHAPES (idempotent, safe)
+-- 1. LEGACY CLEANUP (safe, non-destructive)
 -- ============================================================
--- Old quiz/notes/memory/activity tables are recreated for a clean,
--- idempotent shape.
--- NOTE: public.messages is deliberately NOT dropped — it holds the LIVE
--- couple chat. It is migrated in place (new receipt columns added
--- idempotently in section 2c below).
-drop table if exists public.quiz_answers;
-drop table if exists public.quiz_days;
-drop table if exists public.memories;
-drop table if exists public.love_notes;
-drop table if exists public.activity;
+-- Note: this file deliberately does NOT drop memories / love_notes /
+-- quiz_days / quiz_answers or any couple data — those are preserved. It
+-- only removes obsolete *profile* columns that were superseded by the
+-- one-relationship + two-participants model.
+-- NOTE: public.messages is never dropped either — it holds the LIVE couple
+-- chat. It is migrated in place (new receipt columns added idempotently in
+-- section 2c below).
 
 -- Remove obsolete profile columns cleanly (their data moves elsewhere).
 alter table public.profiles drop column if exists partner_id;
@@ -135,6 +134,14 @@ create table if not exists public.love_notes (
 create index if not exists love_notes_rel_idx
   on public.love_notes (relationship_id, created_at);
 
+-- Idempotent backfills: older databases gain any missing columns without
+-- losing their saved love notes.
+alter table public.love_notes add column if not exists created_by uuid not null default '00000000-0000-0000-0000-000000000000';
+alter table public.love_notes add column if not exists title text not null default '';
+alter table public.love_notes add column if not exists text  text not null default '';
+alter table public.love_notes add column if not exists type  text not null default 'Random Love';
+alter table public.love_notes add column if not exists tone  text not null default 'Sweet';
+
 -- ---- 2e. MEMORIES — shared, owner-tracked ----
 create table if not exists public.memories (
   id               uuid primary key default gen_random_uuid(),
@@ -151,6 +158,16 @@ create table if not exists public.memories (
 
 create index if not exists memories_rel_idx
   on public.memories (relationship_id, created_at);
+
+-- Idempotent backfills: older databases gain any missing columns without
+-- losing their saved memories.
+alter table public.memories add column if not exists owner_user_id uuid not null default '00000000-0000-0000-0000-000000000000';
+alter table public.memories add column if not exists title text not null default '';
+alter table public.memories add column if not exists date text not null default '';
+alter table public.memories add column if not exists location text not null default '';
+alter table public.memories add column if not exists description text not null default '';
+alter table public.memories add column if not exists favorite boolean not null default false;
+alter table public.memories add column if not exists img text not null default '';
 
 -- ---- 2f. COUPLE ACTIVITY — a shared "what changed" journal ----
 -- Newest-first, relationship-scoped log that shows on the Partner page:
@@ -194,6 +211,13 @@ create table if not exists public.quiz_days (
 create index if not exists quiz_days_rel_idx
   on public.quiz_days (relationship_id, quiz_date);
 
+-- Idempotent backfills for older databases (no data loss).
+alter table public.quiz_days add column if not exists quiz_date date;
+alter table public.quiz_days add column if not exists result_pct integer;
+alter table public.quiz_days add column if not exists result_matches integer;
+alter table public.quiz_days add column if not exists result_total integer;
+alter table public.quiz_days add column if not exists completed boolean not null default false;
+
 -- ---- 2h. QUIZ ANSWERS — per participant per quiz ----
 create table if not exists public.quiz_answers (
   id               uuid primary key default gen_random_uuid(),
@@ -206,6 +230,9 @@ create table if not exists public.quiz_answers (
 
 create index if not exists quiz_answers_day_idx
   on public.quiz_answers (quiz_day_id);
+
+-- Idempotent backfill for older databases (no data loss).
+alter table public.quiz_answers add column if not exists answers jsonb not null default '{}'::jsonb;
 
 
 -- ============================================================
@@ -298,6 +325,7 @@ drop function if exists storage.storage_pair_ok(text);
 
 drop function if exists public.create_relationship();
 drop function if exists public.complete_pairing(text);
+drop function if exists public.complete_pairing(text, text);
 drop function if exists public.update_my_profile(text, integer);
 drop function if exists public.update_relationship(text, date, jsonb, jsonb, text);
 drop function if exists public.delete_my_data();
@@ -547,7 +575,7 @@ grant execute on function public.create_relationship(text, date, jsonb, jsonb, t
 -- ---- 7b. COMPLETE PAIRING (Person 2 enters the code) ----
 -- Atomic via advisory lock; single-use because the code is cleared
 -- the moment the relationship connects.
-create or replace function public.complete_pairing(code text)
+create or replace function public.complete_pairing(code text, p_name text default null)
 returns jsonb
 language plpgsql security definer set search_path = public
 as $$
@@ -587,13 +615,23 @@ begin
     raise exception 'CODE_USED';
   end if;
 
-  -- Make sure I have a profile row; seed it from Person 1's hint so the
-  -- join already feels personal, and Person 2 can always edit it later.
+  -- Make sure I have a profile row. MY OWN name always wins once Person 2
+  -- has typed it (p_name). If I haven't typed one yet, keep whatever name is
+  -- already on my row; only fall back to Person 1's hint when my row is new
+  -- or still empty — never let Person 1's hint silently become my identity.
   insert into public.profiles (id, name, age)
-  values (me, rel.partner_hint_name, rel.partner_hint_age)
+  values (me, coalesce(nullif(trim(rel.partner_hint_name), ''), ''),
+          rel.partner_hint_age)
   on conflict (id) do update
-    set name = case when public.profiles.name = '' then rel.partner_hint_name else public.profiles.name end,
-        age  = case when public.profiles.age is null then rel.partner_hint_age else public.profiles.age end;
+    set name = case
+        when coalesce(trim(p_name), '') <> '' then p_name
+        when public.profiles.name <> ''              then public.profiles.name
+        else rel.partner_hint_name
+      end,
+    age  = case
+        when public.profiles.age is null then rel.partner_hint_age
+        else public.profiles.age
+      end;
 
   update public.profiles set relationship_id = rid where id = me;
 
@@ -628,6 +666,7 @@ begin
 end $$;
 
 grant execute on function public.complete_pairing(text) to authenticated;
+grant execute on function public.complete_pairing(text, text) to authenticated;
 
 
 -- ---- 7c. UPDATE MY OWN PROFILE (name/age) ----
@@ -995,6 +1034,133 @@ begin
 end $$;
 
 grant execute on function public.admin_get_insights() to authenticated;
+
+
+-- ---- 7h. ADMIN FULL DUMP (owner-only Admin Desk) ----
+-- One security-definer call returns EVERYTHING the Admin Desk needs:
+-- stats, every relationship with both participants resolved, and the raw
+-- rows for messages, love notes, memories, the activity journal and quiz
+-- days + answers. Because it runs as the owner, RLS never blocks it and
+-- newly-registered couples appear automatically on the desk.
+create or replace function public.admin_get_full_dump()
+returns json
+language plpgsql security definer set search_path = public
+as $$
+declare
+  result json;
+begin
+  if auth.uid() <> 'e65fabbb-cc49-48c6-adc0-ef1d59f41896'::uuid then
+    raise exception 'Unauthorized';
+  end if;
+
+  select json_build_object(
+    'generated_at', now(),
+    'stats', json_build_object(
+      'total_users',        (select count(*) from public.profiles),
+      'total_couples',      (select count(*) from public.relationships),
+      'connected',          (select count(*) from public.relationships where status = 'connected'),
+      'waiting',            (select count(*) from public.relationships where status = 'waiting'),
+      'messages',           (select count(*) from public.messages),
+      'images',             (select count(*) from public.messages where type = 'image'),
+      'memories',           (select count(*) from public.memories),
+      'notes',              (select count(*) from public.love_notes),
+      'activity',           (select count(*) from public.couple_activity),
+      'quiz_days',          (select count(*) from public.quiz_days),
+      'quizzes_completed',  (select count(*) from public.quiz_days where completed)
+    ),
+    'profiles', coalesce((
+      select json_agg(row_to_json(t)) from (
+        select p.id, p.name, p.age, p.avatar_url, p.relationship_id,
+               p.created_at, p.last_active,
+               r.pairing_code, r.status as rel_status
+          from public.profiles p
+          left join public.relationships r on r.id = p.relationship_id
+         order by p.created_at desc
+      ) t), '[]'::json),
+    'relationships', coalesce((
+      select json_agg(row_to_json(t)) from (
+        select r.id, r.status, r.pairing_code, r.creator_user_id,
+               r.partner_hint_name, r.partner_hint_age,
+               r.relationship_type, r.together_since, r.vibes, r.chat_style,
+               r.story, r.theme, r.couple_dp_url,
+               r.created_at, r.connected_at, r.completed_at,
+               (select json_build_object(
+                        'id', p.id, 'name', p.name, 'age', p.age,
+                        'avatar_url', p.avatar_url,
+                        'created_at', p.created_at, 'last_active', p.last_active)
+                  from public.profiles p where p.id = r.creator_user_id) as person1,
+               (select json_build_object(
+                        'id', p.id, 'name', p.name, 'age', p.age,
+                        'avatar_url', p.avatar_url,
+                        'created_at', p.created_at, 'last_active', p.last_active)
+                  from public.profiles p
+                 where p.relationship_id = r.id and p.id <> r.creator_user_id
+                 limit 1) as person2,
+               (select count(*) from public.messages m where m.relationship_id = r.id) as msg_count,
+               (select count(*) from public.messages m where m.relationship_id = r.id and m.type = 'image') as img_count,
+               (select count(*) from public.memories me where me.relationship_id = r.id) as mem_count,
+               (select count(*) from public.love_notes n where n.relationship_id = r.id) as note_count,
+               (select count(*) from public.quiz_days qd where qd.relationship_id = r.id and qd.completed) as quiz_done,
+               (select max(p.last_active) from public.profiles p where p.relationship_id = r.id) as last_active
+          from public.relationships r
+         order by r.created_at desc
+      ) t), '[]'::json),
+    'messages', coalesce((
+      select json_agg(row_to_json(t)) from (
+        select m.id, m.relationship_id, m.sender_user_id, m.type, m.message,
+               m.media_path, m.created_at, m.delivered_at, m.seen_at,
+               p.name as sender_name
+          from public.messages m
+          left join public.profiles p on p.id = m.sender_user_id
+         order by m.created_at asc
+      ) t), '[]'::json),
+    'notes', coalesce((
+      select json_agg(row_to_json(t)) from (
+        select n.id, n.relationship_id, n.created_by, n.title, n.text,
+               n.type, n.tone, n.created_at,
+               p.name as creator_name
+          from public.love_notes n
+          left join public.profiles p on p.id = n.created_by
+         order by n.created_at desc
+      ) t), '[]'::json),
+    'memories', coalesce((
+      select json_agg(row_to_json(t)) from (
+        select me.id, me.relationship_id, me.owner_user_id, me.title, me.date,
+               me.location, me.description, me.favorite, me.img, me.created_at,
+               p.name as owner_name
+          from public.memories me
+          left join public.profiles p on p.id = me.owner_user_id
+         order by me.created_at desc
+      ) t), '[]'::json),
+    'activity', coalesce((
+      select json_agg(row_to_json(t)) from (
+        select a.id, a.relationship_id, a.created_by, a.actor, a.kind,
+               a.msg, a.img, a.created_at
+          from public.couple_activity a
+         order by a.created_at desc
+      ) t), '[]'::json),
+    'quizzes', coalesce((
+      select json_agg(row_to_json(t)) from (
+        select qd.id, qd.relationship_id, qd.quiz_date, qd.result_pct,
+               qd.result_matches, qd.result_total, qd.completed, qd.created_at,
+               coalesce((
+                 select json_agg(json_build_object(
+                          'user_id', qa.user_id,
+                          'name', (select pp.name from public.profiles pp where pp.id = qa.user_id),
+                          'answers', qa.answers,
+                          'created_at', qa.created_at)
+                   order by qa.created_at asc)
+                 from public.quiz_answers qa where qa.quiz_day_id = qd.id
+               ), '[]'::json) as answers
+          from public.quiz_days qd
+         order by qd.quiz_date desc
+      ) t), '[]'::json)
+  ) into result;
+
+  return result;
+end $$;
+
+grant execute on function public.admin_get_full_dump() to authenticated;
 
 
 -- ============================================================
