@@ -767,6 +767,7 @@ body.no-scroll { overflow: hidden; }
 .quiz-answer .ans { color: var(--ink-soft); white-space: pre-wrap; word-break: break-word; }
 
 /* ===== LIGHTBOX ===== */
+.lightbox[hidden] { display: none; }
 .lightbox {
   position: fixed;
   inset: 0;
