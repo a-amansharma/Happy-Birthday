@@ -575,7 +575,7 @@ grant execute on function public.create_relationship(text, date, jsonb, jsonb, t
 -- ---- 7b. COMPLETE PAIRING (Person 2 enters the code) ----
 -- Atomic via advisory lock; single-use because the code is cleared
 -- the moment the relationship connects.
-create or replace function public.complete_pairing(code text, p_name text default null)
+create or replace function public.complete_pairing(code text, p_name text)
 returns jsonb
 language plpgsql security definer set search_path = public
 as $$
@@ -663,6 +663,15 @@ begin
     'story', rel.story,
     'theme', coalesce(rel.theme, 'milk')
   );
+end $$;
+
+-- Single-arg convenience overload: Person 2 enters only the code.
+create or replace function public.complete_pairing(code text)
+returns jsonb
+language plpgsql security definer set search_path = public
+as $$
+begin
+  return public.complete_pairing(code, null);
 end $$;
 
 grant execute on function public.complete_pairing(text) to authenticated;
