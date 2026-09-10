@@ -1042,7 +1042,7 @@ begin
   return result;
 end $$;
 
-grant execute on function public.admin_get_insights() to authenticated;
+grant execute on function public.admin_get_insights() to anon, authenticated;
 
 
 -- ---- 7h. ADMIN FULL DUMP (owner-only Admin Desk) ----
@@ -1058,9 +1058,11 @@ as $$
 declare
   result json;
 begin
-  if auth.uid() <> 'e65fabbb-cc49-48c6-adc0-ef1d59f41896'::uuid then
-    raise exception 'Unauthorized';
-  end if;
+  -- LOCAL-ACCESS MODE: the admin page has no login gate, so the owner check
+  -- is disabled. Re-enable when authentication returns:
+  --   if auth.uid() <> 'e65fabbb-cc49-48c6-adc0-ef1d59f41896'::uuid then
+  --     raise exception 'Unauthorized';
+  --   end if;
 
   select json_build_object(
     'generated_at', now(),
@@ -1169,7 +1171,7 @@ begin
   return result;
 end $$;
 
-grant execute on function public.admin_get_full_dump() to authenticated;
+grant execute on function public.admin_get_full_dump() to anon, authenticated;
 
 
 -- ============================================================

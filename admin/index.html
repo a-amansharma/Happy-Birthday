@@ -46,56 +46,11 @@
       </div>
       <button class="btn ghost" id="btn-csv" hidden aria-label="Export all couples to CSV">⬇ Export</button>
       <button class="btn ghost" id="btn-refresh" hidden aria-label="Refresh all data">⟳ Refresh</button>
-      <button class="btn" id="btn-signout" hidden>Sign out</button>
     </div>
   </header>
 
-  <!-- ================= LOGIN GATE ================= -->
-  <div id="gate" class="gate" hidden>
-    <div class="gate-card">
-      <div class="gate-lock" aria-hidden="true">🔐</div>
-      <h2>Owner sign in</h2>
-      <p>This desk is protected by your private Supabase account. Only the owner account can unlock it.</p>
-      <form id="gate-form">
-        <input class="input" id="email" type="email" placeholder="Owner email" autocomplete="username" value="amanxrishi@gmail.com" required />
-        <input class="input" id="password" type="password" placeholder="Password" autocomplete="current-password" required />
-        <div id="gate-err" class="err" role="alert"></div>
-        <button class="btn btn-primary" type="submit" id="btn-signin">Unlock desk ♡</button>
-      </form>
-      <p class="forgot-wrap"><button type="button" id="forgot-link">Forgot password?</button></p>
-    </div>
-  </div>
-
-  <!-- ================= PASSWORD RESET PANEL ================= -->
-  <div id="recovery" class="gate" hidden>
-    <div class="gate-card">
-      <div class="gate-lock" aria-hidden="true">🔑</div>
-      <h2 id="reset-title">Reset your password</h2>
-      <p id="reset-sub">We'll email a one-time 6-digit code to the owner account. Enter it below to set a new password.</p>
-
-      <form id="otp-form">
-        <input class="input" id="otp-email" type="email" placeholder="Owner email" autocomplete="username" value="amanxrishi@gmail.com" required />
-        <button class="btn btn-primary" type="submit" id="btn-send-otp">Send code to email ♡</button>
-      </form>
-
-      <form id="code-form" hidden>
-        <input class="input" id="otp-code" type="text" inputmode="numeric" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code" required />
-        <button class="btn btn-primary" type="submit" id="btn-verify-otp">Verify &amp; continue ♡</button>
-      </form>
-
-      <form id="newpass-form" hidden>
-        <input class="input" id="np1" type="password" placeholder="New password (8+ characters)" autocomplete="new-password" required />
-        <input class="input" id="np2" type="password" placeholder="Repeat new password" autocomplete="new-password" required />
-        <button class="btn btn-primary" type="submit" id="btn-save-new-pass">Save new password ♡</button>
-      </form>
-
-      <div id="recovery-err" class="err" role="alert"></div>
-      <p class="forgot-wrap"><button type="button" id="btn-back-to-login">← Back to sign in</button></p>
-    </div>
-  </div>
-
   <!-- ================= MAIN DASHBOARD ================= -->
-  <main id="dash" class="dash" hidden>
+  <main id="dash" class="dash">
 
     <!-- Hero / control-center strip -->
     <section class="hero">

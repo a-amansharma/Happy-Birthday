@@ -10,9 +10,6 @@
 (() => {
   'use strict';
 
-  const SESSION_KEY = 'hb-admin-auth-token';
-  const OWNER_UID = 'e65fabbb-cc49-48c6-adc0-ef1d59f41896';
-
   const $ = (id) => document.getElementById(id);
   const $$ = (sel, root = document) => root.querySelectorAll(sel);
 
@@ -78,14 +75,14 @@
     if (window.supabase && window.supabase.createClient) {
       try {
         client = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, {
-          auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: SESSION_KEY, storage: window.localStorage }
+          auth: { persistSession: true, autoRefreshToken: false, detectSessionInUrl: false }
         });
         return Promise.resolve(client);
       } catch (e) { /* fall through */ }
     }
     return import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm').then(mod => {
       client = mod.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, {
-        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: SESSION_KEY, storage: window.localStorage }
+        auth: { persistSession: true, autoRefreshToken: false, detectSessionInUrl: false }
       });
       return client;
     });
@@ -100,12 +97,9 @@
   let sortBy = 'newest';
   let currentDetail = null;      // { relId, tab, photoFilter, chatQuery }
   let lastFeed = 'idle';
-  let resetEmail = '';         // owner email captured during OTP reset
 
   /* ===== DOM refs ===== */
-  const gate = $('gate');
   const dash = $('dash');
-  const recovery = $('recovery');
   const bootMsg = $('boot-msg');
   const toast = $('toast');
   const detail = $('detail');
@@ -143,66 +137,12 @@
     }
   }
 
-  /* ===== Auth gate ===== */
-  function isRecoveryUrl() {
-    return /type=recovery/.test((window.location.search || '') + (window.location.hash || ''));
-  }
-
-  function showLogin(msg) {
-    gate.hidden = false;
-    dash.hidden = true;
-    detail.hidden = true;
-    if (recovery) recovery.hidden = true;
-    $('btn-csv').hidden = true;
-    $('btn-refresh').hidden = true;
-    $('btn-signout').hidden = true;
-    setFeed('off', 'Signed out');
-    $('gate-err').textContent = msg || '';
-  }
-
+  /* ===== Visibility ===== */
   function showDash() {
-    gate.hidden = true;
     dash.hidden = false;
     detail.hidden = true;
-    if (recovery) recovery.hidden = true;
     $('btn-csv').hidden = false;
     $('btn-refresh').hidden = false;
-    $('btn-signout').hidden = false;
-  }
-
-  function showRecovery(mode) {
-    const isOtp = mode === 'otp';
-    const t = $('reset-title');
-    const s = $('reset-sub');
-    const otpForm = $('otp-form');
-    const codeForm = $('code-form');
-    const newpassForm = $('newpass-form');
-    gate.hidden = true;
-    dash.hidden = true;
-    detail.hidden = true;
-    if (recovery) recovery.hidden = false;
-    $('btn-csv').hidden = true;
-    $('btn-refresh').hidden = true;
-    $('btn-signout').hidden = true;
-    setFeed('busy', 'Reset password');
-    $('recovery-err').textContent = '';
-    if (isOtp) {
-      t.textContent = 'Reset your password';
-      s.textContent = "We'll email a one-time 6-digit code to the owner account. Enter it below to set a new password.";
-      otpForm.hidden = false;
-      codeForm.hidden = true;
-      newpassForm.hidden = true;
-      const pref = ($('email').value || '').trim() || 'amanxrishi@gmail.com';
-      $('otp-email').value = pref;
-      setTimeout(() => { const em = $('otp-email'); em && em.focus(); }, 120);
-    } else {
-      t.textContent = 'Set a new password';
-      s.textContent = 'You opened a password recovery link. Choose a new Admin Desk password, then sign in with it.';
-      otpForm.hidden = true;
-      codeForm.hidden = true;
-      newpassForm.hidden = false;
-      setTimeout(() => { const f = $('np1'); f && f.focus(); }, 120);
-    }
   }
 
   function setFeed(state, text) {
@@ -210,38 +150,6 @@
     dot.className = 'dot ' + state;
     $('feed-text').textContent = text;
     lastFeed = text;
-  }
-
-  async function signIn() {
-    const email = ($('email').value || '').trim();
-    const password = $('password').value || '';
-    const err = $('gate-err');
-    const btn = $('btn-signin');
-    if (!email || !password) { err.textContent = 'Enter your owner email and password ♡'; return; }
-
-    if (!client) {
-      try { await makeClient(); } catch { err.textContent = 'Couldn\'t load the database client — check your internet connection.'; return; }
-    }
-
-    btn.disabled = true;
-    err.textContent = '';
-    try {
-      const { error } = await client.auth.signInWithPassword({ email, password });
-      if (error) { err.textContent = 'Sign in failed — check your credentials.'; btn.disabled = false; return; }
-      await load();
-    } catch (e) {
-      err.textContent = 'Something went wrong: ' + esc(String(e.message || e));
-      btn.disabled = false;
-    } finally {
-      btn.disabled = false;
-    }
-  }
-
-  async function signOut() {
-    if (!client) { showLogin(''); return; }
-    try { await client.auth.signOut(); } catch (_) {}
-    try { localStorage.removeItem(SESSION_KEY); } catch (_) {}
-    showLogin('');
   }
 
   /* ===== Data loading ===== */
@@ -256,28 +164,14 @@
       }
     }
 
-    const { data: { session } } = await client.auth.getSession();
-    if (!session) { showLogin(''); return; }
-
-    /* Password-recovery link? Don't load the dashboard — let them set a
-       new password with the recovery session first. */
-    if (isRecoveryUrl()) {
-      if (session && session.user) {
-        showRecovery('url');
-      } else {
-        showLogin('Recovery link detected but no session was found — request a new one, or sign in below.');
-      }
-      return;
-    }
-
     setFeed('busy', 'Syncing…');
     try {
       const { data, error } = await client.rpc('admin_get_full_dump');
       if (error) {
         const msg = String(error.message || error);
         if (/permission denied|Unauthorized|PGRST/i.test(msg)) {
-          await client.auth.signOut();
-          showLogin('This account isn\'t the owner — access denied.');
+          bootMsg.textContent = 'Access denied — admin_get_full_dump() must be executable by anon (see supabase/run-all.sql).';
+          setFeed('error', 'Access denied');
           return;
         }
         bootMsg.textContent = 'Database error: ' + esc(msg);
@@ -1240,124 +1134,6 @@
   }
 
   /* ===== Events ===== */
-  const gateForm = $('gate-form');
-  if (gateForm) {
-    gateForm.addEventListener('submit', e => {
-      e.preventDefault();
-      signIn();
-    });
-  }
-
-  const recoveryForm = $('newpass-form');
-  if (recoveryForm) {
-    recoveryForm.addEventListener('submit', async e => {
-      e.preventDefault();
-      const btn = $('btn-save-new-pass');
-      const err = $('recovery-err');
-      const p1 = $('np1').value || '';
-      const p2 = $('np2').value || '';
-      if (p1.length < 8) { err.textContent = 'Use at least 8 characters.'; return; }
-      if (p1 !== p2) { err.textContent = 'Passwords don\'t match — check both fields.'; return; }
-      btn.disabled = true;
-      err.textContent = '';
-      try {
-        if (!client) await makeClient();
-        const { error } = await client.auth.updateUser({ password: p1 });
-        if (error) {
-          err.textContent = 'Couldn\'t update: ' + esc(String(error.message || error));
-          btn.disabled = false;
-          return;
-        }
-        try { await client.auth.signOut(); } catch (_) {}
-        try { localStorage.removeItem(SESSION_KEY); } catch (_) {}
-        resetEmail = '';
-        showLogin('Password updated ✓ — sign in below with your new password.');
-        btn.disabled = false;
-      } catch (e2) {
-        err.textContent = 'Something went wrong: ' + esc(String(e2.message || e2));
-        btn.disabled = false;
-      }
-    });
-  }
-
-  /* OTP-based reset — works entirely from this page, no redirect URLs. */
-  const otpForm = $('otp-form');
-  if (otpForm) {
-    otpForm.addEventListener('submit', async e => {
-      e.preventDefault();
-      const err = $('recovery-err');
-      const btn = $('btn-send-otp');
-      const email = ($('otp-email').value || '').trim();
-      err.textContent = '';
-      if (!/^\S+@\S+\.\S+$/.test(email)) { err.textContent = 'Enter the owner email address.'; return; }
-      if (!client) {
-        try { await makeClient(); }
-        catch { err.textContent = 'Couldn\'t load the database client — check your internet connection.'; return; }
-      }
-      btn.disabled = true;
-      try {
-        const { error } = await client.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
-        if (error) {
-          err.textContent = 'Couldn\'t send the code: ' + esc(String(error.message || error));
-          btn.disabled = false;
-          return;
-        }
-        resetEmail = email;
-        $('otp-form').hidden = true;
-        $('code-form').hidden = false;
-        $('newpass-form').hidden = true;
-        $('reset-sub').textContent = 'Code sent to ' + email + ' ✓ (one per minute — give it a few seconds, check spam too).';
-        const code = $('otp-code');
-        setTimeout(() => code && code.focus(), 120);
-      } catch (e2) {
-        err.textContent = 'Something went wrong: ' + esc(String(e2.message || e2));
-        btn.disabled = false;
-      }
-    });
-  }
-
-  const codeForm = $('code-form');
-  if (codeForm) {
-    codeForm.addEventListener('submit', async e => {
-      e.preventDefault();
-      const err = $('recovery-err');
-      const btn = $('btn-verify-otp');
-      const email = resetEmail || ($('otp-email').value || '').trim();
-      const code = ($('otp-code').value || '').trim();
-      err.textContent = '';
-      if (!/^\d{6}$/.test(code)) { err.textContent = 'Enter the 6-digit code from the email.'; return; }
-      if (!client) {
-        try { await makeClient(); }
-        catch { err.textContent = 'Couldn\'t load the database client — check your internet connection.'; return; }
-      }
-      btn.disabled = true;
-      try {
-        const { error } = await client.auth.verifyOtp({ email, token: code, type: 'email' });
-        if (error) {
-          err.textContent = 'That code didn\'t work: ' + esc(String(error.message || error));
-          btn.disabled = false;
-          return;
-        }
-        $('code-form').hidden = true;
-        $('newpass-form').hidden = false;
-        $('reset-sub').textContent = 'Code verified ✓ — now choose your new Admin Desk password.';
-        setTimeout(() => { const f = $('np1'); f && f.focus(); }, 120);
-      } catch (e2) {
-        err.textContent = 'Something went wrong: ' + esc(String(e2.message || e2));
-        btn.disabled = false;
-      }
-    });
-  }
-
-  const forgotLink = $('forgot-link');
-  if (forgotLink) {
-    forgotLink.addEventListener('click', e => { e.preventDefault(); showRecovery('otp'); });
-  }
-  const backToLogin = $('btn-back-to-login');
-  if (backToLogin) {
-    backToLogin.addEventListener('click', () => { resetEmail = ''; showLogin(''); });
-  }
-  $('btn-signout').addEventListener('click', signOut);
   $('btn-refresh').addEventListener('click', load);
   $('btn-csv').addEventListener('click', exportAllCSV);
 
