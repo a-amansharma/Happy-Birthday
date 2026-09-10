@@ -46,11 +46,38 @@
       </div>
       <button class="btn ghost" id="btn-csv" hidden aria-label="Export all couples to CSV">⬇ Export</button>
       <button class="btn ghost" id="btn-refresh" hidden aria-label="Refresh all data">⟳ Refresh</button>
+      <button class="btn ghost" id="btn-lock" hidden aria-label="Lock the desk">🔒 Lock</button>
     </div>
   </header>
 
+  <!-- ================= PASSCODE GATE ================= -->
+  <div class="gate-overlay" id="gate" role="dialog" aria-modal="true" aria-label="Locked — enter passcode">
+    <div class="gate-card">
+      <p class="gate-sub">private desk · locked</p>
+      <p class="gate-title">Enter 4-digit passcode</p>
+      <div class="gate-dots" id="gate-dots" aria-hidden="true">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      </div>
+      <div class="gate-keypad" id="gate-keypad">
+        <button type="button" class="pk" data-n="1"><span class="pk-num">1</span><span class="pk-letters"></span></button>
+        <button type="button" class="pk" data-n="2"><span class="pk-num">2</span><span class="pk-letters">abc</span></button>
+        <button type="button" class="pk" data-n="3"><span class="pk-num">3</span><span class="pk-letters">def</span></button>
+        <button type="button" class="pk" data-n="4"><span class="pk-num">4</span><span class="pk-letters">ghi</span></button>
+        <button type="button" class="pk" data-n="5"><span class="pk-num">5</span><span class="pk-letters">jkl</span></button>
+        <button type="button" class="pk" data-n="6"><span class="pk-num">6</span><span class="pk-letters">mno</span></button>
+        <button type="button" class="pk" data-n="7"><span class="pk-num">7</span><span class="pk-letters">pqrs</span></button>
+        <button type="button" class="pk" data-n="8"><span class="pk-num">8</span><span class="pk-letters">tuv</span></button>
+        <button type="button" class="pk" data-n="9"><span class="pk-num">9</span><span class="pk-letters">wxyz</span></button>
+        <div class="pk-pad"></div>
+        <button type="button" class="pk" data-n="0"><span class="pk-num">0</span><span class="pk-letters">+</span></button>
+        <button type="button" class="pk fn pk-back" aria-label="Backspace"><svg class="svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M22 3H7c-.69 0-1.23.35-1.59.88L0 12l5.41 8.11c.36.53.9.89 1.59.89h15c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2.4 13.24L17.59 18 15 15.41 12.41 18 11 16.59 13.59 14 11 11.41 12.41 10 15 12.59 17.59 10 19 11.41 16.41 14 19 16.59z"/></svg></button>
+      </div>
+      <input type="password" class="gate-hidden-input" id="gate-input" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="done" aria-label="Passcode" />
+    </div>
+  </div>
+
   <!-- ================= MAIN DASHBOARD ================= -->
-  <main id="dash" class="dash">
+  <main id="dash" class="dash" hidden>
 
     <!-- Hero / control-center strip -->
     <section class="hero">

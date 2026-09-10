@@ -99,6 +99,10 @@
   let lastFeed = 'idle';
 
   /* ===== DOM refs ===== */
+  const gate = $('gate');
+  const gateDots = $('gate-dots');
+  const gateInput = $('gate-input');
+  const gateKeypad = $('gate-keypad');
   const dash = $('dash');
   const bootMsg = $('boot-msg');
   const toast = $('toast');
@@ -151,6 +155,80 @@
     $('feed-text').textContent = text;
     lastFeed = text;
   }
+
+  /* ===== Passcode gate (simple 4-digit lock) ===== */
+  const GATE_CODE = '1127';
+  const GATE_MAX = GATE_CODE.length;
+  const UNLOCK_KEY = 'hb-admin-unlock-v1';
+  const gateDotEls = [].slice.call(gateDots.querySelectorAll('.dot'));
+
+  function gateReset() {
+    gateInput.value = '';
+    gateDots.classList.remove('shake');
+    gateDotEls.forEach(d => { d.className = 'dot'; });
+  }
+
+  function gateSet(val) {
+    const digits = String(val).replace(/\D/g, '').slice(0, GATE_MAX);
+    gateInput.value = digits;
+    gateDotEls.forEach((d, i) => d.classList.toggle('on', i < digits.length));
+    return digits;
+  }
+
+  function gateSubmit(code) {
+    if (code === GATE_CODE) {
+      gateDotEls.forEach(d => d.classList.add('ok'));
+      setTimeout(() => {
+        try { sessionStorage.setItem(UNLOCK_KEY, '1'); } catch (_) {}
+        openDesk();
+      }, 420);
+    } else {
+      gateDotEls.forEach(d => { if (d.classList.contains('on')) d.classList.add('err'); });
+      gateDots.classList.add('shake');
+      setTimeout(gateReset, 620);
+    }
+  }
+
+  function openDesk() {
+    gate.hidden = true;
+    showDash();
+    $('btn-lock').hidden = false;
+    load();
+  }
+
+  let gatePhysicalInput = false;
+  try {
+    gatePhysicalInput = (window.matchMedia && window.matchMedia('(any-pointer: fine)').matches)
+      || !(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  } catch (_) { gatePhysicalInput = false; }
+
+  gateKeypad.addEventListener('click', e => {
+    const btn = e.target.closest('.pk');
+    if (!btn) return;
+    if (gatePhysicalInput) gateInput.focus();
+    if (btn.classList.contains('pk-back')) { gateSet(gateInput.value.slice(0, -1)); return; }
+    const n = btn.getAttribute('data-n');
+    if (n === null) return;
+    const code = gateSet(gateInput.value + n);
+    if (code.length === GATE_MAX) setTimeout(() => gateSubmit(code), 150);
+  });
+
+  gateInput.addEventListener('input', () => {
+    const code = gateSet(gateInput.value);
+    if (code.length === GATE_MAX) setTimeout(() => gateSubmit(gateInput.value), 150);
+  });
+
+  $('btn-lock').addEventListener('click', () => {
+    try { sessionStorage.removeItem(UNLOCK_KEY); } catch (_) {}
+    location.reload();
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !gate.hidden) {
+      gateReset();
+      gateInput.blur();
+    }
+  });
 
   /* ===== Data loading ===== */
   async function load() {
@@ -1201,6 +1279,9 @@
     if (!dash.hidden && client) load();
   }, 60000);
 
-  /* Boot */
-  if (window.APP_CONFIG && window.APP_CONFIG.configured) load();
+  /* Boot — gate first, only load data once the desk is unlocked */
+  let unlocked = false;
+  try { unlocked = sessionStorage.getItem(UNLOCK_KEY) === '1'; } catch (_) {}
+  if (unlocked) openDesk();
+  else setFeed('idle', 'Locked — enter passcode');
 })();
