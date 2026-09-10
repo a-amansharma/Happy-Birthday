@@ -20,7 +20,7 @@
     var backend = !!(window.HB && HB.db && HB.db.configured());
 
     if (!backend) {
-      main.innerHTML = '<div class="page"><div class="dash-hello"><h1>Partner <span class="hand" style="font-size:1.15em">connection</span> 💞</h1>' +
+      main.innerHTML = '<div class="page"><div class="dash-hello"><h1>Partner <span class="hand" style="font-size:1.15em">connection</span> ' + HB.icon('heart') + '</h1>' +
         '<p>Cloud connection needs a Supabase project configured in <code>js/config.js</code>.</p></div></div>';
       return;
     }
@@ -29,7 +29,7 @@
     var user = HB.auth.user();
 
     if (!user) {
-      main.innerHTML = '<div class="page"><div class="dash-hello"><h1>Your <span class="hand" style="font-size:1.15em">partner</span> 💞</h1>' +
+      main.innerHTML = '<div class="page"><div class="dash-hello"><h1>Your <span class="hand" style="font-size:1.15em">partner</span> ' + HB.icon('heart') + '</h1>' +
         '<p>Sign in to see your connection.</p><button class="btn btn-primary" data-login>Sign in ♡</button></div></div>';
       main.querySelector('[data-login]').addEventListener('click', function () {
         HB.navigate('/');
@@ -80,7 +80,7 @@
       if (HB.rel.data.me && !(HB.rel.data.me.name || '').trim()) {
         body +=
           '<div class="card settings-card" style="margin-top:22px;max-width:480px;margin-left:auto;margin-right:auto">' +
-            '<h3><span class="sc-emoji">🧸</span> Quick hello!</h3>' +
+            '<h3><span class="sc-emoji">' + HB.icon('chat') + '</span> Quick hello!</h3>' +
             '<p class="muted" style="font-size:13px;font-weight:600;margin:2px 0 12px">You joined by code without filling the intro — tell them who you are?</p>' +
             '<div class="row" style="gap:10px;flex-wrap:wrap">' +
               '<div class="field" style="flex:2;min-width:150px"><label class="label">Your name</label><input class="input" id="qi-name" placeholder="e.g. Dudu" maxlength="40" autocomplete="off"/></div>' +
@@ -95,7 +95,7 @@
          two personal circle photos). */
       body +=
         '<div class="card settings-card dp-manage-card" style="margin-top:22px;max-width:560px;margin-left:auto;margin-right:auto">' +
-          '<h3><span class="sc-emoji">📸</span> Our photos</h3>' +
+          '<h3><span class="sc-emoji">' + HB.icon('image') + '</span> Our photos</h3>' +
           '<p class="muted" style="font-size:13px;font-weight:600;margin:2px 0 12px">Your photo sits on your chat bubbles, and ' + HB.esc(partnerName) + '\'s photo sits on theirs. Tap to preview, change or delete ♡</p>' +
           '<div class="dp-manage">' +
             '<button type="button" class="mng-dp" data-mng="me"><span class="mng-chip" data-chip="me"></span><span class="mng-label"><b>Your photo</b><i>your chat bubbles</i></span></button>' +
@@ -111,7 +111,7 @@
           '<h2 class="hand" style="font-size:30px">Waiting for your person ♡</h2>' +
           '<p class="wizard-step-hint">Share this code — they enter it on their phone to join you.</p>' +
           '<div class="code-card">' +
-            '<div class="code-card-label">Your pairing code 💕</div>' +
+            '<div class="code-card-label">Your pairing code</div>' +
             '<div class="code-card-value">' + HB.esc(code) + '</div>' +
             '<button class="code-card-copy" data-copy>' + HB.icon('copy') + ' Copy code</button>' +
           '</div>' +
@@ -131,7 +131,7 @@
 
     main.innerHTML =
       '<div class="page">' +
-      '<div class="dash-hello"><h1>Your <span class="hand" style="font-size:1.15em">partner</span> 💞</h1>' +
+      '<div class="dash-hello"><h1>Your <span class="hand" style="font-size:1.15em">partner</span> ' + HB.icon('heart') + '</h1>' +
       '<p>' + (connected ? 'Connected — this is your shared space with ' + HB.esc(HB.firstNames().partner) + '.' : 'Bringing two phones into one little world.') + '</p></div>' +
       body +
       '</div>';
@@ -156,11 +156,11 @@
     if (copy && code) copy.addEventListener('click', function () {
       var btn = copy;
       navigator.clipboard.writeText(code).then(function () {
-        btn.innerHTML = '✓ Copied 💕';
-        setTimeout(function () { btn.innerHTML = HB.icon('copy') + ' Copy code'; }, 1600);
-        HB.toast('Code copied — send it to your person ♡', '💌');
+btn.innerHTML = '✓ Copied';
+        setTimeout(function () { btn.innerHTML = HB.icon('copy') + ' Copy Code'; }, 1600);
+        HB.toast('Code copied — send it to your person ♡', HB.icon('heart'));
       }).catch(function () {
-        HB.toast('Couldn\'t copy — long-press the code instead ♡', '🐻');
+        HB.toast('Couldn\'t copy — long-press the code instead ♡', HB.icon('heart'));
       });
     });
 
@@ -178,7 +178,7 @@
       var nameEl = main.querySelector('#qi-name');
       var ageEl = main.querySelector('#qi-age');
       var name = (nameEl.value || '').trim();
-      if (!name) { nameEl.focus(); HB.toast('Your name can\'t be empty ♡', '🐻'); return; }
+      if (!name) { nameEl.focus(); HB.toast('Your name can\'t be empty ♡', HB.icon('heart')); return; }
       var age = (ageEl.value || '').trim();
       HB.state.profile.name = name;
       HB.state.profile.age = age;
@@ -186,11 +186,11 @@
       HB.updateNav();
       if (HB.rel && HB.rel.updateMyProfile) {
         HB.rel.updateMyProfile({ name: name, age: age || '' }).then(function () {
-          HB.toast('Your person will see this now ♡', '✨');
+          HB.toast('Your person will see this now ♡', HB.icon('sparkle'));
           if (main.isConnected) render(main);
         });
       } else {
-        HB.toast('Saved ♡', '✨');
+        HB.toast('Saved ♡', HB.icon('sparkle'));
         if (main.isConnected) render(main);
       }
     });
@@ -208,11 +208,11 @@
 
   /* ---- "What's new" — the couple activity feed (newest first) ---- */
   function journalRow(it) {
-    var ui = (HB.journal && HB.journal.kindUi) ? HB.journal.kindUi(it.kind) : { emoji: '✨', label: 'Little things' };
+    var ui = (HB.journal && HB.journal.kindUi) ? HB.journal.kindUi(it.kind) : { icon: HB.icon('sparkle'), label: 'Little things' };
     var when = (HB.journal && HB.journal.timeAgo) ? HB.journal.timeAgo(it.created_at) : '';
     var left = it.img
       ? '<span class="j-emoji j-emoji-img"><img class="j-img" src="' + HB.esc(it.img) + '" alt="" loading="lazy" decoding="async"/></span>'
-      : '<span class="j-emoji">' + HB.esc(ui.emoji) + '</span>';
+      : '<span class="j-emoji">' + (ui.icon || '') + '</span>';
     return '<li class="j-item">' +
       left +
       '<span class="j-body">' +
@@ -226,9 +226,9 @@
     var rows = (HB.journal && HB.journal.items) ? HB.journal.items() : [];
     var list = rows.length
       ? '<ul class="journal-list">' + rows.map(journalRow).join('') + '</ul>'
-      : '<div class="journal-empty"><span class="j-empty-emoji">🐻</span><p>No changes yet — every time either of you tweaks something, it\'ll show up here, newest first ♡</p></div>';
+      : '<div class="journal-empty"><span class="j-empty-emoji">' + HB.icon('bot') + '</span><p>No changes yet — every time either of you tweaks something, it\'ll show up here, newest first ♡</p></div>';
     return '<div class="card settings-card journal-card" id="journal-card" style="margin-top:16px;max-width:560px;margin-left:auto;margin-right:auto">' +
-      '<h3><span class="sc-emoji">✨</span> What\'s new</h3>' +
+      '<h3><span class="sc-emoji">' + HB.icon('sparkle') + '</span> What\'s new</h3>' +
       '<p class="muted" style="font-size:13px;font-weight:600;margin:2px 0 12px">Every little change either of you makes — names, ages, photos, themes ♡</p>' +
       list +
     '</div>';
@@ -285,16 +285,16 @@
       var who = isMe ? 'your' : ((String(HB.state.profile.partner || '').trim() || 'their'));
       function pickAndSet() {
         HB.dp.pick().then(function (r) {
-          if (r && r.error) { HB.toast('Couldn\'t read that image ♡', '🐻'); return; }
+          if (r && r.error) { HB.toast('Couldn\'t read that image ♡', HB.icon('image')); return; }
           if (!r || !r.dataUrl) return;
           setFn(r.dataUrl).then(function () {
             paintDpChips();
-            HB.toast(isMe ? 'Your photo is set ♡' : (who.charAt(0).toUpperCase() + who.slice(1) + '\'s photo is set ♡'), '📸');
+            HB.toast(isMe ? 'Your photo is set ♡' : (who.charAt(0).toUpperCase() + who.slice(1) + '\'s photo is set ♡'), HB.icon('image'));
           });
         });
       }
       function doDelete() {
-        var done = function () { paintDpChips(); HB.toast('Photo removed — initials back ♡', '🗑️'); };
+        var done = function () { paintDpChips(); HB.toast('Photo removed — initials back ♡', HB.icon('trash')); };
         if (HB.confirm) HB.confirm(who + ' photo', 'Remove the picture? The first letter will show again ♡', done, 'Delete photo');
         else done();
       }
@@ -315,7 +315,7 @@
         var rawCode = String(res.error.code || res.error.raw || '');
         var hint = msg.indexOf('INVALID') !== -1 ? 'That code didn\'t match — double-check it? ♡'
           : msg.indexOf('CODE_USED') !== -1 ? 'That code has already been used — ask them for a fresh one ♡'
-          : msg.indexOf('SELF') !== -1 ? 'That\'s your own code, silly! 💞'
+          : msg.indexOf('SELF') !== -1 ? 'That\'s your own code, silly! ♡'
           : msg.indexOf('ALREADY') !== -1 ? 'You two are already connected! ♡'
           : msg.indexOf('NOT_AUTHENTICATED') !== -1 ? 'Please sign in first — reload this page, then try again ♡'
           : /fetch|network|offline|timeout|connect/i.test(low) ? 'You seem to be offline — check your connection and try again.'
@@ -325,7 +325,7 @@
         if (err) err.textContent = hint;
         return;
       }
-      HB.toast('You\'re connected! Welcome to your little world ♡', '🎉');
+      HB.toast('You\'re connected! Welcome to your little world ♡', HB.icon('sparkle'));
       HB.burst(window.innerWidth / 2, window.innerHeight / 3, 40);
       render(main);
     });

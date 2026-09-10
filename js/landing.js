@@ -49,9 +49,9 @@
       navigator.clipboard.writeText(code).then(function () {
         btn.innerHTML = '✓ Copied 💕';
         setTimeout(function () { btn.innerHTML = HB.icon('copy') + ' Copy code'; }, 1600);
-        HB.toast('Code copied — send it to your person ♡', '💌');
+        HB.toast('Code copied — send it to your person ♡', HB.icon('heart'));
       }).catch(function () {
-        HB.toast('Couldn\'t copy — long-press the code instead ♡', '🐻');
+        HB.toast('Couldn\'t copy — long-press the code instead ♡', HB.icon('heart'));
       });
     });
 
@@ -61,7 +61,7 @@
       if (HB.rel.data.status === 'connected') {
         window.removeEventListener('hb:relchange', onConnect);
         HB.burst(window.innerWidth / 2, window.innerHeight / 3, 40);
-        HB.toast('You\'re connected! Welcome to your little world ♡', '🎉');
+        HB.toast('You\'re connected! Welcome to your little world ♡', HB.icon('sparkle'));
         setTimeout(function () { HB.navigate('/home'); }, 800);
       }
     });
@@ -75,13 +75,13 @@
       '<p class="sub">Where your chats, memories, and daily rituals live together.</p>' +
       '<div class="landing-cards">' +
         '<button class="landing-card lc-create" data-go="onboarding">' +
-          '<div class="lc-icon" style="background:linear-gradient(135deg,var(--primary),var(--primary-deep))">💕</div>' +
+          '<div class="lc-icon" style="background:linear-gradient(135deg,var(--primary),var(--primary-deep))">' + HB.icon('heart') + '</div>' +
           '<div class="lc-title">Create our world</div>' +
           '<div class="lc-sub">Start fresh — get a pairing code to share with your person.</div>' +
           '<div class="lc-btn btn btn-primary">Create our world ♡</div>' +
         '</button>' +
         '<button class="landing-card lc-join" data-login>' +
-          '<div class="lc-icon" style="background:linear-gradient(135deg,#D8C6F5,#c5b5e9)">✨</div>' +
+          '<div class="lc-icon" style="background:linear-gradient(135deg,#D8C6F5,#c5b5e9)">' + HB.icon('sparkle') + '</div>' +
           '<div class="lc-title">I have a code</div>' +
           '<div class="lc-sub">Join your person by entering the code they sent you.</div>' +
           '<div class="lc-btn btn btn-soft">Join with code ♡</div>' +
@@ -168,7 +168,7 @@
         var rawCode = String(out.error.code || out.error.raw || '');
         var hint = msg.indexOf('INVALID') !== -1 ? 'That code didn\'t match — double-check it? ♡'
           : msg.indexOf('CODE_USED') !== -1 ? 'This couple is already paired 💕 — ask them for a fresh code.'
-          : msg.indexOf('SELF') !== -1 ? 'That\'s your own code, silly! 💞'
+          : msg.indexOf('SELF') !== -1 ? 'That\'s your own code, silly! ♡'
           : msg.indexOf('ALREADY') !== -1 ? 'You\'re already part of a couple — you can only be in one ♡'
           : msg.indexOf('NOT_AUTHENTICATED') !== -1 ? 'Please sign in first — reload this page, then try again ♡'
           : /fetch|network|offline|timeout|connect/i.test(low) ? 'You seem to be offline — check your connection and try again.'
@@ -178,7 +178,7 @@
         err && (err.textContent = hint);
         return false;
       }
-      HB.toast('You\'re connected! Welcome to your little world ♡', '🎉');
+      HB.toast('You\'re connected! Welcome to your little world ♡', HB.icon('sparkle'));
       if (ov) {
         var c = ov.querySelector('[data-close]');
         if (c) c.click();

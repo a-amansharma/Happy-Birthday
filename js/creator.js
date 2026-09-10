@@ -24,7 +24,7 @@
         '<p class="muted" style="font-size:13px;font-weight:600">A little world, hand-built for two hearts — by one.</p>' +
         '<div class="creator-links">' +
           '<a class="creator-link" href="' + CREATOR.instagram + '" target="_blank" rel="noopener nofollow">' +
-            '<span class="cl-icon">📸</span><span><b>Instagram</b><i>@_ar.sharma</i></span></a>' +
+            '<span class="cl-icon">' + HB.icon('image') + '</span><span><b>Instagram</b><i>@_ar.sharma</i></span></a>' +
           '<a class="creator-link" href="' + CREATOR.linkedin + '" target="_blank" rel="noopener nofollow">' +
             '<span class="cl-icon">💼</span><span><b>LinkedIn</b><i>a-amansharma</i></span></a>' +
         '</div>' +

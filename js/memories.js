@@ -109,15 +109,15 @@
         HB.confirm('Remove this memory?', 'It will be taken out of your gallery.', function () {
           if (HB.shared && HB.shared.removeMemory) {
             HB.shared.removeMemory(id).then(function (res) {
-              if (res && res.error) { HB.toast('Couldn\'t remove ♡', '💔'); return; }
+              if (res && res.error) { HB.toast('Couldn\'t remove ♡', HB.icon('image')); return; }
               renderAll();
-              HB.toast('Memory removed', '🗑️');
+HB.toast('Memory removed', HB.icon('trash'));
             });
           } else {
             HB.state.memories = HB.state.memories.filter(function (m) { return m.id !== id; });
             HB.save();
             renderAll();
-            HB.toast('Memory removed', '🗑️');
+            HB.toast('Memory removed', HB.icon('trash'));
           }
         });
       });
@@ -162,7 +162,7 @@
       title: 'Add a memory ♡',
       text: 'A photo, a title, a place — the recipe for a moment worth keeping.',
       body: '<div class="field"><label class="label">Photo (optional)</label>' +
-        '<div class="row"><label class="btn btn-soft btn-sm" for="mem-file">📷 Choose photo</label><input type="file" id="mem-file" accept="image/*" class="hide"/><span id="mem-filename" class="muted" style="font-size:13px"></span></div></div>' +
+        '<div class="row"><label class="btn btn-soft btn-sm" for="mem-file">' + HB.icon('image') + ' Choose photo</label><input type="file" id="mem-file" accept="image/*" class="hide"/><span id="mem-filename" class="muted" style="font-size:13px"></span></div></div>' +
         '<div class="field"><label class="label">Title</label><input class="input" id="mem-title" placeholder="Our First Date ♡"/></div>' +
         '<div class="row"><div class="field" style="flex:1"><label class="label">Date</label><input class="input" id="mem-date" type="date"/></div>' +
         '<div class="field" style="flex:1"><label class="label">Location</label><input class="input" id="mem-loc" placeholder="That tiny café"/></div></div>' +
@@ -172,7 +172,7 @@
         { label: 'Cancel', kind: 'btn-ghost' },
         { label: 'Save memory ♡', kind: 'btn-primary', onClick: function (ov) {
           var title = ov.querySelector('#mem-title').value.trim();
-          if (!title) { HB.toast('Give it a title first ♡', '✍️'); return false; }
+          if (!title) { HB.toast('Give it a title first ♡', HB.icon('note')); return false; }
           var m = {
             title: title,
             date: ov.querySelector('#mem-date').value,
@@ -183,18 +183,18 @@
           };
           if (HB.shared && HB.shared.addMemory) {
             HB.shared.addMemory(m).then(function (res) {
-              if (res && res.error) { HB.toast('Couldn\'t save yet ♡', '💔'); return false; }
-              HB.toast('Memory saved ♡', '📸');
+              if (res && res.error) { HB.toast('Couldn\'t save yet ♡', HB.icon('image')); return false; }
+              HB.toast('Memory saved ♡', HB.icon('image'));
               renderAll();
             });
           } else {
             m.id = HB.uid();
             m.owner = 'me';
-            m.emoji = '📷';
+            m.emoji = HB.icon('image');
             m.time = Date.now();
             HB.state.memories.unshift(m);
             HB.save();
-            HB.toast('Memory saved ♡', '📸');
+            HB.toast('Memory saved ♡', HB.icon('image'));
             renderAll();
           }
         } }
@@ -204,7 +204,7 @@
     fileInput.addEventListener('change', function () {
       var file = fileInput.files[0];
       if (!file) return;
-      if (file.size > 3 * 1024 * 1024) { HB.toast('Keep it under 3MB for the little world ♡', '🐻'); return; }
+      if (file.size > 3 * 1024 * 1024) { HB.toast('Keep it under 3MB for the little world ♡', HB.icon('image')); return; }
       var reader = new FileReader();
       reader.onload = function (e) {
         overlay.__memImg = e.target.result;
@@ -222,7 +222,7 @@
 
     main.innerHTML =
       '<div class="page">' +
-      '<div class="dash-hello"><h1>Our <span class="hand" style="font-size:1.15em">memories</span> 📸</h1>' +
+      '<div class="dash-hello"><h1>Our <span class="hand" style="font-size:1.15em">memories</span> ' + HB.icon('image') + '</h1>' +
       '<p>Your digital memory gallery — little moments worth keeping, from each of you.</p></div>' +
 
       '<div class="mem-toolbar">' +

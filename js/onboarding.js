@@ -52,7 +52,7 @@
     if (/500|internal|server/i.test(all)) return 'Something went wrong on the server — try again in a moment ♡';
     if (/CODE_USED/.test(msg)) return 'That code was already used — ask them for a fresh one ♡';
     if (/INVALID_CODE/.test(msg)) return 'That code didn\'t match — double-check it? ♡';
-    if (/SELF_CODE/.test(msg)) return 'That\'s your own code, silly! 💞';
+    if (/SELF_CODE/.test(msg)) return 'That\'s your own code, silly! ♡';
     if (/ALREADY_CONNECTED/.test(msg)) return 'You\'re already part of a couple ♡';
     if (/PROFILE_FAILED|CONNECT_FAILED/.test(msg)) return 'Profile setup didn\'t work — try again ♡';
     /* Unknown error — include a hint of the actual message for debugging */
@@ -81,7 +81,7 @@
           return;
         }
         HB.burst(window.innerWidth / 2, window.innerHeight / 3, 40);
-        HB.toast('You\'re connected! Welcome to your little world ♡', '🎉');
+        HB.toast('You\'re connected! Welcome to your little world ♡', HB.icon('sparkle'));
         if (HB.enterWorld) HB.enterWorld(); else HB.navigate('/home');
       });
       return;
@@ -246,24 +246,24 @@
       switch (step) {
         case 0:
           var name = HB.titleCase((card.querySelector('#w-name').value || '').trim());
-          if (!name) { HB.toast('We\'d love your name first!', '🐻'); return; }
+          if (!name) { HB.toast('We\'d love your name first!', HB.icon('heart')); return; }
           draft.name = name; break;
         case 1:
           var partner = HB.titleCase((card.querySelector('#w-partner').value || '').trim());
-          if (!partner) { HB.toast('What\'s their name?', '🐻'); return; }
+          if (!partner) { HB.toast('What\'s their name?', HB.icon('heart')); return; }
           draft.partner = partner; break;
         case 2:
           draft.age = card.querySelector('#w-age').value.trim(); break;
         case 3:
           draft.partnerAge = card.querySelector('#w-page').value.trim(); break;
         case 4:
-          if (!draft.relationship) { HB.toast('Pick one that feels like you two ♡', '💘'); return; }
+          if (!draft.relationship) { HB.toast('Pick one that feels like you two ♡', HB.icon('heart')); return; }
           break;
         case 5:
-          if (!draft.vibes.length) { HB.toast('Pick at least one vibe ♡', '🎈'); return; }
+          if (!draft.vibes.length) { HB.toast('Pick at least one vibe ♡', HB.icon('balloon')); return; }
           break;
         case 6:
-          if (!draft.chatStyle.length) { HB.toast('Pick at least one talking style ♡', '💬'); return; }
+          if (!draft.chatStyle.length) { HB.toast('Pick at least one talking style ♡', HB.icon('chat')); return; }
           break;
         case 7:
           draft.story = card.querySelector('#w-story').value.trim();
@@ -301,7 +301,7 @@
 
     function celebrate() {
       HB.burst(window.innerWidth / 2, window.innerHeight / 3, 40);
-      HB.toast('Your little world is ready ✨', '🎉');
+      HB.toast('Your little world is ready ♡', HB.icon('sparkle'));
     }
 
     function setupAccount() {

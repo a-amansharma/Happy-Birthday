@@ -532,6 +532,7 @@ a { color: inherit; text-decoration: none; }
   width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center;
   background: var(--primary-soft); color: var(--primary-deep); font-size: 24px;
 }
+.dash-tile .dt-icon svg { width: 24px; height: 24px; }
 .dash-tile .dt-title { font-weight: 800; font-size: 16.5px; }
 .dash-tile .dt-sub { font-size: 13px; color: var(--ink-soft); font-weight: 600; }
 .dash-tile .dt-go { margin-top: auto; font-size: 13px; font-weight: 800; color: var(--primary-deep); display: inline-flex; align-items: center; gap: 6px; transition: gap 0.25s var(--ease); }
@@ -598,6 +599,45 @@ a { color: inherit; text-decoration: none; }
 .chat-input-box .send-btn { width: 44px; height: 44px; border-radius: 50%; background: var(--primary); color: #fff; display: grid; place-items: center; flex-shrink: 0; transition: all 0.25s var(--ease); box-shadow: 0 6px 16px var(--glow); }
 .chat-input-box .send-btn:hover { transform: scale(1.08) rotate(-8deg); }
 .chat-input-box .send-btn svg { width: 19px; height: 19px; }
+.chat-input-box .attach-btn { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; color: var(--ink-soft); flex-shrink: 0; background: transparent; transition: all 0.2s var(--ease); }
+.chat-input-box .attach-btn:hover { color: var(--primary); }
+.chat-input-box .attach-btn svg { width: 21px; height: 21px; }
+.chat-input-box .attach-btn.active, .chat-input-box .attach-btn.active:hover { color: var(--primary); background: var(--primary-soft); }
+
+/* Emoji picker popup (couple chat) */
+.emoji-pop { position: absolute; left: 20px; right: 20px; bottom: calc(100% + 10px); margin: 0 auto; max-width: 480px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow-card); max-height: min(340px, calc(var(--vv-h, 100vh) * 0.42)); display: flex; flex-direction: column; overflow: hidden; z-index: 30; animation: msgIn 0.25s var(--ease) both; }
+.emoji-pop[hidden] { display: none; }
+.ep-tabs { display: flex; gap: 6px; padding: 10px 12px; overflow-x: auto; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+.ep-tabs::-webkit-scrollbar { display: none; }
+.ep-tab { flex-shrink: 0; font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 999px; background: var(--surface-2); color: var(--ink-soft); border: 1px solid transparent; transition: all 0.2s var(--ease); white-space: nowrap; }
+.ep-tab.active { background: var(--primary-soft); color: var(--primary-deep); border-color: var(--line); }
+.ep-body { flex: 1; overflow-y: auto; padding: 12px; }
+.ep-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 4px; }
+.ep-em { font-size: 24px; line-height: 1; padding: 5px 0; border-radius: 10px; background: transparent; transition: background 0.15s var(--ease), transform 0.15s var(--ease); }
+.ep-em:hover { background: var(--primary-soft); transform: scale(1.15); }
+.ep-empty { grid-column: 1 / -1; text-align: center; color: var(--ink-soft); font-size: 13px; font-weight: 600; padding: 26px 0; }
+
+/* ---------- SVG icons used as emoji replacements ---------- */
+.chip svg,
+.opt-emoji svg,
+.theme-swatch svg,
+.sc-emoji svg,
+.rh-tag svg,
+.waiting-emoji svg,
+.lc-icon svg,
+.cl-icon svg,
+.di-tag svg,
+.header-badge svg,
+.stat-heart svg,
+.sr-badge svg { width: 16px; height: 16px; vertical-align: middle; }
+.sc-emoji { display: inline-flex; align-items: center; }
+.sc-emoji svg { width: 20px; height: 20px; }
+.dt-go svg, .btn svg, .btn-soft svg, .attach-btn svg { vertical-align: middle; }
+.de-emoji svg, .di-emoji svg { width: 30px; height: 30px; }
+.big-q svg { width: 40px; height: 40px; }
+.j-emoji svg { width: 18px; height: 18px; }
+.j-empty-emoji svg { width: 34px; height: 34px; }
+.data-danger .dr-title { display: flex; align-items: center; gap: 8px; }
 
 /* ---------- Couple chat — modern messenger look (chat section only) ----------
    Scoped under .couple-chat so the AI companion chat keeps its own style. */
@@ -913,7 +953,8 @@ a { color: inherit; text-decoration: none; }
   padding: 13px 20px; border-radius: 50px; box-shadow: var(--shadow-float); border: 1px solid var(--line);
   font-weight: 800; font-size: 14px; animation: toastIn 0.45s var(--ease) both; max-width: 90vw;
 }
-.toast .t-emoji { font-size: 18px; }
+.toast .t-emoji { font-size: 18px; display: inline-flex; align-items: center; }
+.toast .t-emoji svg { width: 16px; height: 16px; }
 @keyframes toastIn { from { opacity: 0; transform: translateY(20px) scale(0.9); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .toast.out { animation: toastOut 0.4s var(--ease) both; }
 @keyframes toastOut { to { opacity: 0; transform: translateY(14px) scale(0.94); } }

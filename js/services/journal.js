@@ -36,15 +36,15 @@
     try { window.dispatchEvent(new CustomEvent('hb:activity')); } catch (e) {}
   }
 
-  /* Emoji + tiny label used by the feed row, from the change kind. */
+  /* Icon + tiny label used by the feed row, from the change kind. */
   function kindUi(kind) {
     kind = kind || '';
-    if (kind.indexOf('theme') === 0) return { emoji: '🎨', label: 'Look & feel' };
-    if (kind === 'name') return { emoji: '💫', label: 'Names' };
-    if (kind === 'age') return { emoji: '🎂', label: 'Ages' };
-    if (kind.indexOf('photo') === 0) return kind.indexOf('_off') !== -1 ? { emoji: '🗑️', label: 'Photos' } : { emoji: '📸', label: 'Photos' };
-    if (kind === 'connect') return { emoji: '💞', label: 'You two' };
-    return { emoji: '✨', label: 'Little things' };
+    if (kind.indexOf('theme') === 0) return { icon: HB.icon('palette'), label: 'Look & feel' };
+    if (kind === 'name') return { icon: HB.icon('users'), label: 'Names' };
+    if (kind === 'age') return { icon: HB.icon('cake'), label: 'Ages' };
+    if (kind.indexOf('photo') === 0) return kind.indexOf('_off') !== -1 ? { icon: HB.icon('trash'), label: 'Photos' } : { icon: HB.icon('image'), label: 'Photos' };
+    if (kind === 'connect') return { icon: HB.icon('heart'), label: 'You two' };
+    return { icon: HB.icon('sparkle'), label: 'Little things' };
   }
 
   /* "just now", "5 min ago", "2 h ago", "yesterday", or a real date. */

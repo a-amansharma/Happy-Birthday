@@ -18,11 +18,11 @@
 
     main.innerHTML =
       '<div class="page"><div class="daily-wrap">' +
-      '<div class="dash-hello text-center"><h1>Daily <span class="hand" style="font-size:1.15em">question</span> ☀️</h1>' +
+      '<div class="dash-hello text-center"><h1>Daily <span class="hand" style="font-size:1.15em">question</span> ' + HB.icon('sun') + '</h1>' +
       '<p>One sweet little question for you two, every single day.</p></div>' +
 
       '<div class="daily-card">' +
-        '<div class="big-q">🫶</div>' +
+        '<div class="big-q">' + HB.icon('heart') + '</div>' +
         '<h2>' + HB.esc(q) + '</h2>' +
         (answeredToday
           ? '<div class="empty-state" style="padding:20px"><div class="es-emoji">' + HB.chars.stageHtml({ which: 'dudu', action: 'happy', size: 'mini', alt: 'Dudu is happy you answered' }) + '</div><h4>You answered today\'s question</h4><p>Come back tomorrow for a new one — or scroll below to revisit your little answers.</p></div>'
@@ -37,10 +37,10 @@
     if (!answeredToday) {
       main.querySelector('#daily-save').addEventListener('click', function () {
         var ans = main.querySelector('#daily-answer').value.trim();
-        if (!ans) { HB.toast('Write something first, even a little ♡', '✍️'); return; }
+        if (!ans) { HB.toast('Write something first, even a little ♡', HB.icon('note')); return; }
         HB.state.dailyAnswers.unshift({ id: HB.uid(), q: q, answer: ans, time: Date.now() });
         HB.save();
-        HB.toast('Answer saved — this one\'s for your future selves ♡', '🫶');
+        HB.toast('Answer saved — this one\'s for your future selves ♡', HB.icon('heart'));
         HB.navigate('/daily');
       });
     }
@@ -54,7 +54,7 @@
         return '<div class="answer-card" style="animation-delay:' + (i * 0.05) + 's">' +
           '<div class="a-date">' + new Date(a.time).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + '</div>' +
           '<div><div class="a-q">' + HB.esc(a.q) + '</div><div class="a-t">' + HB.esc(a.answer) + '</div></div>' +
-          '<span style="margin-left:auto;cursor:pointer" data-del title="Remove">🗑️</span>' +
+          '<span style="margin-left:auto;cursor:pointer" data-del title="Remove">' + HB.icon('trash') + '</span>' +
           '</div>';
       }).join('');
       box.querySelectorAll('[data-del]').forEach(function (b) {
@@ -64,7 +64,7 @@
           HB.state.dailyAnswers.splice(idx, 1);
           HB.save();
           card.remove();
-          HB.toast('Removed', '🗑️');
+          HB.toast('Removed', HB.icon('trash'));
         });
       });
     }

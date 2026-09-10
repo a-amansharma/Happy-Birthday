@@ -21,13 +21,13 @@
   var _dayKey = null;          // quiz day realtime key
 
   var BOND_CATEGORIES = [
-    [90, 100, '💖 Deeply Connected', 'Basically one heart, two bodies. It\u2019s honestly adorable.'],
-    [75, 89, '💕 Emotionally In Sync', 'You two read each other like your favorite book.'],
-    [60, 74, '💗 Understanding Each Other', 'You listen well \u2014 and it clearly shows.'],
-    [45, 59, '💞 Playful Partners', 'Half the fun is the not-quite-synced parts of you two.'],
-    [30, 44, '💓 Growing Together', 'Every answer is a new little thing to learn about each other.'],
-    [15, 29, '😄 Cute Opposites', 'Opposites attract \u2014 clearly, beautifully.'],
-    [0, 14, '🌱 Still Discovering Each Other', 'The best part of a couple is the discovering. More quizzes = more fun.']
+    [90, 100, HB.icon('heart'), 'Deeply Connected', 'Basically one heart, two bodies. It\u2019s honestly adorable.'],
+    [75, 89, HB.icon('heart'), 'Emotionally In Sync', 'You two read each other like your favorite book.'],
+    [60, 74, HB.icon('sparkle'), 'Understanding Each Other', 'You listen well \u2014 and it clearly shows.'],
+    [45, 59, HB.icon('ring'), 'Playful Partners', 'Half the fun is the not-quite-synced parts of you two.'],
+    [30, 44, HB.icon('sprout'), 'Growing Together', 'Every answer is a new little thing to learn about each other.'],
+    [15, 29, HB.icon('smile'), 'Cute Opposites', 'Opposites attract \u2014 clearly, beautifully.'],
+    [0, 14, HB.icon('sprout'), 'Still Discovering Each Other', 'The best part of a couple is the discovering. More quizzes = more fun.']
   ];
 
   /* Seedable RNG so both devices generate the same quiz */
@@ -197,10 +197,10 @@
     bondCategory: function (pct) {
       for (var i = 0; i < BOND_CATEGORIES.length; i++) {
         if (pct >= BOND_CATEGORIES[i][0] && pct <= BOND_CATEGORIES[i][1]) {
-          return { emoji: BOND_CATEGORIES[i][2], desc: BOND_CATEGORIES[i][3] };
+          return { emoji: BOND_CATEGORIES[i][2], name: BOND_CATEGORIES[i][3], desc: BOND_CATEGORIES[i][4] };
         }
       }
-      return { emoji: '🌱 Still Discovering Each Other', desc: '' };
+      return { emoji: HB.icon('sprout'), name: 'Still Discovering Each Other', desc: '' };
     },
 
     /* fetch (or create) today's quiz for the relationship. */

@@ -6,13 +6,13 @@
   var HB = window.HB = window.HB || {};
 
   var EVENT_TYPES = [
-    { label: 'First Meeting', emoji: '👋' },
-    { label: 'First Date', emoji: '🌹' },
-    { label: 'Anniversary', emoji: '💍' },
-    { label: 'Birthday', emoji: '🎂' },
-    { label: 'First "I Love You"', emoji: '💬' },
-    { label: 'Special Memory', emoji: '✨' },
-    { label: 'Custom Event', emoji: '📌' }
+    { label: 'First Meeting', emoji: HB.icon('users') },
+    { label: 'First Date', emoji: HB.icon('flower') },
+    { label: 'Anniversary', emoji: HB.icon('ring') },
+    { label: 'Birthday', emoji: HB.icon('cake') },
+    { label: 'First "I Love You"', emoji: HB.icon('chat') },
+    { label: 'Special Memory', emoji: HB.icon('sparkle') },
+    { label: 'Custom Event', emoji: HB.icon('pin') }
   ];
 
   HB.route('/special', function (main) {
@@ -140,10 +140,10 @@
             var date = o.querySelector('#ev-date').value;
             var selType = o.querySelector('.chip.selected');
             var type = selType ? selType.textContent.replace(/^[^\w]+/, '').trim() : 'Custom Event';
-            if (!title || !date) { HB.toast('Add a title and a date ♡', '📌'); return false; }
+            if (!title || !date) { HB.toast('Add a title and a date ♡', HB.icon('pin')); return false; }
             HB.state.specialDates.push({ id: HB.uid(), title: title, date: date, type: type, time: Date.now() });
             HB.save();
-            HB.toast('Date added — counting down ♡', '⏳');
+            HB.toast('Date added — counting down ♡', HB.icon('clock'));
             renderEvents(); renderStats();
           } }
         ]
@@ -160,7 +160,7 @@
 
     main.innerHTML =
       '<div class="page">' +
-      '<div class="dash-hello"><h1>Special <span class="hand" style="font-size:1.15em">dates</span> ⏳</h1>' +
+      '<div class="dash-hello"><h1>Special <span class="hand" style="font-size:1.15em">dates</span> ' + HB.icon('clock') + '</h1>' +
       '<p>Count every day you\'ve been together, and count down to every day worth waiting for.</p></div>' +
 
       '<div class="stats-row">' +

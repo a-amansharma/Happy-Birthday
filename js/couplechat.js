@@ -20,6 +20,7 @@
   var myName = 'you';
   var partnerName = 'your person';
   var statusTimer = null;
+  var autoScrolling = false;
 
   function timeStr(t) {
     return new Date(t).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
@@ -173,7 +174,9 @@
   }
 
   function scrollDown() {
+    autoScrolling = true;
     if (container && container.isConnected) container.scrollTop = container.scrollHeight;
+    setTimeout(function () { autoScrolling = false; }, 90);
   }
 
   function openLightbox(url, msg, originEl) {
@@ -228,7 +231,7 @@
           '<h3>' + (waiting ? 'Waiting for ' + HB.esc(n0.partner) + ' ♡' : 'Your chat needs your person ♡') + '</h3>' +
           '<p>' + (waiting ? 'Once they connect with your code, your private little chat opens right here.'
             : 'Connect your two phones on the Partner page, then your messages will live here — in real time.') + '</p>' +
-          '<button class="btn btn-primary" data-partner>Open Partner page 💞</button>' +
+          '<button class="btn btn-primary" data-partner>Open Partner page</button>' +
         '</div></div></div>';
       var du = main.querySelector('[data-du]');
       if (du && HB.chars) du.innerHTML = HB.chars.stageHtml({ which: 'both', action: 'wait', size: 'big', alt: 'Bubu ♡ Dudu' });
@@ -283,10 +286,12 @@
         '<div class="chat-input-wrap">' +
           '<div class="chat-input-box">' +
             '<input type="file" id="chat-attach" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden />' +
-            '<button class="attach-btn" id="chat-attach-btn" title="Send a photo" aria-label="Send a photo">📷</button>' +
+            '<button class="attach-btn" id="chat-attach-btn" title="Send a photo" aria-label="Send a photo">' + HB.icon('image') + '</button>' +
+            '<button class="attach-btn emoji-btn" id="chat-emoji-btn" title="Add an emoji" aria-label="Add an emoji">' + HB.icon('smile') + '</button>' +
             '<textarea id="chat-input" rows="1" placeholder="Message your person..." maxlength="500"></textarea>' +
             '<button class="send-btn" id="chat-send" aria-label="Send">' + HB.icon('send') + '</button>' +
           '</div>' +
+          HB.emojiPickerHtml() +
         '</div>' +
       '</div>';
 
@@ -296,6 +301,8 @@
     var send = main.querySelector('#chat-send');
     var attachInput = main.querySelector('#chat-attach');
     var attachBtn = main.querySelector('#chat-attach-btn');
+    var emojiBtn = main.querySelector('#chat-emoji-btn');
+    var emojiPop = main.querySelector('[data-emojipop]');
 
     /* ---- DP taps (delegated): preview each person's photo; either chip
        also offers Change Picture that opens the photo picker ---- */
@@ -309,20 +316,20 @@
       var whoTxt = mine ? 'your' : (partnerName + '\'s');
       function pickAndSet() {
         HB.dp.pick().then(function (out) {
-          if (out.error) { HB.toast('That photo couldn\'t load — try another ♡', '💔'); return; }
+          if (out.error) { HB.toast('That photo couldn\'t load — try another ♡', HB.icon('image')); return; }
           setFn(out.dataUrl).then(function (res) {
-            if (res && res.error) { HB.toast('Couldn\'t save — try again ♡', '💔'); return; }
-            HB.toast((mine ? 'Your chat photo is set ♡' : (partnerName + '\'s chat photo is set ♡')), '✨');
+            if (res && res.error) { HB.toast('Couldn\'t save — try again ♡', HB.icon('image')); return; }
+            HB.toast((mine ? 'Your chat photo is set ♡' : (partnerName + '\'s chat photo is set ♡')), HB.icon('image'));
           });
         });
       }
       function doDelete() {
         if (HB.confirm) {
           HB.confirm(whoTxt + ' photo', 'Remove the picture? The first letter will show again ♡', function () {
-            clearFn().then(function (res) { HB.toast('Photo removed — initials back ♡', '🗑️'); });
+            clearFn().then(function (res) { HB.toast('Photo removed — initials back ♡', HB.icon('trash')); });
           }, 'Delete photo');
         } else {
-          clearFn().then(function (res) { HB.toast('Photo removed — initials back ♡', '🗑️'); });
+          clearFn().then(function (res) { HB.toast('Photo removed — initials back ♡', HB.icon('trash')); });
         }
       }
       if (photo) { if (HB.dp) HB.dp.preview(photo, pickAndSet, doDelete, b); }
@@ -333,20 +340,20 @@
       var ph = HB.dp ? HB.dp.partnerPhoto() : '';
       function changePartnerPhoto() {
         HB.dp.pick().then(function (out) {
-          if (out.error) { HB.toast('That photo couldn\'t load — try another ♡', '💔'); return; }
+          if (out.error) { HB.toast('That photo couldn\'t load — try another ♡', HB.icon('image')); return; }
           HB.dp.setPartner(out.dataUrl).then(function (res) {
-            if (res && res.error) { HB.toast('Couldn\'t save — try again ♡', '💔'); return; }
-            HB.toast(partnerName + '\'s photo is set ♡', '✨');
+            if (res && res.error) { HB.toast('Couldn\'t save — try again ♡', HB.icon('image')); return; }
+            HB.toast(partnerName + '\'s photo is set ♡', HB.icon('image'));
           });
         });
       }
       function deletePartnerPhoto() {
         if (HB.confirm) {
           HB.confirm(partnerName + '\'s photo', 'Remove the picture? The first letter will show again ♡', function () {
-            HB.dp.clearPartner().then(function (res) { HB.toast(partnerName + '\'s photo removed — initials back ♡', '🗑️'); });
+            HB.dp.clearPartner().then(function (res) { HB.toast(partnerName + '\'s photo removed — initials back ♡', HB.icon('trash')); });
           }, 'Delete photo');
         } else {
-          HB.dp.clearPartner().then(function (res) { HB.toast(partnerName + '\'s photo removed — initials back ♡', '🗑️'); });
+          HB.dp.clearPartner().then(function (res) { HB.toast(partnerName + '\'s photo removed — initials back ♡', HB.icon('trash')); });
         }
       }
       if (ph) HB.dp.preview(ph, changePartnerPhoto, deletePartnerPhoto, hdp);
@@ -431,7 +438,7 @@
     send.addEventListener('click', doSend);
 
     /* Android closes the keyboard when you tap any non-input element
-       (like the send button). Bring the keys straight back so sending
+       (like the send buttom). Bring the keys straight back so sending
        a message never dismisses them — they only close when the user
        touches the feed or leaves the chat. */
     function keepKeyboard() {
@@ -443,6 +450,67 @@
       }, 70);
     }
 
+    function closeEmojiPop() {
+      if (emojiPop && !emojiPop.hidden) {
+        emojiPop.hidden = true;
+        emojiBtn.classList.remove('active');
+      }
+    }
+
+    function insertEmoji(emoji) {
+      var start = input.selectionStart || input.value.length;
+      var end = input.selectionEnd || start;
+      input.value = input.value.slice(0, start) + emoji + input.value.slice(end);
+      try { input.selectionStart = input.selectionEnd = start + emoji.length; } catch (e) {}
+      HB.titleCaseInput(input);
+      autoGrow();
+      HB.presence.setTyping(true);
+      if (typingTimer) clearTimeout(typingTimer);
+      typingTimer = setTimeout(function () { HB.presence.setTyping(false); }, 1500);
+      input.focus();
+      keepKeyboard();
+    }
+
+    if (emojiPop) {
+      HB.emojiWire(emojiPop, function (emoji, kind) {
+        input.focus();
+        if (kind === 'tab') { keepKeyboard(); return; }
+        if (!emoji) return;
+        insertEmoji(emoji);
+        keepKeyboard();
+      });
+    }
+    emojiBtn.addEventListener('click', function () {
+      var show = emojiPop.hidden;
+      closeEmojiPop();
+      if (show) {
+        emojiPop.hidden = false;
+        emojiBtn.classList.add('active');
+        var grid = emojiPop.querySelector('.ep-grid');
+        if (grid && grid.dataset.epCat === 'recent') grid.innerHTML = (HB.emojiRecents() || []).length
+          ? grid.innerHTML
+          : '<div class="ep-empty">No recent emojis yet</div>';
+      }
+      input.focus();
+      keepKeyboard();
+    });
+    input.addEventListener('blur', function () {
+      setTimeout(function () {
+        if (emojiPop && !emojiPop.hidden && input && document.activeElement !== input &&
+            !(emojiPop.contains && emojiPop.contains(document.activeElement))) closeEmojiPop();
+      }, 150);
+    });
+    if (container) container.addEventListener('touchstart', function (e) {
+      if (autoScrolling) return;
+      if (input && document.activeElement === input) input.blur();
+      closeEmojiPop();
+    });
+    if (container) container.addEventListener('scroll', function () {
+      if (autoScrolling) return;
+      if (input && document.activeElement === input) input.blur();
+      closeEmojiPop();
+    });
+
     function doSend() {
       var text = input.value.trim();
       if (!text) return;
@@ -450,27 +518,28 @@
       if (typingTimer) clearTimeout(typingTimer);
       input.value = '';
       autoGrow();
+      closeEmojiPop();
       HB.chat.sendText(text).then(function (res) {
         if (res && res.error) {
-          HB.toast('Couldn\'t send — try again?', '💔');
+          HB.toast('Couldn\'t send — try again?', HB.icon('heart'));
           input.value = text;
         }
       });
       keepKeyboard();
     }
 
-    attachBtn.addEventListener('click', function () { attachInput.click(); });
+    attachBtn.addEventListener('click', function () { closeEmojiPop(); attachInput.click(); });
     attachInput.addEventListener('change', function () {
       var file = attachInput.files && attachInput.files[0];
       if (!file) return;
       attachInput.value = '';
-      HB.toast('Uploading your photo…', '📷');
+      HB.toast('Uploading your photo…', HB.icon('image'));
       HB.chat.sendImage(file).then(function (res) {
         if (res && res.error) {
           var msg = String(res.error.message || '');
-          HB.toast(msg.indexOf('TOO_LARGE') !== -1 ? 'That photo is over 8MB, love ♡' : 'Hmm, that photo couldn\'t upload', '💔');
+          HB.toast(msg.indexOf('TOO_LARGE') !== -1 ? 'That photo is over 8MB, love ♡' : 'Hmm, that photo couldn\'t upload', HB.icon('heart'));
         } else {
-          HB.toast('Photo sent ♡', '📷');
+          HB.toast('Photo sent ♡', HB.icon('image'));
         }
       });
     });

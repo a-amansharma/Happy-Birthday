@@ -42,10 +42,10 @@
 
     window.addEventListener('hb:relchange', function () { wireChat(); });
     window.addEventListener('online', function () {
-      if (HB.auth && HB.auth.user()) HB.toast('You\'re back online — everything is synced ♡', '📡');
+      if (HB.auth && HB.auth.user()) HB.toast('You\'re back online — everything is synced ♡', HB.icon('cloud'));
     });
     window.addEventListener('offline', function () {
-      if (HB.auth && HB.auth.user()) HB.toast('You\'re offline — messages will send when you\'re back ♡', '🌙');
+      if (HB.auth && HB.auth.user()) HB.toast('You\'re offline — messages will send when you\'re back ♡', HB.icon('cloud'));
     });
 
     HB.rel.init().then(function () {
@@ -106,7 +106,7 @@
     // Welcome micro-interaction
     if (!HB.state.onboarded) {
       setTimeout(function () {
-        HB.toast('Welcome to your little world ♡', '🐻');
+        HB.toast('Welcome to your little world ♡', HB.icon('bot'));
       }, 500);
     }
     console.log('[BOOT] Boot complete');

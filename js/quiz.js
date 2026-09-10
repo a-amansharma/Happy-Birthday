@@ -123,7 +123,7 @@
 
     HB.quiz.submit(answers).then(function (res) {
       if (res && res.error) {
-        HB.toast('Couldn\'t submit — try again?', '💔');
+        HB.toast('Couldn\'t submit — try again?', HB.icon('heart'));
         if (main.isConnected) renderQuiz(main);
         return;
       }
@@ -186,12 +186,12 @@
       '<div class="dash-hello text-center"><h1>Your Bond <span class="hand" style="font-size:1.15em">Score</span> ♡</h1>' +
       '<p>' + HB.esc(names.me) + ' & ' + HB.esc(names.partner) + ' — today, you matched on <b>' + (result.matches || 0) + '</b> of <b>' + (result.total || 5) + '</b>.</p></div>' +
       '<div class="card score-reveal">' +
-        '<div class="eyebrow" style="margin:0 auto;display:flex;justify-content:center">' + HB.esc(cat.emoji) + '</div>' +
+        '<div class="eyebrow" style="margin:0 auto;display:flex;justify-content:center">' + cat.emoji + '</div>' +
         '<div class="score-ring">' +
           '<svg viewBox="0 0 200 200"><circle class="ring-bg" cx="100" cy="100" r="90"/><circle class="ring-val" id="ring-val" cx="100" cy="100" r="90"/></svg>' +
           '<div><div class="score-num" id="score-num">0</div><div class="score-pct">%</div></div>' +
         '</div>' +
-        '<div class="score-message">' + HB.esc(cat.emoji + ' ' + cat.desc) + '</div>' +
+        '<div class="score-message"><b>' + HB.esc(cat.name || '') + '</b> ' + HB.esc(cat.desc || '') + '</div>' +
         '<div class="dudu-small-stage" data-du style="max-width:180px;margin:6px auto 0"></div>' +
         '<p class="muted" style="font-size:12.5px;margin-top:12px">A fresh quiz appears tomorrow — see you then, love. ♡</p>' +
       '</div>' +

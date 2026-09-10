@@ -46,24 +46,24 @@
 
       el.querySelector('[data-copy]').addEventListener('click', function () {
         navigator.clipboard.writeText(note.text).then(function () {
-          HB.toast('Copied — go send it ♡', '📋');
+          HB.toast('Copied — go send it ♡', HB.icon('note'));
         });
       });
       el.querySelector('[data-regen]').addEventListener('click', function () {
-        HB.toast('Something sweet is on its way...', '✨');
+        HB.toast('Something sweet is on its way...', HB.icon('sparkle'));
         setTimeout(function () { renderNote(generate()); }, 500);
       });
       el.querySelector('[data-save]').addEventListener('click', function () {
         if (HB.shared && HB.shared.addNote) {
           HB.shared.addNote({ title: note.title, text: note.text, type: note.type, tone: note.tone }).then(function (res) {
-            if (res && res.error) { HB.toast('Couldn\'t save yet ♡', '💔'); return; }
-            HB.toast('Note saved to your little collection ♡', '💌');
+            if (res && res.error) { HB.toast('Couldn\'t save yet ♡', HB.icon('heart')); return; }
+            HB.toast('Note saved to your little collection ♡', HB.icon('note'));
             renderSaved();
           });
         } else {
           HB.state.loveNotes.unshift({ id: HB.uid(), title: note.title, text: note.text, type: note.type, tone: note.tone, time: Date.now() });
           HB.save();
-          HB.toast('Note saved to your little collection ♡', '💌');
+          HB.toast('Note saved to your little collection ♡', HB.icon('note'));
           renderSaved();
         }
       });
@@ -126,15 +126,15 @@
           HB.confirm('Remove this note?', 'It will be gone from your saved collection.', function () {
             if (HB.shared && HB.shared.removeNote) {
               HB.shared.removeNote(notes[idx].id).then(function (res) {
-                if (res && res.error) { HB.toast('Couldn\'t remove ♡', '💔'); return; }
+                if (res && res.error) { HB.toast('Couldn\'t remove ♡', HB.icon('heart')); return; }
                 renderSaved();
-                HB.toast('Note removed', '🗑️');
+                HB.toast('Note removed', HB.icon('trash'));
               });
             } else {
               HB.state.loveNotes.splice(idx, 1);
               HB.save();
               renderSaved();
-              HB.toast('Note removed', '🗑️');
+              HB.toast('Note removed', HB.icon('trash'));
             }
           });
         });
@@ -177,7 +177,7 @@
     });
 
     main.querySelector('#generate-note').addEventListener('click', function () {
-      HB.toast('Something sweet is on its way...', '✨');
+      HB.toast('Something sweet is on its way...', HB.icon('sparkle'));
       setTimeout(function () { renderNote(generate()); }, 450);
     });
 

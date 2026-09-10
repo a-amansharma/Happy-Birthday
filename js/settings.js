@@ -77,11 +77,11 @@
       var partnerName = HB.rel.data.partner && HB.rel.data.partner.name ? HB.titleCase(HB.rel.data.partner.name) : '';
       relCard =
         '<div class="card settings-card">' +
-          '<h3><span class="sc-emoji">💞</span> Connection</h3>' +
+          '<h3><span class="sc-emoji">' + HB.icon('heart') + '</span> Connection</h3>' +
           '<div class="setting-row"><div><div class="sr-title">Status</div><div class="sr-sub">' + statusText + '</div></div>' +
           '<span class="cc-dot' + (connected ? ' on' : '') + '" style="position:static;margin-left:8px"></span></div>' +
-          (partnerName ? '<div class="setting-row"><div><div class="sr-title">Your partner</div><div class="sr-sub">' + HB.esc(partnerName) + ' — connected securely to you</div></div><span class="sr-badge">💞</span></div>' : '') +
-          (code && !connected ? '<div class="code-card code-card--sm" style="margin:6px 0 14px"><div class="code-card-label">Your pairing code 💕</div><div class="code-card-value">' + HB.esc(code) + '</div><button class="code-card-copy" data-copy-code>' + HB.icon('copy') + ' Copy</button></div>' : '') +
+          (partnerName ? '<div class="setting-row"><div><div class="sr-title">Your partner</div><div class="sr-sub">' + HB.esc(partnerName) + ' — connected securely to you</div></div><span class="sr-badge">' + HB.icon('heart') + '</span></div>' : '') +
+          (code && !connected ? '<div class="code-card code-card--sm" style="margin:6px 0 14px"><div class="code-card-label">Your pairing code</div><div class="code-card-value">' + HB.esc(code) + '</div><button class="code-card-copy" data-copy-code>' + HB.icon('copy') + ' Copy</button></div>' : '') +
           (connected
             ? ''
             : '<div class="row" style="gap:10px;flex-wrap:wrap"><button class="btn btn-soft btn-sm" data-manage>Manage connection</button></div>') +
@@ -90,13 +90,13 @@
 
     main.innerHTML =
       '<div class="page">' +
-      '<div class="dash-hello"><h1>Profile & <span class="hand" style="font-size:1.15em">settings</span> ⚙️</h1>' +
+      '<div class="dash-hello"><h1>Profile & <span class="hand" style="font-size:1.15em">settings</span></h1>' +
       '<p>Everything about your little world, all in one place. Change it anytime.</p></div>' +
 
       '<div class="settings-grid">' +
 
         '<div class="card settings-card">' +
-          '<h3><span class="sc-emoji">🧸</span> About you two</h3>' +
+          '<h3><span class="sc-emoji">' + HB.icon('users') + '</span> About you two</h3>' +
           '<div class="row"><div class="field" style="flex:1"><label class="label">Your name</label><input class="input" id="s-name" value="' + HB.esc(p.name) + '"/></div>' +
           (connected && HB.firstNames().partner
             ? '<div class="field" style="flex:1"><label class="label">Their name (from their phone)</label><div class="partner-static">' + HB.esc(HB.firstNames().partner) + ' ♡</div></div>'
@@ -114,7 +114,7 @@
         '<div class="settings-grid" style="align-content:start">' +
 
           '<div class="card settings-card settings-card--data">' +
-            '<h3><span class="sc-emoji">💾</span> Your data</h3>' +
+            '<h3><span class="sc-emoji">' + HB.icon('save') + '</span> Your data</h3>' +
             '<p class="data-hint">Everything below is saved to your couple. Only the red zone wipes things — think twice before you tap.</p>' +
             '<div class="data-rows">' +
               '<div class="setting-row"><div><div class="sr-title">Reset companion chat</div><div class="sr-sub">Clear your talks with your little companion (your couple chat lives on)</div></div>' +
@@ -122,10 +122,10 @@
               '<div class="setting-row"><div><div class="sr-title">Clear memories</div><div class="sr-sub">Remove every saved memory and love note</div></div>' +
               '<button class="btn btn-ghost btn-sm" id="clear-data">Clear</button></div>' +
               '<div class="setting-row"><div><div class="sr-title">Export memories</div><div class="sr-sub">Download your memories as a keepsake file</div></div>' +
-              '<button class="btn btn-soft btn-sm" id="export-data">Export 🎁</button></div>' +
+              '<button class="btn btn-soft btn-sm" id="export-data">Export</button></div>' +
             '</div>' +
             '<div class="data-danger">' +
-              '<div><div class="dr-title">⚠️ Factory reset this couple</div>' +
+              '<div><div class="dr-title">Factory reset this couple</div>' +
               '<div class="dr-sub">Deletes everything on both your phones — chats, memories, notes, photos, quiz history and your couple itself. There is no going back.</div></div>' +
               '<button class="btn btn-danger" id="factory-reset">Reset everything</button>' +
             '</div>' +
@@ -134,13 +134,13 @@
           (relCard || '') +
 
           '<div class="card settings-card">' +
-            '<h3><span class="sc-emoji">🎨</span> Theme</h3>' +
+            '<h3><span class="sc-emoji">' + HB.icon('palette') + '</span> Theme</h3>' +
             '<div class="theme-picker" id="s-themes">' + themeCards() + '</div>' +
             '<p class="muted mt-16" style="font-size:12.5px;font-weight:600">The theme updates live as you pick — it saves automatically.</p>' +
           '</div>' +
 
           '<div class="card settings-card">' +
-            '<h3><span class="sc-emoji">🔔</span> Preferences</h3>' +
+            '<h3><span class="sc-emoji">' + HB.icon('bell') + '</span> Preferences</h3>' +
             switchHtml('s-notifs', HB.state.settings.notifications, 'Notifications', 'Gentle reminders for your little world') +
             switchHtml('s-music', HB.state.settings.music, 'Cute music', 'Play the soft lullaby in the background') +
           '</div>' +
@@ -167,7 +167,7 @@
         document.body.classList.add('theme-' + p.theme);
         HB.save();
         if (HB.rel && HB.rel.setTheme) HB.rel.setTheme(p.theme);
-        HB.toast('Theme changed ♡', '🎨');
+        HB.toast('Theme changed ♡', HB.icon('palette'));
       });
     });
 
@@ -175,8 +175,8 @@
       var name = main.querySelector('#s-name').value.trim();
       var partnerEl = main.querySelector('#s-partner');
       var partner = partnerEl ? partnerEl.value.trim() : p.partner;
-      if (!name) { HB.toast('Your name can\'t be empty ♡', '🐻'); return; }
-      if (!connected && !partner) { HB.toast('Their name can\'t be empty ♡', '🐻'); return; }
+      if (!name) { HB.toast('Your name can\'t be empty ♡', HB.icon('heart')); return; }
+      if (!connected && !partner) { HB.toast('Their name can\'t be empty ♡', HB.icon('heart')); return; }
 
       p.name = name;
       p.partner = partner;
@@ -200,7 +200,7 @@
       if (backend && HB.rel) {
         HB.rel.updateMyProfile({ name: name, age: p.age }).then(function (res) {
           if (res && res.error && !/NOT_CONFIGURED|NOT_AUTHENTICATED/.test(String(res.error.message || ''))) {
-            HB.toast('Couldn\'t sync your profile to the cloud — please try again ♡', '💔');
+            HB.toast('Couldn\'t sync your profile to the cloud — please try again ♡', HB.icon('cloud'));
           }
         });
         HB.rel.updateShared({
@@ -211,12 +211,12 @@
           together_since: p.togetherSince || null
         });
       }
-      HB.toast('Your little world is updated everywhere ♡', '✨');
+      HB.toast('Your little world is updated everywhere ♡', HB.icon('sparkle'));
     });
 
     main.querySelector('#s-notifs').addEventListener('change', function (e) {
       HB.state.settings.notifications = e.target.checked; HB.save();
-      HB.toast(e.target.checked ? 'Notifications on ♡' : 'Notifications off', '🔔');
+      HB.toast(e.target.checked ? 'Notifications on ♡' : 'Notifications off', HB.icon('bell'));
     });
     main.querySelector('#s-music').addEventListener('change', function (e) {
       if (e.target.checked !== HB.music.isOn()) HB.music.toggle();
@@ -226,7 +226,7 @@
       HB.confirm('Reset your companion chat?', 'Your talks with your little companion will be cleared. Your couple chat is never touched.', function () {
         HB.state.chatHistory = [];
         HB.save();
-        HB.toast('Chat reset — a fresh start ♡', '🧸');
+        HB.toast('Chat reset — a fresh start ♡', HB.icon('bot'));
       });
     });
 
@@ -237,7 +237,7 @@
         HB.state.dailyAnswers = [];
         HB.state.specialDates = [];
         HB.save();
-        HB.toast('Cleared. Room for new memories ♡', '🌱');
+        HB.toast('Cleared. Room for new memories ♡', HB.icon('sprout'));
       });
     });
 
@@ -257,14 +257,14 @@
       a.download = 'our-little-world-' + Date.now() + '.json';
       a.click();
       URL.revokeObjectURL(a.href);
-      HB.toast('Your memories are exported ♡', '📦');
+      HB.toast('Your memories are exported ♡', HB.icon('save'));
     });
 
     main.querySelector('#factory-reset').addEventListener('click', function () {
       HB.confirm('Factory reset — wipe everything for you two?', 'This erases ALL data for BOTH phones, forever: your chats, memories, love notes, photos, the couple activity feed, quiz history, and your couple itself. There is no undo — you will both start completely fresh from pairing codes.', function () {
         var overlay = showEraseOverlay();
         resetToFreshStart(overlay, (HB.rel && HB.rel.factoryReset ? HB.rel.factoryReset.bind(HB.rel) : null)).then(function () {
-          HB.toast('Everything is gone — a brand-new little world starts now ♡', '🌱');
+          HB.toast('Everything is gone — a brand-new little world starts now ♡', HB.icon('sprout'));
         });
       }, 'Reset everything');
     });
@@ -277,9 +277,9 @@
     if (copyCode) copyCode.addEventListener('click', function () {
       var btn = this;
       navigator.clipboard.writeText(HB.rel.data.relationship.pairing_code).then(function () {
-        btn.innerHTML = '✓ Copied 💕';
+        btn.innerHTML = '✓ Copied';
         setTimeout(function () { btn.innerHTML = HB.icon('copy') + ' Copy'; }, 1600);
-        HB.toast('Code copied ♡', '💌');
+        HB.toast('Code copied ♡', HB.icon('heart'));
       });
     });
 
@@ -313,7 +313,7 @@
     overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(38,28,20,0.82)';
     overlay.innerHTML =
       '<div style="background:var(--card,#fff);border-radius:24px;padding:34px 30px;max-width:320px;width:88%;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,0.4);font-family:var(--font-body)">' +
-        '<div style="font-size:44px;line-height:1">🧹</div>' +
+        '<div style="font-size:44px;line-height:1">' + HB.icon('sparkle') + '</div>' +
         '<div style="margin:14px 0 6px;font-size:19px;font-weight:800;color:var(--ink,#4B3B32);font-family:var(--font-display)">Erasing everything…</div>' +
         '<div class="typing" style="justify-content:center;margin:12px 0"><i></i><i></i><i></i></div>' +
         '<div style="font-size:12px;color:var(--ink-soft,#8a7468);font-weight:600">Your data is being wiped clean</div>' +

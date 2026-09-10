@@ -6,15 +6,15 @@
   var HB = window.HB = window.HB || {};
 
   var TILES = [
-    { path: '/chat', icon: '💬', title: 'Our Chat', sub: 'Your real-time messages, just for two', accent: '#F8BBD0' },
-    { path: '/companion', icon: '🐻', title: 'Your Companion', sub: 'Your cozy AI companion, just for you', accent: '#FFD3B6' },
-    { path: '/partner', icon: '💞', title: 'Your Partner', sub: 'Connection, code & bond', accent: '#D8C6F5' },
-    { path: '/memories', icon: '📸', title: 'Our Memories', sub: 'Your favorite moments', accent: '#F9C9A4' },
-    { path: '/notes', icon: '💌', title: 'Love Notes', sub: 'Little things worth saying', accent: '#F5B7C6' },
-    { path: '/daily', icon: '☀️', title: 'Daily Question', sub: 'One sweet question a day', accent: '#FFE5A3' },
-    { path: '/quiz', icon: '🎲', title: 'Daily Bond Quiz', sub: 'Playful, never serious', accent: '#D8C6F5' },
-    { path: '/dates', icon: '🎈', title: 'Fun Together', sub: 'Personalized date ideas', accent: '#A7E0C3' },
-    { path: '/special', icon: '⏳', title: 'Special Dates', sub: 'Your love timer & countdowns', accent: '#F5C6D0' }
+    { path: '/chat', icon: HB.icon('chat'), title: 'Our Chat', sub: 'Your real-time messages, just for two', accent: '#F8BBD0' },
+    { path: '/companion', icon: HB.icon('bot'), title: 'Your Companion', sub: 'Your cozy AI companion, just for you', accent: '#FFD3B6' },
+    { path: '/partner', icon: HB.icon('heart'), title: 'Your Partner', sub: 'Connection, code & bond', accent: '#D8C6F5' },
+    { path: '/memories', icon: HB.icon('image'), title: 'Our Memories', sub: 'Your favorite moments', accent: '#F9C9A4' },
+    { path: '/notes', icon: HB.icon('note'), title: 'Love Notes', sub: 'Little things worth saying', accent: '#F5B7C6' },
+    { path: '/daily', icon: HB.icon('sun'), title: 'Daily Question', sub: 'One sweet question a day', accent: '#FFE5A3' },
+    { path: '/quiz', icon: HB.icon('dice'), title: 'Daily Bond Quiz', sub: 'Playful, never serious', accent: '#D8C6F5' },
+    { path: '/dates', icon: HB.icon('balloon'), title: 'Fun Together', sub: 'Personalized date ideas', accent: '#A7E0C3' },
+    { path: '/special', icon: HB.icon('clock'), title: 'Special Dates', sub: 'Your love timer & countdowns', accent: '#F5C6D0' }
   ];
 
   function renderHome(main) {
@@ -23,7 +23,7 @@
     var p = HB.state.profile;
     var n = HB.firstNames();
     var rel = (p.relationship || '').toLowerCase();
-    var relEmoji = { couple: '💑', 'best friends': '🧸', crush: '💘', 'long distance': '🌍', 'newly together': '🌱', married: '💍', 'talking stage': '💬', "it's complicated": '🌀' }[rel.toLowerCase()] || '✨';
+    var relEmoji = { couple: HB.icon('users'), 'best friends': HB.icon('heart'), crush: HB.icon('sparkle'), 'long distance': HB.icon('globe'), 'newly together': HB.icon('sprout'), married: HB.icon('ring'), 'talking stage': HB.icon('chat'), "it's complicated": HB.icon('waves') }[rel.toLowerCase()] || HB.icon('star');
 
     var connected = HB.rel && HB.rel.data && HB.rel.data.status === 'connected';
     var waiting = HB.rel && HB.rel.data && HB.rel.data.status === 'waiting';
@@ -40,7 +40,7 @@
         '</div>' +
         '<div class="waiting-card">' +
           '<div class="waiting-dudu" data-wait-du></div>' +
-          '<div class="waiting-emoji">💕</div>' +
+          '<div class="waiting-emoji">' + HB.icon('heart') + '</div>' +
           '<h2 class="waiting-title">Your Pairing Code</h2>' +
           '<div class="waiting-code">' + HB.esc(code) + '</div>' +
           '<button class="btn btn-primary waiting-copy" id="waiting-copy">' + HB.icon('copy') + ' Copy Code</button>' +
@@ -55,11 +55,11 @@
       if (copyBtn) copyBtn.addEventListener('click', function () {
         var btn = this;
         navigator.clipboard.writeText(code).then(function () {
-          btn.innerHTML = '✓ Copied 💕';
+          btn.innerHTML = '✓ Copied';
           setTimeout(function () { btn.innerHTML = HB.icon('copy') + ' Copy Code'; }, 1600);
-          HB.toast('Code copied — send it to your person ♡', '💌');
+          HB.toast('Code copied — send it to your person ♡', HB.icon('heart'));
         }).catch(function () {
-          HB.toast('Couldn\'t copy — long-press the code instead ♡', '🐻');
+          HB.toast('Couldn\'t copy — long-press the code instead ♡', HB.icon('heart'));
         });
       });
 
@@ -68,7 +68,7 @@
         if (HB.rel.data.status === 'connected') {
           window.removeEventListener('hb:relchange', onConnect);
           HB.burst(window.innerWidth / 2, window.innerHeight / 3, 40);
-          HB.toast('You\'re connected! Welcome to your little world ♡', '🎉');
+          HB.toast('You\'re connected! Welcome to your little world ♡', HB.icon('sparkle'));
           if (HB.currentPath() === '/home') renderHome(main);
         }
       });
@@ -87,7 +87,7 @@
       var vibeEmoji = {};
       HB.VIBES.forEach(function (v) { vibeEmoji[v.label] = v.emoji; });
       var vibeLabels = p.vibes.slice(0, 2).map(function (v) { return typeof v === 'string' ? v : v.label; });
-      tags += '<span class="rh-tag">' + vibeLabels.map(function (l) { return (vibeEmoji[l] || '✨') + ' ' + HB.esc(l); }).join('</span><span class="rh-tag">') + '</span>';
+      tags += '<span class="rh-tag">' + vibeLabels.map(function (l) { return (vibeEmoji[l] || HB.icon('sparkle')) + ' ' + HB.esc(l); }).join('</span><span class="rh-tag">') + '</span>';
     }
 
     var tiles = TILES.map(function (t) {

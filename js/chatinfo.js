@@ -39,7 +39,7 @@ function openLightbox(url, msg, originEl) {
 
     main.innerHTML =
       '<div class="page">' +
-      '<div class="dash-hello"><h1>Our <span class="hand" style="font-size:1.15em">photos & links</span> 📷</h1>' +
+      '<div class="dash-hello"><h1>Our <span class="hand" style="font-size:1.15em">photos & links</span> ' + HB.icon('image') + '</h1>' +
       '<p>Everything you two have shared, all in one cozy place.</p></div>' +
       '<div class="section-title"><h3>Photos</h3><span class="hand">' + media.length + ' little moments</span></div>' +
       mediaHtml +
@@ -65,7 +65,7 @@ function openLightbox(url, msg, originEl) {
 
     var connected = HB.rel.data.status === 'connected';
     if (!connected) {
-      main.innerHTML = '<div class="page"><div class="dash-hello"><h1>Photos & <span class="hand" style="font-size:1.15em">links</span> 📷</h1>' +
+      main.innerHTML = '<div class="page"><div class="dash-hello"><h1>Photos & <span class="hand" style="font-size:1.15em">links</span> ' + HB.icon('image') + '</h1>' +
         '<p>Once you two are connected, everything you share shows up here.</p>' +
         '<button class="btn btn-primary" data-partner>Open Partner page 💞</button></div></div>';
       main.querySelector('[data-partner]').addEventListener('click', function () { HB.navigate('/partner'); });

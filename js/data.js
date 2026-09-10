@@ -6,49 +6,49 @@
   var HB = window.HB = window.HB || {};
 
   HB.RELATIONSHIPS = [
-    { label: 'Couple', emoji: '💑' },
-    { label: 'Best Friends', emoji: '🧸' },
-    { label: 'Crush', emoji: '💘' },
-    { label: 'Long Distance', emoji: '🌍' },
-    { label: 'Newly Together', emoji: '🌱' },
-    { label: 'Married', emoji: '💍' },
-    { label: 'Talking Stage', emoji: '💬' },
-    { label: "It's Complicated", emoji: '🌀' },
-    { label: 'Other', emoji: '✨' }
+    { label: 'Couple', emoji: HB.icon('users') },
+    { label: 'Best Friends', emoji: HB.icon('heart') },
+    { label: 'Crush', emoji: HB.icon('sparkle') },
+    { label: 'Long Distance', emoji: HB.icon('globe') },
+    { label: 'Newly Together', emoji: HB.icon('sprout') },
+    { label: 'Married', emoji: HB.icon('ring') },
+    { label: 'Talking Stage', emoji: HB.icon('chat') },
+    { label: "It's Complicated", emoji: HB.icon('waves') },
+    { label: 'Other', emoji: HB.icon('star') }
   ];
 
   HB.VIBES = [
-    { label: 'Cute & Romantic', emoji: '🌷' },
-    { label: 'Funny & Chaotic', emoji: '😂' },
-    { label: 'Soft & Emotional', emoji: '🫧' },
-    { label: 'Flirty', emoji: '😏' },
-    { label: 'Deep & Meaningful', emoji: '🌊' },
-    { label: 'Adventure Lovers', emoji: '🏔️' },
-    { label: 'Introvert Couple', emoji: '🛋️' },
-    { label: 'Long-Distance Love', emoji: '🌙' }
+    { label: 'Cute & Romantic', emoji: HB.icon('flower') },
+    { label: 'Funny & Chaotic', emoji: HB.icon('sparkle') },
+    { label: 'Soft & Emotional', emoji: HB.icon('droplet') },
+    { label: 'Flirty', emoji: HB.icon('smile') },
+    { label: 'Deep & Meaningful', emoji: HB.icon('waves') },
+    { label: 'Adventure Lovers', emoji: HB.icon('mountain') },
+    { label: 'Introvert Couple', emoji: HB.icon('couch') },
+    { label: 'Long-Distance Love', emoji: HB.icon('moon') }
   ];
 
   HB.CHAT_STYLES = [
-    { label: 'Sweet', emoji: '🍯' },
-    { label: 'Playful', emoji: '🎈' },
-    { label: 'Funny', emoji: '🤪' },
-    { label: 'Romantic', emoji: '🌹' },
-    { label: 'Protective', emoji: '🛡️' },
-    { label: 'Motivational', emoji: '🚀' },
-    { label: 'Calm', emoji: '🧘' },
-    { label: 'Flirty', emoji: '😜' },
-    { label: 'Emotional', emoji: '💗' },
-    { label: 'Sarcastic', emoji: '🙃' }
+    { label: 'Sweet', emoji: HB.icon('flower') },
+    { label: 'Playful', emoji: HB.icon('balloon') },
+    { label: 'Funny', emoji: HB.icon('smile') },
+    { label: 'Romantic', emoji: HB.icon('heart') },
+    { label: 'Protective', emoji: HB.icon('shield') },
+    { label: 'Motivational', emoji: HB.icon('rocket') },
+    { label: 'Calm', emoji: HB.icon('leaf') },
+    { label: 'Flirty', emoji: HB.icon('zap') },
+    { label: 'Emotional', emoji: HB.icon('heart') },
+    { label: 'Sarcastic', emoji: HB.icon('glasses') }
   ];
 
   HB.THEMES = [
-    { id: 'milk', name: 'Milk & Mocha', swatch: 'linear-gradient(135deg,#FFF6EE,#FFD9E0)', icon: '🥛' },
-    { id: 'bubu', name: 'Lovebirds', swatch: 'linear-gradient(135deg,#E6EAFF,#FCE4EE)', icon: '🫐' },
-    { id: 'pink', name: 'Pink Love', swatch: 'linear-gradient(135deg,#FFE3EC,#F7A8C4)', icon: '🌸' },
-    { id: 'midnight', name: 'Midnight Love', swatch: 'linear-gradient(135deg,#2B2750,#4A3560)', icon: '🌙' },
-    { id: 'cafe', name: 'Cozy Café', swatch: 'linear-gradient(135deg,#F5E3CB,#C98A4B)', icon: '☕' },
-    { id: 'sunset', name: 'Sunset Romance', swatch: 'linear-gradient(135deg,#FDE6DE,#F4A261)', icon: '🌅' },
-    { id: 'minimal', name: 'Minimal Couple', swatch: 'linear-gradient(135deg,#F3F1EC,#6C5CE7)', icon: '🤍' }
+    { id: 'milk', name: 'Milk & Mocha', swatch: 'linear-gradient(135deg,#FFF6EE,#FFD9E0)', icon: HB.icon('droplet') },
+    { id: 'bubu', name: 'Lovebirds', swatch: 'linear-gradient(135deg,#E6EAFF,#FCE4EE)', icon: HB.icon('heart') },
+    { id: 'pink', name: 'Pink Love', swatch: 'linear-gradient(135deg,#FFE3EC,#F7A8C4)', icon: HB.icon('flower') },
+    { id: 'midnight', name: 'Midnight Love', swatch: 'linear-gradient(135deg,#2B2750,#4A3560)', icon: HB.icon('moon') },
+    { id: 'cafe', name: 'Cozy Café', swatch: 'linear-gradient(135deg,#F5E3CB,#C98A4B)', icon: HB.icon('coffee') },
+    { id: 'sunset', name: 'Sunset Romance', swatch: 'linear-gradient(135deg,#FDE6DE,#F4A261)', icon: HB.icon('sun') },
+    { id: 'minimal', name: 'Minimal Couple', swatch: 'linear-gradient(135deg,#F3F1EC,#6C5CE7)', icon: HB.icon('star') }
   ];
 
   /* ---------------- Daily questions ---------------- */
@@ -79,7 +79,7 @@
   /* ---------------- Quiz data ---------------- */
   HB.QUIZ_CATEGORIES = [
     {
-      id: 'know', name: 'How Well Do You Know Each Other?', emoji: '🧠',
+      id: 'know', name: 'How Well Do You Know Each Other?', emoji: HB.icon('help'),
       desc: 'Little details that prove you actually listen.',
       points: 2,
       questions: [
@@ -91,7 +91,7 @@
       ]
     },
     {
-      id: 'love', name: 'Love Language', emoji: '💬',
+      id: 'love', name: 'Love Language', emoji: HB.icon('heart'),
       desc: 'Find out how you two say "I love you".',
       points: 1,
       questions: [
@@ -103,7 +103,7 @@
       ]
     },
     {
-      id: 'fun', name: 'Fun Couple Quiz', emoji: '🎉',
+      id: 'fun', name: 'Fun Couple Quiz', emoji: HB.icon('smile'),
       desc: 'Silly, chaotic, and impossible to fail.',
       points: 1,
       questions: [
@@ -115,7 +115,7 @@
       ]
     },
     {
-      id: 'deep', name: 'Deep Questions', emoji: '🌊',
+      id: 'deep', name: 'Deep Questions', emoji: HB.icon('waves'),
       desc: 'The kind that end in late-night talks.',
       points: 1,
       questions: [
@@ -126,7 +126,7 @@
       ]
     },
     {
-      id: 'random', name: 'Random Questions', emoji: '🎲',
+      id: 'random', name: 'Random Questions', emoji: HB.icon('dice'),
       desc: 'Silly little things, zero pressure.',
       points: 1,
       questions: [
@@ -138,7 +138,7 @@
       ]
     },
     {
-      id: 'compat', name: 'Compatibility', emoji: '💞',
+      id: 'compat', name: 'Compatibility', emoji: HB.icon('chart'),
       desc: 'The ultimate "are we basically the same person" test.',
       points: 2,
       questions: [
@@ -152,10 +152,10 @@
   ];
 
   HB.QUIZ_SCORE_MSGS = [
-    [0, 40, 'Oops, we\'ve been busy humans 😅 — time to start a fun convo, {me} and {partner} still have so much to discover!', 'No wrong answers here. This just gave you two an excuse to talk. Which is, honestly, the whole point.'],
-    [41, 70, 'You\'re getting there! You definitely listen… sometimes 😄', 'A solid couple score. Now go ask them the one question you got wrong. That\'s the real game.'],
-    [71, 90, '{score}% — You two basically share one brain cell, and it\'s adorable 😂♡', 'That\'s proper couple level. You clearly pay attention — or at least fake it very convincingly.'],
-    [91, 100, '{score}% — You two are basically the same person 😂♡', 'We\'re not saying it\'s fate. But also… it\'s definitely fate. Nobody listens this well on accident.']
+    [0, 40, 'Oops, we\'ve been busy humans — time to start a fun convo, {me} and {partner} still have so much to discover!', 'No wrong answers here. This just gave you two an excuse to talk. Which is, honestly, the whole point.'],
+    [41, 70, 'You\'re getting there! You definitely listen… sometimes', 'A solid couple score. Now go ask them the one question you got wrong. That\'s the real game.'],
+    [71, 90, '{score}% — You two basically share one brain cell, and it\'s adorable', 'That\'s proper couple level. You clearly pay attention — or at least fake it very convincingly.'],
+    [91, 100, '{score}% — You two are basically the same person', 'We\'re not saying it\'s fate. But also… it\'s definitely fate. Nobody listens this well on accident.']
   ];
 
   HB.quizScoreMessage = function (score, names) {
