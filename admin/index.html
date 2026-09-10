@@ -9,6 +9,20 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Caveat:wght@600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
+  <script>
+    // Opened by double-clicking the file? The app's scripts can't load over
+    // file:// — surface a clear hint instead of a silent blank page.
+    if (location.protocol === 'file:') {
+      document.addEventListener('DOMContentLoaded', function () {
+        var b = document.createElement('div');
+        b.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#1c1220;color:#ffe9f4;display:grid;place-items:center;text-align:center;padding:32px;font-family:system-ui,sans-serif;font-size:15px;line-height:1.6';
+        b.innerHTML = 'This Admin Desk must be opened over a web server, not by double-clicking the file.<br><br>' +
+          'Run this from the project folder:<br><code style="background:#00000055;padding:8px 14px;border-radius:10px;display:inline-block;margin-top:10px">python3 -m http.server 3000</code><br><br>' +
+          'Then open <strong>http://localhost:3000/admin/</strong>';
+        document.body.appendChild(b);
+      });
+    }
+  </script>
 </head>
 <body>
 
@@ -37,7 +51,7 @@
   </header>
 
   <!-- ================= LOGIN GATE ================= -->
-  <div id="gate" class="gate hidden">
+  <div id="gate" class="gate" hidden>
     <div class="gate-card">
       <div class="gate-lock" aria-hidden="true">🔐</div>
       <h2>Owner sign in</h2>
@@ -53,7 +67,7 @@
   </div>
 
   <!-- ================= PASSWORD RESET PANEL ================= -->
-  <div id="recovery" class="gate hidden">
+  <div id="recovery" class="gate" hidden>
     <div class="gate-card">
       <div class="gate-lock" aria-hidden="true">🔑</div>
       <h2 id="reset-title">Reset your password</h2>
@@ -64,12 +78,12 @@
         <button class="btn btn-primary" type="submit" id="btn-send-otp">Send code to email ♡</button>
       </form>
 
-      <form id="code-form" class="hidden">
+      <form id="code-form" hidden>
         <input class="input" id="otp-code" type="text" inputmode="numeric" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code" required />
         <button class="btn btn-primary" type="submit" id="btn-verify-otp">Verify &amp; continue ♡</button>
       </form>
 
-      <form id="newpass-form" class="hidden">
+      <form id="newpass-form" hidden>
         <input class="input" id="np1" type="password" placeholder="New password (8+ characters)" autocomplete="new-password" required />
         <input class="input" id="np2" type="password" placeholder="Repeat new password" autocomplete="new-password" required />
         <button class="btn btn-primary" type="submit" id="btn-save-new-pass">Save new password ♡</button>
@@ -81,7 +95,7 @@
   </div>
 
   <!-- ================= MAIN DASHBOARD ================= -->
-  <main id="dash" class="dash hidden">
+  <main id="dash" class="dash" hidden>
 
     <!-- Hero / control-center strip -->
     <section class="hero">
@@ -152,7 +166,7 @@
   </main>
 
   <!-- ================= COUPLE DETAIL VIEW (full page) ================= -->
-  <section id="detail" class="detail hidden" aria-label="Couple details" role="dialog" aria-modal="true">
+  <section id="detail" class="detail" hidden aria-label="Couple details" role="dialog" aria-modal="true">
     <header class="detail-head">
       <div class="detail-left">
         <button class="icon-btn" id="detail-back" aria-label="Back to couples list">←</button>
